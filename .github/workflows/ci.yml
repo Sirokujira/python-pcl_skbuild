@@ -18,6 +18,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y clang
+      # NOTE: requires the sirokujira/cppast2autopxd repository to be
+      # readable by CI (public, or a token configured); until it is
+      # published on PyPI the git+ URL is the install source.
       - name: Install cppast2autopxd + test deps
         run: |
           pip install "git+https://github.com/sirokujira/cppast2autopxd.git"
