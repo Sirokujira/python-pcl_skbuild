@@ -1,0 +1,7 @@
+include README.md
+include LICENSE
+include CMakeLists.txt
+include pyproject.toml
+recursive-include pxdgen *.py *.toml *.h
+recursive-include src *.pxd *.pyx *.py CMakeLists.txt
+recursive-include tests *.py

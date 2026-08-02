@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  # Fast job, no PCL: pxd generation pipeline + cython transpile checks.
+  pxd-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install clang (builtin headers for libclang)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang
+      - name: Install cppast2autopxd + test deps
+        run: |
+          pip install "git+https://github.com/sirokujira/cppast2autopxd.git"
+          pip install cython pytest
+      - name: Verify committed pxd are up to date & wrapper transpiles
+        run: pytest tests/test_pxd_pipeline.py -v
+
+  # Full build against real PCL headers/libraries.
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install PCL
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libpcl-dev
+      - name: Build package
+        run: pip install -v .
+      - name: Run runtime tests
+        run: |
+          pip install pytest
+          pytest tests/test_pointcloud.py -v

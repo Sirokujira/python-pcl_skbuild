@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python pxdgen/generate.py:*)",
+      "Bash(pytest:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(python -m cython:*)",
+      "Bash(cython:*)",
+      "Bash(pip install:*)",
+      "Bash(cmake --version)"
+    ]
+  }
+}

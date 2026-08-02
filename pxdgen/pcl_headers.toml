@@ -1,0 +1,27 @@
+# pxd generation config, consumed by cppast2autopxd (batch mode):
+#
+#     python pxdgen/generate.py            # regenerate src/pcl/pxd/*.pxd
+#     python pxdgen/generate.py --check    # verify committed pxd are current
+#
+# Headers are parsed from the self-contained mirror headers in
+# pxdgen/headers/, but the generated pxd files reference the REAL PCL header
+# paths via `extern_from`, so the C++ compiler always uses the actual PCL
+# installation at build time.
+
+[generator]
+std = "c++14"
+include_dirs = ["headers"]
+nogil = true
+except_plus = true
+
+[[headers]]
+path = "headers/pcl/point_types.h"
+extern_from = "pcl/point_types.h"
+output = "../src/pcl/pxd/point_types.pxd"
+namespaces = ["pcl"]
+
+[[headers]]
+path = "headers/pcl/point_cloud.h"
+extern_from = "pcl/point_cloud.h"
+output = "../src/pcl/pxd/point_cloud.pxd"
+namespaces = ["pcl"]
