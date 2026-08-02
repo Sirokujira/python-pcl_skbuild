@@ -38,6 +38,13 @@ pip install -v .
 pytest tests/test_pointcloud.py -v
 ```
 
+## Build troubleshooting
+
+- `pip install .` failing in `FindCython.cmake` / CMake configure after a
+  previous successful build: the `_skbuild/` cache references a deleted pip
+  build env — run `rm -rf _skbuild` and rebuild.
+- CMake can't find PCL: install `libpcl-dev` or set `PCL_ROOT`.
+
 ## About .pyd / .so binary modules
 
 - The build output `_pointcloud.so` / `_pointcloud.pyd` is produced by

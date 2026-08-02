@@ -23,9 +23,9 @@ cdef extern from "pcl/point_cloud.h" namespace "pcl" nogil:
         void reserve(size_t n) except +
         void resize(size_t count) except +
         void push_back(const PointT& pt) except +
-        PointT& at(size_t n) except +
-        PointT& front() except +
-        PointT& back() except +
-        PointT& operator[](size_t n) except +
+        PointT& at(size_t n)
+        PointT& front()
+        PointT& back()
+        PointT& operator[](size_t n)
         bool isOrganized() except +
         void swap(PointCloud[PointT]& rhs) except +
