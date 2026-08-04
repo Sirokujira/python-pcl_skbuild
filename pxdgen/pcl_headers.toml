@@ -1,12 +1,23 @@
-# pxd generation config, consumed by cppast2autopxd (batch mode):
+# Base pxd generation config, consumed by pxdgen/generate.py.
 #
-#     python pxdgen/generate.py            # regenerate src/pcl/pxd/*.pxd
+#     python pxdgen/generate.py            # regenerate src/pcl/pxd/**/*.pxd
 #     python pxdgen/generate.py --check    # verify committed pxd are current
+#
+# This file holds the [generator] settings, the typemap substitutions, and
+# the handful of headers that live at PCL's include root. Everything else
+# is listed per module in pxdgen/modules/*.toml; those files may contain
+# ONLY [[headers]] entries so generator settings cannot drift between
+# modules, and their relative paths resolve against pxdgen/ just like the
+# entries here.
 #
 # Headers are parsed from the self-contained mirror headers in
 # pxdgen/headers/, but the generated pxd files reference the REAL PCL header
 # paths via `extern_from`, so the C++ compiler always uses the actual PCL
 # installation at build time.
+#
+# Supported PCL range: 1.11 and newer (see .claude/rules/pipeline.md). 1.11
+# is where PCL switched boost::shared_ptr -> std::shared_ptr, which is the
+# version break that would otherwise force per-version declarations.
 
 [generator]
 std = "c++14"
@@ -27,8 +38,13 @@ output = "../src/pcl/pxd/point_cloud.pxd"
 namespaces = ["pcl"]
 
 [[headers]]
-path = "headers/pcl/io/pcd_io.h"
-extern_from = "pcl/io/pcd_io.h"
-output = "../src/pcl/pxd/pcd_io.pxd"
-namespaces = ["pcl::io"]
-extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+path = "headers/pcl/PointIndices.h"
+extern_from = "pcl/PointIndices.h"
+output = "../src/pcl/pxd/point_indices.pxd"
+namespaces = ["pcl"]
+
+[[headers]]
+path = "headers/pcl/ModelCoefficients.h"
+extern_from = "pcl/ModelCoefficients.h"
+output = "../src/pcl/pxd/model_coefficients.pxd"
+namespaces = ["pcl"]

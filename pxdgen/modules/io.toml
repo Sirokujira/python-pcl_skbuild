@@ -1,0 +1,9 @@
+# pcl/io — file readers and writers.
+# Only [[headers]] entries belong here; see pxdgen/pcl_headers.toml.
+
+[[headers]]
+path = "headers/pcl/io/pcd_io.h"
+extern_from = "pcl/io/pcd_io.h"
+output = "../src/pcl/pxd/io/pcd_io.pxd"
+namespaces = ["pcl::io"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]

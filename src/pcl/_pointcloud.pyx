@@ -23,7 +23,7 @@ from libcpp.string cimport string
 
 from pcl.pxd.point_types cimport PointXYZ
 from pcl.pxd.point_cloud cimport PointCloud as cPointCloud
-from pcl.pxd.pcd_io cimport loadPCDFile, savePCDFile
+from pcl.pxd.io.pcd_io cimport loadPCDFile, savePCDFile
 
 
 cdef string _topath(path):
@@ -42,7 +42,8 @@ cdef class PointCloud:
     To load a point cloud from disk, use pcl.load.
     """
 
-    cdef shared_ptr[cPointCloud[PointXYZ]] thisptr_shared
+    # thisptr_shared and ptr() are declared in _pointcloud.pxd so the other
+    # extension modules can reach them.
 
     def __cinit__(self, init=None):
         self.thisptr_shared.reset(new cPointCloud[PointXYZ]())
@@ -58,7 +59,7 @@ cdef class PointCloud:
             except (TypeError, ValueError):
                 self.from_list(init)
 
-    cdef inline cPointCloud[PointXYZ]* ptr(self) except NULL:
+    cdef cPointCloud[PointXYZ]* ptr(self) except NULL:
         if not self.thisptr_shared:
             raise MemoryError("point cloud not allocated")
         return self.thisptr_shared.get()
@@ -217,6 +218,55 @@ cdef class PointCloud:
         with nogil:
             error = savePCDFile[PointXYZ](s, deref(c), binary)
         return error
+
+    # --- algorithm factories (python-pcl compatible) -------------------
+    #
+    # The imports are deferred to call time on purpose. _filters, _kdtree
+    # and _segmentation all cimport PointCloud from this module, so a
+    # module-level import here would be circular. A Python-level import
+    # inside the method has no such problem: by the time anyone calls a
+    # factory, this module is fully initialised.
+
+    def make_voxel_grid_filter(self):
+        """Return a VoxelGridFilter with this cloud as input."""
+        from pcl._filters import VoxelGridFilter
+        return VoxelGridFilter(self)
+
+    def make_ApproximateVoxelGrid(self):
+        """Return an ApproximateVoxelGrid with this cloud as input."""
+        from pcl._filters import ApproximateVoxelGrid
+        return ApproximateVoxelGrid(self)
+
+    def make_passthrough_filter(self):
+        """Return a PassThroughFilter with this cloud as input."""
+        from pcl._filters import PassThroughFilter
+        return PassThroughFilter(self)
+
+    def make_statistical_outlier_filter(self):
+        """Return a StatisticalOutlierRemovalFilter with this cloud as
+        input."""
+        from pcl._filters import StatisticalOutlierRemovalFilter
+        return StatisticalOutlierRemovalFilter(self)
+
+    def make_RadiusOutlierRemoval(self):
+        """Return a RadiusOutlierRemoval with this cloud as input."""
+        from pcl._filters import RadiusOutlierRemoval
+        return RadiusOutlierRemoval(self)
+
+    def make_kdtree_flann(self):
+        """Return a KdTreeFLANN indexing this cloud."""
+        from pcl._kdtree import KdTreeFLANN
+        return KdTreeFLANN(self)
+
+    def make_segmenter(self):
+        """Return a Segmentation with this cloud as input."""
+        from pcl._segmentation import Segmentation
+        return Segmentation(self)
+
+    def make_EuclideanClusterExtraction(self):
+        """Return a EuclideanClusterExtraction with this cloud as input."""
+        from pcl._segmentation import EuclideanClusterExtraction
+        return EuclideanClusterExtraction(self)
 
 
 # Backwards-compatible name from the first iteration of this package.

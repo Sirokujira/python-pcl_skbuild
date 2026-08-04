@@ -11,16 +11,16 @@ Project layout follows
 ## How it fits together
 
 ```
-pxdgen/headers/pcl/*.h        self-contained "mirror" headers describing the
+pxdgen/headers/pcl/**/*.h     self-contained "mirror" headers describing the
         |                     PCL API surface being wrapped
-        v  cppast2autopxd (pxdgen/pcl_headers.toml)
-src/pcl/pxd/*.pxd             auto-generated `cdef extern from "pcl/..."`
+        v  cppast2autopxd (pxdgen/pcl_headers.toml + pxdgen/modules/*.toml)
+src/pcl/pxd/**/*.pxd          auto-generated `cdef extern from "pcl/..."`
         |                     declarations (committed, regenerable)
         v  cimport
-src/pcl/_pointcloud.pyx       hand-written Cython wrapper classes
+src/pcl/*.pyx                 hand-written Cython wrapper classes
         |  cython --cplus  (scikit-build / CMake: add_cython_target)
         v
-_pointcloud.cpp  --(C++ compiler + real PCL headers)-->  _pointcloud.so / .pyd
+*.cpp  --(C++ compiler + real PCL headers)-->  _pointcloud.so, _filters.so, ...
 ```
 
 Key idea: pxd generation runs against small, dependency-free *mirror headers*
@@ -33,40 +33,96 @@ PCL header paths (`cdef extern from "pcl/point_types.h"`). So:
 
 ## Build
 
-Requires PCL development files (e.g. `apt install libpcl-dev`, or set
-`PCL_ROOT` for a custom install), CMake >= 3.12, and a C++14 compiler.
+Requires **PCL 1.11 or newer** development files (e.g.
+`apt install libpcl-dev`, or set `PCL_ROOT` for a custom install),
+CMake >= 3.12, and a C++14 compiler. Older PCL is rejected at configure
+time: 1.11 is where `boost::shared_ptr` became `std::shared_ptr` across
+the API, and supporting both would mean per-version declarations — the
+duplication this pipeline exists to avoid. For PCL 1.7/1.8 use
+[python-pcl](https://github.com/sirokujira/python-pcl).
 
 ```sh
 pip install .
 ```
 
+## Usage
+
+The API follows [python-pcl](https://github.com/sirokujira/python-pcl),
+including the `cloud.make_*()` factory methods.
+
 ```python
+import numpy as np
 import pcl
 
-cloud = pcl.PointCloudXYZ.from_list([(0.0, 0.0, 0.0), (1.0, 2.0, 3.0)])
-print(cloud.size)      # 2
-print(cloud[1])        # (1.0, 2.0, 3.0)
+cloud = pcl.PointCloud(np.random.rand(1000, 3).astype(np.float32))
+
+vg = cloud.make_voxel_grid_filter()
+vg.set_leaf_size(0.1, 0.1, 0.1)
+downsampled = vg.filter()
+
+kd = cloud.make_kdtree_flann()
+indices, sqr_distances = kd.nearest_k_search_for_cloud(cloud, k=5)
+
+seg = cloud.make_segmenter()
+seg.set_model_type(pcl.SACMODEL_PLANE)
+seg.set_method_type(pcl.SAC_RANSAC)
+seg.set_distance_threshold(0.01)
+inliers, coefficients = seg.segment()
+
+pcl.save(downsampled, "out.pcd", binary=True)
 ```
 
-The built artifact is a native extension module (`_pointcloud.so` on
-Linux/macOS, `_pointcloud.pyd` on Windows) installed into the `pcl` package.
+Wrapped so far: `PointCloud` with PCD I/O, `VoxelGridFilter`,
+`ApproximateVoxelGrid`, `PassThroughFilter`,
+`StatisticalOutlierRemovalFilter`, `RadiusOutlierRemoval`, `KdTreeFLANN`,
+`Segmentation`, `EuclideanClusterExtraction`.
+
+The built artifacts are native extension modules (`_pointcloud`,
+`_filters`, `_kdtree`, `_segmentation`; `.so` on Linux/macOS, `.pyd` on
+Windows) installed into the `pcl` package.
+
+## Performance
+
+Measured against an identical native C++ program (PCL 1.14, 1M points —
+run it yourself with `sh bench/run.sh`):
+
+| operation | ratio vs C++ |
+|---|---|
+| `from_array` / `to_array` | ~1.0x |
+| PCD save / load | ~1.0x |
+| per-point `cloud[i]` in a Python loop | **80x** |
+
+Bulk transfers and PCL calls run at native speed; only per-point Python
+iteration is expensive (~85 ns/point). Use the array and whole-cloud APIs
+and let PCL keep the loop — see [`bench/README.md`](bench/README.md).
 
 ## Regenerating the pxd files
 
 ```sh
 pip install "git+https://github.com/sirokujira/cppast2autopxd.git"
-python pxdgen/generate.py           # rewrites src/pcl/pxd/*.pxd
+python pxdgen/generate.py           # rewrites src/pcl/pxd/**/*.pxd
 python pxdgen/generate.py --check   # CI mode: fail if committed pxd is stale
 ```
+
+`src/pcl/pxd/` mirrors PCL's own directory tree — a flat layout would
+collide, since PCL ships both `kdtree/kdtree.h` and `Search/kdtree.h`,
+both `common/common.h` and `visualization/common/common.h`, and more.
 
 To wrap more of PCL:
 
 1. Extend a mirror header in `pxdgen/headers/pcl/` (or add a new one that
    mirrors the corresponding real PCL header path).
-2. Add/adjust the `[[headers]]` entry in `pxdgen/pcl_headers.toml`.
+2. Add the `[[headers]]` entry to `pxdgen/modules/<group>.toml` (these
+   files hold `[[headers]]` entries only; generator settings live once in
+   `pxdgen/pcl_headers.toml` so they cannot drift).
 3. `python pxdgen/generate.py`
-4. Use the new declarations from a `.pyx` module, add it to
-   `src/pcl/CMakeLists.txt`, and add tests.
+4. Use the new declarations from a `.pyx` module, add its name to the list
+   in `src/pcl/CMakeLists.txt`, and add tests.
+
+`cppast2autopxd <header> --scaffold` generates a starting-point `.pyx`
+(owned pointer, constructor/destructor, primitive-typed methods forwarded,
+everything else as TODO comments) so the wrapper layer starts from
+working code rather than a blank file.
 
 ## Tests
 
