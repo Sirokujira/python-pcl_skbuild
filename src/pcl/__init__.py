@@ -14,6 +14,7 @@ import tempfile
 
 from ._pointcloud import PointCloud, PointCloudXYZ
 from ._pointtypes import (
+    PointCloud_Normal,
     PointCloud_PointXYZI,
     PointCloud_PointXYZRGB,
     PointCloud_PointXYZRGBA,
@@ -29,6 +30,13 @@ from ._registration import (
 from ._surface import ConcaveHull, ConvexHull, MovingLeastSquares
 from ._filters import (
     ApproximateVoxelGrid,
+    CompareOp_EQ,
+    CompareOp_GE,
+    CompareOp_GT,
+    CompareOp_LE,
+    CompareOp_LT,
+    ConditionAnd,
+    ConditionalRemoval,
     CropBox,
     ExtractIndices,
     PassThroughFilter,
@@ -51,7 +59,9 @@ from ._grabber import HDLGrabber, PCDGrabber
 from ._kdtree import KdTreeFLANN
 from ._segmentation import (
     EuclideanClusterExtraction,
+    ProgressiveMorphologicalFilter,
     Segmentation,
+    SegmentationNormal,
     SAC_LMEDS,
     SAC_MLESAC,
     SAC_MSAC,
@@ -72,17 +82,26 @@ from ._segmentation import (
     SACMODEL_PLANE,
     SACMODEL_SPHERE,
     SACMODEL_STICK,
+    SACMODEL_TORUS,
+    SACMODEL_PARALLEL_LINES,
+    SACMODEL_REGISTRATION,
+    SACMODEL_REGISTRATION_2D,
+    SACMODEL_NORMAL_PARALLEL_PLANE,
+    SACMODEL_ELLIPSE3D,
 )
 
 __all__ = [
     "PointCloud", "PointCloudXYZ", "load", "save",
+    "PointCloud_Normal",
     "PointCloud_PointXYZI", "PointCloud_PointXYZRGB",
     "PointCloud_PointXYZRGBA",
     "load_XYZI", "load_XYZRGB", "load_XYZRGBA", "save_XYZRGBA",
     "VoxelGridFilter", "ApproximateVoxelGrid", "PassThroughFilter",
     "StatisticalOutlierRemovalFilter", "RadiusOutlierRemoval",
     "ExtractIndices", "CropBox", "ProjectInliers", "RandomSample",
-    "UniformSampling",
+    "UniformSampling", "ConditionAnd", "ConditionalRemoval",
+    "CompareOp_GT", "CompareOp_GE", "CompareOp_LT", "CompareOp_LE",
+    "CompareOp_EQ",
     "HarrisKeypoint3D",
     "HARRIS", "NOBLE", "LOWE", "TOMASI", "CURVATURE",
     "KdTreeFLANN",
@@ -92,7 +111,8 @@ __all__ = [
     "IterativeClosestPoint", "IterativeClosestPointNonLinear",
     "GeneralizedIterativeClosestPoint", "NormalDistributionsTransform",
     "PCDGrabber", "HDLGrabber",
-    "Segmentation", "EuclideanClusterExtraction",
+    "Segmentation", "SegmentationNormal", "EuclideanClusterExtraction",
+    "ProgressiveMorphologicalFilter",
     "SAC_RANSAC", "SAC_LMEDS", "SAC_MSAC", "SAC_RRANSAC", "SAC_RMSAC",
     "SAC_MLESAC", "SAC_PROSAC",
     "SACMODEL_PLANE", "SACMODEL_LINE", "SACMODEL_CIRCLE2D",
@@ -100,6 +120,9 @@ __all__ = [
     "SACMODEL_CONE", "SACMODEL_PARALLEL_LINE",
     "SACMODEL_PERPENDICULAR_PLANE", "SACMODEL_PARALLEL_PLANE",
     "SACMODEL_NORMAL_PLANE", "SACMODEL_NORMAL_SPHERE", "SACMODEL_STICK",
+    "SACMODEL_TORUS", "SACMODEL_PARALLEL_LINES", "SACMODEL_REGISTRATION",
+    "SACMODEL_REGISTRATION_2D", "SACMODEL_NORMAL_PARALLEL_PLANE",
+    "SACMODEL_ELLIPSE3D",
 ]
 
 __version__ = "0.1.0"

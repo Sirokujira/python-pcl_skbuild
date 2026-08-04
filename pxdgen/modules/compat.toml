@@ -9,8 +9,10 @@ extern_from = "pcl/compat/eigen_args.h"
 output = "../src/pcl/pxd/compat/eigen_args.pxd"
 namespaces = ["pclcompat"]
 extra_cimports = [
-    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.point_types cimport PointXYZ, Normal",
     "from pcl.pxd.filters.crop_box cimport CropBox",
+    "from pcl.pxd.segmentation.sac_segmentation cimport SACSegmentation",
+    "from pcl.pxd.segmentation.sac_segmentation_normals cimport SACSegmentationFromNormals",
 ]
 
 [[headers]]
@@ -48,4 +50,14 @@ namespaces = ["pclcompat"]
 extra_cimports = [
     "from pcl.pxd.point_types cimport PointXYZ, PointXYZI",
     "from pcl.pxd.keypoints.harris_3d cimport HarrisKeypoint3D",
+]
+
+[[headers]]
+path = "headers/pcl/compat/condition_args.h"
+extern_from = "pcl/compat/condition_args.h"
+output = "../src/pcl/pxd/compat/condition_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.filters.conditional_removal cimport ConditionAnd, ConditionalRemoval",
 ]

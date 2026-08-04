@@ -6,12 +6,13 @@
 Reach them through `PointCloud.make_NormalEstimation()` and
 `PointCloud.make_MomentOfInertiaEstimation()`.
 
-`compute()` returns a numpy array rather than a PointCloud. python-pcl
-returns a `PointCloud_Normal` object whose only real use is `to_array()`;
-this package has no Normal-cloud wrapper yet, and inventing one that
-exists solely to be converted would be a worse API than handing over the
-array. The columns are the same either way:
-``normal_x, normal_y, normal_z, curvature``.
+`NormalEstimation` gives its result two ways. `compute()` returns an
+``(n, 4)`` numpy array — ``normal_x, normal_y, normal_z, curvature`` —
+which is what most callers want and what python-pcl's own
+`PointCloud_Normal` gets converted into anyway. `compute_cloud()`
+returns a :class:`PointCloud_Normal`, the form `SegmentationNormal`
+takes, so normal-based segmentation never has to round-trip through
+Python.
 
 MomentOfInertiaEstimation's Eigen-typed getters go through
 pcl/compat/eigen_results.h, which flattens them into float buffers — a
@@ -31,7 +32,10 @@ from pcl.pxd.compat.eigen_results cimport (
     axisAlignedBoundingBox, eigenValues, eigenVectors, massCenter,
     orientedBoundingBox)
 
+from libcpp.memory cimport shared_ptr
+
 from pcl._pointcloud cimport PointCloud
+from pcl._pointtypes cimport PointCloud_Normal, wrap_normal_cloud
 
 
 cdef class NormalEstimation:
@@ -70,6 +74,19 @@ cdef class NormalEstimation:
 
     def set_ViewPoint(self, float x, float y, float z):
         self.me.setViewPoint(x, y, z)
+
+    def compute_cloud(self):
+        """Return the normals as a :class:`PointCloud_Normal`.
+
+        This is the form `SegmentationNormal.set_InputNormals()` takes;
+        `compute()` gives the same values as an array.
+        """
+        cdef shared_ptr[cPointCloud[Normal]] holder
+        holder.reset(new cPointCloud[Normal]())
+        cdef cPointCloud[Normal]* out = holder.get()
+        with nogil:
+            self.me.compute(deref(out))
+        return wrap_normal_cloud(holder)
 
     def compute(self):
         """Return an ``(n, 4)`` float32 array:

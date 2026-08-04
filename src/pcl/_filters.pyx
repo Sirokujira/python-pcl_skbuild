@@ -43,8 +43,14 @@ from pcl.pxd.filters.uniform_sampling cimport (
     UniformSampling as cUniformSampling)
 from pcl.pxd.point_indices cimport PointIndices
 from pcl.pxd.model_coefficients cimport ModelCoefficients
+from pcl.pxd.filters.conditional_removal cimport (
+    ConditionAnd as cConditionAnd,
+    ConditionalRemoval as cConditionalRemoval)
 from pcl.pxd.compat.eigen_args cimport (
     setCropBoxMax, setCropBoxMin, setCropBoxRotation, setCropBoxTranslation)
+from pcl.pxd.compat.condition_args cimport (
+    COMPARE_EQ, COMPARE_GE, COMPARE_GT, COMPARE_LE, COMPARE_LT,
+    addFieldComparison, makeConditionAnd, setCondition)
 
 from libcpp.memory cimport shared_ptr
 
@@ -505,6 +511,83 @@ cdef class UniformSampling:
 
     def set_RadiusSearch(self, double radius):
         self.me.setRadiusSearch(radius)
+
+    def filter(self):
+        cdef PointCloud pc = PointCloud()
+        cdef cPointCloud[PointXYZ]* out = pc.ptr()
+        with nogil:
+            self.me.filter(deref(out))
+        return pc
+
+
+# ComparisonOps::CompareOp, re-exported from the header through the shim
+# so the values are not copied into Python to drift.
+CompareOp_GT = COMPARE_GT
+CompareOp_GE = COMPARE_GE
+CompareOp_LT = COMPARE_LT
+CompareOp_LE = COMPARE_LE
+CompareOp_EQ = COMPARE_EQ
+
+
+cdef class ConditionAnd:
+    """A conjunction of field comparisons (pcl::ConditionAnd).
+
+    Every comparison added must hold for a point to survive
+    `ConditionalRemoval`.
+
+        cond = cloud.make_ConditionAnd()
+        cond.add_Comparison2("z", pcl.CompareOp_GT, 0.0)
+        cond.add_Comparison2("z", pcl.CompareOp_LT, 1.0)
+
+    The tree is built through pcl/compat/condition_args.h: its nodes are
+    shared_ptrs to abstract bases, and Cython cannot perform the
+    derived-to-base shared_ptr conversions that assembling one needs.
+    """
+
+    cdef shared_ptr[cConditionAnd[PointXYZ]] thisptr
+
+    def __cinit__(self):
+        self.thisptr = makeConditionAnd()
+
+    def add_Comparison2(self, field_name, int op, double value):
+        """Add ``field_name <op> value``; *op* is one of the
+        ``pcl.CompareOp_*`` constants."""
+        addFieldComparison(deref(self.thisptr), _tobytes(field_name), op,
+                           value)
+        return self
+
+
+cdef class ConditionalRemoval:
+    """Keep the points a condition accepts (pcl::ConditionalRemoval)."""
+
+    cdef cConditionalRemoval[PointXYZ]* me
+    # Keeps the condition alive for as long as the filter refers to it.
+    cdef object condition
+
+    def __cinit__(self, ConditionAnd condition=None, PointCloud pc=None):
+        self.me = new cConditionalRemoval[PointXYZ]()
+        self.condition = None
+        if condition is not None:
+            self.set_Condition(condition)
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_Condition(self, ConditionAnd condition not None):
+        self.condition = condition
+        setCondition(deref(self.me), condition.thisptr)
+
+    def set_KeepOrganized(self, bint keep_organized):
+        self.me.setKeepOrganized(keep_organized)
+
+    def get_KeepOrganized(self):
+        return self.me.getKeepOrganized()
 
     def filter(self):
         cdef PointCloud pc = PointCloud()

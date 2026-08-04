@@ -287,6 +287,26 @@ cdef class PointCloud:
         from pcl._segmentation import EuclideanClusterExtraction
         return EuclideanClusterExtraction(self)
 
+    def make_segmenter_normals(self):
+        """Return a SegmentationNormal with this cloud as input."""
+        from pcl._segmentation import SegmentationNormal
+        return SegmentationNormal(self)
+
+    def make_ProgressiveMorphologicalFilter(self):
+        """Return a ProgressiveMorphologicalFilter with this cloud."""
+        from pcl._segmentation import ProgressiveMorphologicalFilter
+        return ProgressiveMorphologicalFilter(self)
+
+    def make_ConditionAnd(self):
+        """Return an empty ConditionAnd to add comparisons to."""
+        from pcl._filters import ConditionAnd
+        return ConditionAnd()
+
+    def make_ConditionalRemoval(self, condition):
+        """Return a ConditionalRemoval using *condition* on this cloud."""
+        from pcl._filters import ConditionalRemoval
+        return ConditionalRemoval(condition, self)
+
     def make_ExtractIndices(self):
         """Return an ExtractIndices with this cloud as input."""
         from pcl._filters import ExtractIndices

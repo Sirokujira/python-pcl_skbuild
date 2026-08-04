@@ -148,14 +148,15 @@ column-major, so that is the layout PCL already has).
 | area | classes |
 |---|---|
 | core | `PointCloud`, `pcl.load` / `pcl.save` (PCD, PLY, `.gz`) |
-| point types | `PointCloud_PointXYZI`, `PointCloud_PointXYZRGB`, `PointCloud_PointXYZRGBA` (+ `pcl.load_XYZI` / `load_XYZRGB` / `load_XYZRGBA`) |
+| point types | `PointCloud_PointXYZI`, `PointCloud_PointXYZRGB`, `PointCloud_PointXYZRGBA`, `PointCloud_Normal` (+ `pcl.load_XYZI` / `load_XYZRGB` / `load_XYZRGBA`) |
 | filters | `VoxelGridFilter`, `ApproximateVoxelGrid`, `PassThroughFilter`, `StatisticalOutlierRemovalFilter`, `RadiusOutlierRemoval`, `ExtractIndices`, `CropBox`, `ProjectInliers`, `RandomSample`, `UniformSampling` |
 | keypoints | `HarrisKeypoint3D` |
+| conditions | `ConditionAnd`, `ConditionalRemoval` (+ `pcl.CompareOp_*`) |
 | search | `KdTreeFLANN`, `OctreePointCloudSearch`, `OctreePointCloudChangeDetector` |
 | features | `NormalEstimation`, `MomentOfInertiaEstimation` |
 | surface | `MovingLeastSquares`, `ConcaveHull`, `ConvexHull` |
 | registration | `IterativeClosestPoint`, `IterativeClosestPointNonLinear`, `GeneralizedIterativeClosestPoint`, `NormalDistributionsTransform` |
-| segmentation | `Segmentation` (SAC), `EuclideanClusterExtraction` |
+| segmentation | `Segmentation` (SAC), `SegmentationNormal`, `EuclideanClusterExtraction`, `ProgressiveMorphologicalFilter` |
 | sensors | `PCDGrabber`, `HDLGrabber` |
 
 The built artifacts are native extension modules (`_pointcloud`,

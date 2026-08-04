@@ -4,7 +4,9 @@
 # distutils: language = c++
 
 from pcl.pxd.filters.crop_box cimport CropBox
-from pcl.pxd.point_types cimport PointXYZ
+from pcl.pxd.point_types cimport PointXYZ, Normal
+from pcl.pxd.segmentation.sac_segmentation cimport SACSegmentation
+from pcl.pxd.segmentation.sac_segmentation_normals cimport SACSegmentationFromNormals
 
 cdef extern from "pcl/compat/eigen_args.h" namespace "pclcompat" nogil:
     void setCropBoxMin(CropBox[PointXYZ]& box, float x, float y, float z) except +
@@ -14,3 +16,7 @@ cdef extern from "pcl/compat/eigen_args.h" namespace "pclcompat" nogil:
     void setCropBoxTranslation(CropBox[PointXYZ]& box, float x, float y, float z) except +
 
     void setCropBoxRotation(CropBox[PointXYZ]& box, float roll, float pitch, float yaw) except +
+
+    void setSegmentationAxis(SACSegmentation[PointXYZ]& seg, float x, float y, float z) except +
+
+    void setSegmentationAxis(SACSegmentationFromNormals[PointXYZ, Normal]& seg, float x, float y, float z) except +

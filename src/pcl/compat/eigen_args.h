@@ -12,6 +12,7 @@
 
 #include <pcl/filters/crop_box.h>
 #include <pcl/point_types.h>
+#include <pcl/segmentation/sac_segmentation.h>
 
 namespace pclcompat {
 
@@ -39,6 +40,18 @@ inline void setCropBoxTranslation(pcl::CropBox<Point>& box,
 inline void setCropBoxRotation(pcl::CropBox<Point>& box,
                                float roll, float pitch, float yaw) {
     box.setRotation(Eigen::Vector3f(roll, pitch, yaw));
+}
+
+/// The axis a perpendicular/parallel model is measured against.
+inline void setSegmentationAxis(pcl::SACSegmentation<Point>& seg,
+                                float x, float y, float z) {
+    seg.setAxis(Eigen::Vector3f(x, y, z));
+}
+
+inline void setSegmentationAxis(
+        pcl::SACSegmentationFromNormals<Point, pcl::Normal>& seg,
+        float x, float y, float z) {
+    seg.setAxis(Eigen::Vector3f(x, y, z));
 }
 
 }  // namespace pclcompat

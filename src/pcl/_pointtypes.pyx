@@ -30,7 +30,7 @@ from libcpp cimport bool as cbool
 from libcpp.memory cimport shared_ptr
 from libcpp.string cimport string
 
-from pcl.pxd.point_types cimport PointXYZI, PointXYZRGB, PointXYZRGBA
+from pcl.pxd.point_types cimport Normal, PointXYZI, PointXYZRGB, PointXYZRGBA
 from pcl.pxd.point_cloud cimport PointCloud as cPointCloud
 from pcl.pxd.io.pcd_io cimport loadPCDFile, savePCDFile
 from pcl.pxd.io.ply_io cimport loadPLYFile, savePLYFile
@@ -44,8 +44,6 @@ cdef string _topath(path):
 
 cdef class PointCloud_PointXYZI:
     """A cloud of pcl::PointXYZI (x, y, z, intensity)."""
-
-    cdef shared_ptr[cPointCloud[PointXYZI]] thisptr_shared
 
     def __cinit__(self, init=None):
         self.thisptr_shared.reset(new cPointCloud[PointXYZI]())
@@ -195,8 +193,6 @@ cdef class PointCloud_PointXYZI:
 
 cdef class PointCloud_PointXYZRGB:
     """A cloud of pcl::PointXYZRGB (x, y, z + 8-bit colour)."""
-
-    cdef shared_ptr[cPointCloud[PointXYZRGB]] thisptr_shared
 
     def __cinit__(self, init=None):
         self.thisptr_shared.reset(new cPointCloud[PointXYZRGB]())
@@ -398,8 +394,6 @@ cdef class PointCloud_PointXYZRGB:
 cdef class PointCloud_PointXYZRGBA:
     """A cloud of pcl::PointXYZRGBA (x, y, z + 8-bit colour with alpha)."""
 
-    cdef shared_ptr[cPointCloud[PointXYZRGBA]] thisptr_shared
-
     def __cinit__(self, init=None):
         self.thisptr_shared.reset(new cPointCloud[PointXYZRGBA]())
         if init is None:
@@ -593,3 +587,114 @@ cdef class PointCloud_PointXYZRGBA:
         with nogil:
             error = savePLYFile[PointXYZRGBA](s, deref(c), binary)
         return error
+
+
+cdef class PointCloud_Normal:
+    """A cloud of pcl::Normal (normal_x, normal_y, normal_z, curvature).
+
+    What `NormalEstimation.compute_cloud()` returns, and what
+    `SegmentationNormal.set_InputNormals()` takes — the two ends of the
+    normal-based segmentation workflow. `to_array()` gives the same
+    ``(n, 4)`` array `NormalEstimation.compute()` returns directly.
+    """
+
+    def __cinit__(self, init=None):
+        self.thisptr_shared.reset(new cPointCloud[Normal]())
+        if init is None:
+            return
+        elif isinstance(init, numbers.Integral):
+            self.resize(init)
+        elif isinstance(init, PointCloud_Normal):
+            self.ptr()[0] = (<PointCloud_Normal> init).ptr()[0]
+        else:
+            self.from_array(init)
+
+    cdef cPointCloud[Normal]* ptr(self) except NULL:
+        if not self.thisptr_shared:
+            raise MemoryError("point cloud not allocated")
+        return self.thisptr_shared.get()
+
+    @property
+    def width(self):
+        return self.ptr().width
+
+    @property
+    def height(self):
+        return self.ptr().height
+
+    @property
+    def size(self):
+        return self.ptr().size()
+
+    def __len__(self):
+        return self.ptr().size()
+
+    def empty(self):
+        return self.ptr().empty()
+
+    def resize(self, Py_ssize_t count):
+        if count < 0:
+            raise ValueError("negative size %d" % count)
+        cdef cPointCloud[Normal]* c = self.ptr()
+        c.resize(<size_t> count)
+        c.width = count
+        c.height = 1
+
+    def from_array(self, float[:, :] arr not None):
+        """Fill from an ``(n, 4)`` float32 array:
+        normal_x, normal_y, normal_z, curvature."""
+        if arr.shape[1] != 4:
+            raise ValueError(
+                "array must have shape (n, 4), got (%d, %d)"
+                % (arr.shape[0], arr.shape[1]))
+        cdef Py_ssize_t npts = arr.shape[0]
+        self.resize(npts)
+        cdef cPointCloud[Normal]* c = self.ptr()
+        cdef Normal* p
+        cdef Py_ssize_t i
+        for i in range(npts):
+            p = &(deref(c)[<size_t> i])
+            p.normal_x = arr[i, 0]
+            p.normal_y = arr[i, 1]
+            p.normal_z = arr[i, 2]
+            p.curvature = arr[i, 3]
+
+    def to_array(self):
+        """Return an ``(n, 4)`` float32 array:
+        normal_x, normal_y, normal_z, curvature."""
+        import numpy as np
+        cdef Py_ssize_t n = <Py_ssize_t> self.ptr().size()
+        result = np.empty((n, 4), dtype=np.float32)
+        cdef float[:, ::1] view = result
+        cdef cPointCloud[Normal]* c = self.ptr()
+        cdef Normal* p
+        cdef Py_ssize_t i
+        for i in range(n):
+            p = &(deref(c)[<size_t> i])
+            view[i, 0] = p.normal_x
+            view[i, 1] = p.normal_y
+            view[i, 2] = p.normal_z
+            view[i, 3] = p.curvature
+        return result
+
+    def to_list(self):
+        return self.to_array().tolist()
+
+    def __getitem__(self, Py_ssize_t index):
+        cdef Py_ssize_t n = <Py_ssize_t> self.ptr().size()
+        if index < 0:
+            index += n
+        if not 0 <= index < n:
+            raise IndexError("point index out of range")
+        cdef Normal* p = &(deref(self.ptr())[<size_t> index])
+        return p.normal_x, p.normal_y, p.normal_z, p.curvature
+
+    def __reduce__(self):
+        return type(self), (self.to_array(),)
+
+
+cdef PointCloud_Normal wrap_normal_cloud(shared_ptr[cPointCloud[Normal]] ptr):
+    """Adopt an existing pcl::PointCloud<Normal> without copying."""
+    cdef PointCloud_Normal pc = PointCloud_Normal()
+    pc.thisptr_shared = ptr
+    return pc
