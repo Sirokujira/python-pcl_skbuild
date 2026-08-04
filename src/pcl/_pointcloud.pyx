@@ -269,5 +269,17 @@ cdef class PointCloud:
         return EuclideanClusterExtraction(self)
 
 
+cdef PointCloud wrap_cloud(shared_ptr[cPointCloud[PointXYZ]] ptr):
+    """Wrap an existing pcl::PointCloud without copying its points.
+
+    __cinit__ always runs and allocates a cloud; assigning over the
+    shared_ptr releases that one immediately. The alternative — a second
+    constructor path — would be more code for one freed allocation.
+    """
+    cdef PointCloud pc = PointCloud()
+    pc.thisptr_shared = ptr
+    return pc
+
+
 # Backwards-compatible name from the first iteration of this package.
 PointCloudXYZ = PointCloud

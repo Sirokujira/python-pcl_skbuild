@@ -1,4 +1,4 @@
-# pcl/io — file readers and writers.
+# pcl/io — file readers and writers, plus the grabber (sensor) interface.
 # Only [[headers]] entries belong here; see pxdgen/pcl_headers.toml.
 
 [[headers]]
@@ -7,3 +7,21 @@ extern_from = "pcl/io/pcd_io.h"
 output = "../src/pcl/pxd/io/pcd_io.pxd"
 namespaces = ["pcl::io"]
 extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/io/grabber.h"
+extern_from = "pcl/io/grabber.h"
+output = "../src/pcl/pxd/io/grabber.pxd"
+namespaces = ["pcl"]
+
+[[headers]]
+path = "headers/pcl/io/pcd_grabber.h"
+extern_from = "pcl/io/pcd_grabber.h"
+output = "../src/pcl/pxd/io/pcd_grabber.pxd"
+namespaces = ["pcl"]
+
+[[headers]]
+path = "headers/pcl/io/hdl_grabber.h"
+extern_from = "pcl/io/hdl_grabber.h"
+output = "../src/pcl/pxd/io/hdl_grabber.pxd"
+namespaces = ["pcl"]

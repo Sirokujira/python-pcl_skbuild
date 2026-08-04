@@ -84,6 +84,48 @@ Never use Cython `IF` / `DEF` for version branching (deprecated in Cython
 3.0), and never duplicate a pxd or pyx per version — that is the
 maintenance trap this pipeline exists to avoid.
 
+## C++ shims (src/pcl/compat/)
+
+Shims are the rung-4 escape hatch, and not only for version differences —
+also for anything Cython cannot state. They live in `src/pcl/compat/`,
+are reached as `pcl/compat/<name>.h` (CMake puts `src/` on the include
+path), and get a mirror header like any other.
+
+The rule that makes them work: a shim exposes ONE name Cython can express
+and keeps everything else on the C++ side. `grabber_callback.h` is the
+worked example — it hides both a `std::function` (unbuildable from a
+Python callable) and a `boost::signals2::connection` (a type nothing
+above needs), exposing a C function pointer plus an opaque `void*`.
+
+A shim lives in its own namespace (`pclcompat`), so its signatures name
+PCL's types with a `pcl::` qualifier the extern block does not own. Those
+resolve through `extra_cimports` — cppast2autopxd accepts a qualified
+name whose tail is already known to the pxd.
+
+## Callbacks and the GIL
+
+PCL invokes grabber callbacks on its own thread with no GIL held. The
+Cython trampoline must be `noexcept nogil` and acquire the GIL itself,
+and it must swallow every Python exception: letting one unwind out of a
+`noexcept` C function called from a signals2 slot is `std::terminate`,
+i.e. the interpreter dies with no traceback. Print and continue instead.
+
+Whatever the C++ side holds a `void*` to must be kept alive by the
+wrapper for as long as a callback can fire, and disconnected in
+`__dealloc__` BEFORE the grabber is freed.
+
+## Upstream bugs belong in the wrapper, not in the caller's lap
+
+`PCDGrabber` with `frames_per_second=0` calls `std::terminate` inside PCL
+1.14.0 — reproducible in plain C++, so nothing a binding can catch. The
+wrapper raises a `RuntimeError` naming the cause instead of letting the
+process abort. Same principle for a silent no-op: PCL treats a directory
+path as a single file and returns a zero-frame grabber, so the wrapper
+expands directories itself.
+
+When PCL does something unusable, verify it in C++ first (that is what
+tells you it is not your bug), then decide in the `.pyx` layer.
+
 ## Environment (relative/discovered only)
 
 - PCL is found via CMake `find_package(PCL)`; a custom install is passed

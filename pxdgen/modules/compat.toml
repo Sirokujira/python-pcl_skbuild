@@ -1,0 +1,16 @@
+# pcl/compat — C++ shims that live in THIS repo (src/pcl/compat/), not in
+# PCL. They exist to expose one version-independent, Cython-expressible
+# name for something the pxd layer cannot state directly.
+# Only [[headers]] entries belong here; see pxdgen/pcl_headers.toml.
+
+[[headers]]
+path = "headers/pcl/compat/grabber_callback.h"
+extern_from = "pcl/compat/grabber_callback.h"
+output = "../src/pcl/pxd/compat/grabber_callback.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.io.pcd_grabber cimport PCDGrabber",
+    "from pcl.pxd.io.hdl_grabber cimport HDLGrabber",
+]

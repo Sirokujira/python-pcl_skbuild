@@ -72,10 +72,30 @@ inliers, coefficients = seg.segment()
 pcl.save(downsampled, "out.pcd", binary=True)
 ```
 
+### Sensors
+
+A grabber is PCL's streaming-sensor interface. Register a callback and
+PCL delivers a cloud per frame, on its own thread:
+
+```python
+import pcl
+
+grabber = pcl.PCDGrabber("captures/", frames_per_second=30, repeat=True)
+grabber.register_callback(lambda cloud: print(cloud.size))
+
+with grabber:          # start() / stop()
+    time.sleep(5)
+```
+
+`pcl.HDLGrabber(corrections_file, pcap_file)` replays a Velodyne
+HDL/VLP capture through the same interface. Exceptions raised inside a
+handler are printed and the stream continues — letting one escape into
+PCL's callback would terminate the interpreter.
+
 Wrapped so far: `PointCloud` with PCD I/O, `VoxelGridFilter`,
 `ApproximateVoxelGrid`, `PassThroughFilter`,
 `StatisticalOutlierRemovalFilter`, `RadiusOutlierRemoval`, `KdTreeFLANN`,
-`Segmentation`, `EuclideanClusterExtraction`.
+`Segmentation`, `EuclideanClusterExtraction`, `PCDGrabber`, `HDLGrabber`.
 
 The built artifacts are native extension modules (`_pointcloud`,
 `_filters`, `_kdtree`, `_segmentation`; `.so` on Linux/macOS, `.pyd` on

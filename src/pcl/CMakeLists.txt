@@ -11,6 +11,7 @@ set(PCL_CYTHON_MODULES
     _filters
     _kdtree
     _segmentation
+    _grabber
 )
 
 foreach(module ${PCL_CYTHON_MODULES})

@@ -15,6 +15,7 @@ from ._filters import (
     StatisticalOutlierRemovalFilter,
     VoxelGridFilter,
 )
+from ._grabber import HDLGrabber, PCDGrabber
 from ._kdtree import KdTreeFLANN
 from ._segmentation import (
     EuclideanClusterExtraction,
@@ -46,6 +47,7 @@ __all__ = [
     "VoxelGridFilter", "ApproximateVoxelGrid", "PassThroughFilter",
     "StatisticalOutlierRemovalFilter", "RadiusOutlierRemoval",
     "KdTreeFLANN",
+    "PCDGrabber", "HDLGrabber",
     "Segmentation", "EuclideanClusterExtraction",
     "SAC_RANSAC", "SAC_LMEDS", "SAC_MSAC", "SAC_RRANSAC", "SAC_RMSAC",
     "SAC_MLESAC", "SAC_PROSAC",
