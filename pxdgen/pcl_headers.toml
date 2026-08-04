@@ -25,3 +25,10 @@ path = "headers/pcl/point_cloud.h"
 extern_from = "pcl/point_cloud.h"
 output = "../src/pcl/pxd/point_cloud.pxd"
 namespaces = ["pcl"]
+
+[[headers]]
+path = "headers/pcl/io/pcd_io.h"
+extern_from = "pcl/io/pcd_io.h"
+output = "../src/pcl/pxd/pcd_io.pxd"
+namespaces = ["pcl::io"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
