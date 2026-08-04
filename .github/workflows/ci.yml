@@ -1,9 +1,24 @@
 name: CI
 
+# `push: branches: ["**"]` together with `pull_request` fires TWO complete
+# runs for every push to a branch with an open PR — the same commit tested
+# twice, in parallel, for nothing. Pushes are therefore limited to the
+# default branch, and branch work rides the pull_request event alone.
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+# Superseding a run cancels the one it replaced; without this, pushing
+# three times in a minute occupies three full matrices of runners.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   # pxd generation pipeline + cython transpile checks: no PCL needed, runs
@@ -11,6 +26,7 @@ jobs:
   pxd-pipeline:
     name: pxd-pipeline / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -20,6 +36,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
       - name: Install clang (builtin headers for libclang) — Linux
         if: runner.os == 'Linux'
         run: |
@@ -44,6 +61,7 @@ jobs:
   build:
     name: build / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -53,6 +71,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
       - name: Install PCL — Linux
         if: runner.os == 'Linux'
         run: |

@@ -21,3 +21,41 @@ extra_cimports = [
     "from pcl.pxd.point_cloud cimport PointCloud",
     "from pcl.pxd.point_indices cimport PointIndices",
 ]
+
+[[headers]]
+path = "headers/pcl/segmentation/sac_segmentation_normals.h"
+extern_from = "pcl/segmentation/sac_segmentation.h"
+output = "../src/pcl/pxd/segmentation/sac_segmentation_normals.pxd"
+namespaces = ["pcl"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.point_indices cimport PointIndices",
+    "from pcl.pxd.model_coefficients cimport ModelCoefficients",
+]
+
+[[headers]]
+path = "headers/pcl/segmentation/progressive_morphological_filter.h"
+extern_from = "pcl/segmentation/progressive_morphological_filter.h"
+output = "../src/pcl/pxd/segmentation/progressive_morphological_filter.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/segmentation/min_cut_segmentation.h"
+extern_from = "pcl/segmentation/min_cut_segmentation.h"
+output = "../src/pcl/pxd/segmentation/min_cut_segmentation.pxd"
+namespaces = ["pcl"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.point_indices cimport PointIndices",
+]
+
+[[headers]]
+path = "headers/pcl/segmentation/conditional_euclidean_clustering.h"
+extern_from = "pcl/segmentation/conditional_euclidean_clustering.h"
+output = "../src/pcl/pxd/segmentation/conditional_euclidean_clustering.pxd"
+namespaces = ["pcl"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.point_indices cimport PointIndices",
+]

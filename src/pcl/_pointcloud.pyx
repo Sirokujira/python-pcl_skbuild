@@ -24,6 +24,7 @@ from libcpp.string cimport string
 from pcl.pxd.point_types cimport PointXYZ
 from pcl.pxd.point_cloud cimport PointCloud as cPointCloud
 from pcl.pxd.io.pcd_io cimport loadPCDFile, savePCDFile
+from pcl.pxd.io.ply_io cimport loadPLYFile, savePLYFile
 
 
 cdef string _topath(path):
@@ -149,6 +150,50 @@ cdef class PointCloud:
             view[i, 2] = p.z
         return result
 
+    @property
+    def is_organized(self):
+        """True for a cloud laid out as a depth image (height > 1)."""
+        return self.ptr().height > 1
+
+    def from_organized_array(self, float[:, :, :] arr not None):
+        """Fill from a ``(height, width, 3)`` float32 array.
+
+        An organized cloud keeps the sensor's pixel grid, which is what
+        `FastBilateralFilter` and `IntegralImageNormalEstimation` need —
+        they work on the depth image, and silently do nothing without it.
+        """
+        if arr.shape[2] != 3:
+            raise ValueError(
+                "array must have shape (height, width, 3), got "
+                "(%d, %d, %d)" % (arr.shape[0], arr.shape[1], arr.shape[2]))
+        cdef Py_ssize_t height = arr.shape[0]
+        cdef Py_ssize_t width = arr.shape[1]
+        cdef cPointCloud[PointXYZ]* c = self.ptr()
+        c.resize(<size_t> (width * height))
+        c.width = <unsigned int> width
+        c.height = <unsigned int> height
+        cdef PointXYZ* p
+        cdef Py_ssize_t row, col, i
+        for row in range(height):
+            for col in range(width):
+                i = row * width + col
+                p = &(deref(c)[<size_t> i])
+                p.x = arr[row, col, 0]
+                p.y = arr[row, col, 1]
+                p.z = arr[row, col, 2]
+
+    def to_organized_array(self):
+        """Return a ``(height, width, 3)`` float32 array.
+
+        Raises for an unorganized cloud, which has no grid to return.
+        """
+        if not self.is_organized:
+            raise ValueError(
+                "cloud is not organized (height=%d); use to_array()"
+                % self.ptr().height)
+        return self.to_array().reshape(
+            self.ptr().height, self.ptr().width, 3)
+
     def from_list(self, _list):
         """Fill this pointcloud from a list of 3-tuples."""
         pts = list(_list)
@@ -219,6 +264,24 @@ cdef class PointCloud:
             error = savePCDFile[PointXYZ](s, deref(c), binary)
         return error
 
+    def _from_ply_file(self, path):
+        """Fill this cloud from a .ply file; returns PCL's error code."""
+        cdef string s = _topath(path)
+        cdef cPointCloud[PointXYZ]* c = self.ptr()
+        cdef int error
+        with nogil:
+            error = loadPLYFile[PointXYZ](s, deref(c))
+        return error
+
+    def _to_ply_file(self, path, cbool binary=False):
+        """Write this cloud to a .ply file; returns PCL's error code."""
+        cdef string s = _topath(path)
+        cdef cPointCloud[PointXYZ]* c = self.ptr()
+        cdef int error
+        with nogil:
+            error = savePLYFile[PointXYZ](s, deref(c), binary)
+        return error
+
     # --- algorithm factories (python-pcl compatible) -------------------
     #
     # The imports are deferred to call time on purpose. _filters, _kdtree
@@ -267,6 +330,159 @@ cdef class PointCloud:
         """Return a EuclideanClusterExtraction with this cloud as input."""
         from pcl._segmentation import EuclideanClusterExtraction
         return EuclideanClusterExtraction(self)
+
+    def make_segmenter_normals(self):
+        """Return a SegmentationNormal with this cloud as input."""
+        from pcl._segmentation import SegmentationNormal
+        return SegmentationNormal(self)
+
+    def make_ProgressiveMorphologicalFilter(self):
+        """Return a ProgressiveMorphologicalFilter with this cloud."""
+        from pcl._segmentation import ProgressiveMorphologicalFilter
+        return ProgressiveMorphologicalFilter(self)
+
+    def make_ConditionAnd(self):
+        """Return an empty ConditionAnd to add comparisons to."""
+        from pcl._filters import ConditionAnd
+        return ConditionAnd()
+
+    def make_ConditionalRemoval(self, condition):
+        """Return a ConditionalRemoval using *condition* on this cloud."""
+        from pcl._filters import ConditionalRemoval
+        return ConditionalRemoval(condition, self)
+
+    def make_ExtractIndices(self):
+        """Return an ExtractIndices with this cloud as input."""
+        from pcl._filters import ExtractIndices
+        return ExtractIndices(self)
+
+    def make_cropbox(self):
+        """Return a CropBox with this cloud as input."""
+        from pcl._filters import CropBox
+        return CropBox(self)
+
+    def make_ProjectInliers(self):
+        """Return a ProjectInliers with this cloud as input."""
+        from pcl._filters import ProjectInliers
+        return ProjectInliers(self)
+
+    def make_RandomSample(self):
+        """Return a RandomSample with this cloud as input."""
+        from pcl._filters import RandomSample
+        return RandomSample(self)
+
+    def make_UniformSampling(self):
+        """Return a UniformSampling with this cloud as input."""
+        from pcl._filters import UniformSampling
+        return UniformSampling(self)
+
+    def make_RangeImage(self, float angular_resolution=0.008726646):
+        """Return a RangeImage rendered from this cloud.
+
+        The default resolution is 0.5 degrees in radians, PCL's own.
+        """
+        from pcl._rangeimage import RangeImage
+        return RangeImage(self, angular_resolution)
+
+    def make_HarrisKeypoint3D(self):
+        """Return a HarrisKeypoint3D with this cloud as input."""
+        from pcl._keypoints import HarrisKeypoint3D
+        return HarrisKeypoint3D(self)
+
+    def make_octreeSearch(self, double resolution):
+        """Return an OctreePointCloudSearch built from this cloud."""
+        from pcl._octree import OctreePointCloudSearch
+        return OctreePointCloudSearch(resolution, self)
+
+    def make_octreeChangeDetector(self, double resolution):
+        """Return an OctreePointCloudChangeDetector holding this cloud."""
+        from pcl._octree import OctreePointCloudChangeDetector
+        return OctreePointCloudChangeDetector(resolution, self)
+
+    def make_VFHEstimation(self):
+        """Return a VFHEstimation with this cloud as input."""
+        from pcl._features import VFHEstimation
+        return VFHEstimation(self)
+
+    def make_IntegralImageNormalEstimation(self):
+        """Return an IntegralImageNormalEstimation with this cloud."""
+        from pcl._features import IntegralImageNormalEstimation
+        return IntegralImageNormalEstimation(self)
+
+    def make_ConditionalEuclideanClustering(self):
+        """Return a ConditionalEuclideanClustering with this cloud."""
+        from pcl._segmentation import ConditionalEuclideanClustering
+        return ConditionalEuclideanClustering(self)
+
+    def make_FastBilateralFilter(self):
+        """Return a FastBilateralFilter with this cloud as input."""
+        from pcl._filters import FastBilateralFilter
+        return FastBilateralFilter(self)
+
+    def make_MinCutSegmentation(self):
+        """Return a MinCutSegmentation with this cloud as input."""
+        from pcl._segmentation import MinCutSegmentation
+        return MinCutSegmentation(self)
+
+    def make_NormalEstimation(self):
+        """Return a NormalEstimation with this cloud as input."""
+        from pcl._features import NormalEstimation
+        return NormalEstimation(self)
+
+    def make_DifferenceOfNormalsEstimation(self):
+        """Return a DifferenceOfNormalsEstimation with this cloud."""
+        from pcl._features import DifferenceOfNormalsEstimation
+        return DifferenceOfNormalsEstimation(self)
+
+    def make_MomentOfInertiaEstimation(self):
+        """Return a MomentOfInertiaEstimation with this cloud as input."""
+        from pcl._features import MomentOfInertiaEstimation
+        return MomentOfInertiaEstimation(self)
+
+    def make_moving_least_squares(self):
+        """Return a MovingLeastSquares with this cloud as input."""
+        from pcl._surface import MovingLeastSquares
+        return MovingLeastSquares(self)
+
+    def make_crophull(self):
+        """Return a CropHull with this cloud as input."""
+        from pcl._filters import CropHull
+        return CropHull(self)
+
+    def make_GreedyProjectionTriangulation(self):
+        """Return a GreedyProjectionTriangulation."""
+        from pcl._surface import GreedyProjectionTriangulation
+        return GreedyProjectionTriangulation()
+
+    def make_ConcaveHull(self):
+        """Return a ConcaveHull with this cloud as input."""
+        from pcl._surface import ConcaveHull
+        return ConcaveHull(self)
+
+    def make_ConvexHull(self):
+        """Return a ConvexHull with this cloud as input."""
+        from pcl._surface import ConvexHull
+        return ConvexHull(self)
+
+    def make_IterativeClosestPoint(self):
+        """Return an IterativeClosestPoint."""
+        from pcl._registration import IterativeClosestPoint
+        return IterativeClosestPoint()
+
+    def make_IterativeClosestPointNonLinear(self):
+        """Return an IterativeClosestPointNonLinear."""
+        from pcl._registration import IterativeClosestPointNonLinear
+        return IterativeClosestPointNonLinear()
+
+    def make_GeneralizedIterativeClosestPoint(self):
+        """Return a GeneralizedIterativeClosestPoint."""
+        from pcl._registration import GeneralizedIterativeClosestPoint
+        return GeneralizedIterativeClosestPoint()
+
+    def make_NormalDistributionsTransform(self):
+        """Return a NormalDistributionsTransform."""
+        from pcl._registration import NormalDistributionsTransform
+        return NormalDistributionsTransform()
 
 
 cdef PointCloud wrap_cloud(shared_ptr[cPointCloud[PointXYZ]] ptr):

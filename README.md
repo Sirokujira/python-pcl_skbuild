@@ -72,6 +72,42 @@ inliers, coefficients = seg.segment()
 pcl.save(downsampled, "out.pcd", binary=True)
 ```
 
+### Segmentation, end to end
+
+PCL hands back indices and model coefficients; `ExtractIndices` and
+`ProjectInliers` turn them into clouds:
+
+```python
+seg = cloud.make_segmenter()
+seg.set_model_type(pcl.SACMODEL_PLANE)
+seg.set_method_type(pcl.SAC_RANSAC)
+seg.set_distance_threshold(0.01)
+indices, coefficients = seg.segment()
+
+extract = cloud.make_ExtractIndices()
+extract.set_indices(indices)
+plane = extract.filter()            # the fitted plane
+extract.set_negative(True)
+rest = extract.filter()             # everything else
+```
+
+### Colour
+
+`to_array()` keeps python-pcl's `(n, 4)` layout, whose fourth column is
+the packed RGB value reinterpreted as a float — a bit pattern, not a
+number, so arithmetic on it is meaningless. The uint8 views are what
+colour handling actually wants:
+
+```python
+cloud = pcl.load_XYZRGB("scene.pcd")
+xyz = cloud.to_xyz_array()      # (n, 3) float32
+rgb = cloud.to_rgb_array()      # (n, 3) uint8
+
+cloud.from_rgb_array(xyz, rgb)  # and back
+```
+
+Both views read the same union, so neither costs a conversion.
+
 ### Sensors
 
 A grabber is PCL's streaming-sensor interface. Register a callback and
@@ -92,14 +128,58 @@ HDL/VLP capture through the same interface. Exceptions raised inside a
 handler are printed and the stream continues — letting one escape into
 PCL's callback would terminate the interpreter.
 
-Wrapped so far: `PointCloud` with PCD I/O, `VoxelGridFilter`,
-`ApproximateVoxelGrid`, `PassThroughFilter`,
-`StatisticalOutlierRemovalFilter`, `RadiusOutlierRemoval`, `KdTreeFLANN`,
-`Segmentation`, `EuclideanClusterExtraction`, `PCDGrabber`, `HDLGrabber`.
+### Registration
+
+```python
+icp = source.make_IterativeClosestPoint()
+converged, transform, estimate, fitness = icp.icp(source, target, max_iter=100)
+
+ndt = source.make_NormalDistributionsTransform()   # not in python-pcl
+ndt.set_Resolution(1.0)
+ndt.set_StepSize(0.1)
+converged, transform, estimate, fitness = ndt.ndt(source, target)
+```
+
+`transform` is a 4x4 float32 array in Fortran order (Eigen is
+column-major, so that is the layout PCL already has).
+
+### Wrapped so far
+
+| area | classes |
+|---|---|
+| core | `PointCloud`, `pcl.load` / `pcl.save` (PCD, PLY, `.gz`) |
+| point types | `PointCloud_PointXYZI`, `PointCloud_PointXYZRGB`, `PointCloud_PointXYZRGBA`, `PointCloud_Normal` (+ `pcl.load_XYZI` / `load_XYZRGB` / `load_XYZRGBA`) |
+| filters | `VoxelGridFilter`, `ApproximateVoxelGrid`, `PassThroughFilter`, `StatisticalOutlierRemovalFilter`, `RadiusOutlierRemoval`, `ExtractIndices`, `CropBox`, `ProjectInliers`, `RandomSample`, `UniformSampling`, `FastBilateralFilter`, `CropHull` |
+| keypoints | `HarrisKeypoint3D`, NARF (via `RangeImage.narf_keypoints`) |
+| range image | `RangeImage` (+ `pcl.CAMERA_FRAME` / `LASER_FRAME`) |
+| conditions | `ConditionAnd`, `ConditionalRemoval` (+ `pcl.CompareOp_*`) |
+| sample consensus | `RandomSampleConsensus` + `SampleConsensusModel{Plane,Line,Circle2D,Circle3D,Sphere,Stick}` |
+| search | `KdTreeFLANN`, `OctreePointCloudSearch`, `OctreePointCloudChangeDetector` |
+| features | `NormalEstimation`, `IntegralImageNormalEstimation`, `DifferenceOfNormalsEstimation`, `MomentOfInertiaEstimation`, `VFHEstimation` |
+| surface | `MovingLeastSquares`, `ConcaveHull`, `ConvexHull`, `GreedyProjectionTriangulation` |
+| registration | `IterativeClosestPoint`, `IterativeClosestPointNonLinear`, `GeneralizedIterativeClosestPoint`, `NormalDistributionsTransform` |
+| segmentation | `Segmentation` (SAC), `SegmentationNormal`, `EuclideanClusterExtraction`, `ProgressiveMorphologicalFilter`, `MinCutSegmentation`, `ConditionalEuclideanClustering` |
+| recognition | `GeometricConsistencyGrouping`, `Hough3DGrouping` |
+| tracking | `ParticleFilterTracker` |
+| people | `pcl.hog` / `pcl.hog_descriptor_size` |
+| sensors | `PCDGrabber`, `HDLGrabber` |
 
 The built artifacts are native extension modules (`_pointcloud`,
 `_filters`, `_kdtree`, `_segmentation`; `.so` on Linux/macOS, `.pyd` on
 Windows) installed into the `pcl` package.
+
+### Not wrapped, and why
+
+- **`pcl/visualization`** — needs VTK development headers, which turns a
+  `pip install` into a VTK build. Everything here works headless; render
+  with whatever the caller already has (matplotlib, Open3D, `pcl_viewer`).
+- **The rest of `pcl/people`** — `person_cluster.h` does an unconditional
+  `#include <pcl/visualization/pcl_visualizer.h>`, so `PersonCluster`,
+  `HeightMap2D`, `HeadBasedSubclustering` and
+  `GroundBasedPeopleDetectionApp` all inherit the VTK dependency above.
+  `GroundBasedPeopleDetectionApp` additionally needs a trained SVM file
+  that this package cannot ship. `HOG` includes only `point_types.h`, so
+  it is wrapped.
 
 ## Performance
 

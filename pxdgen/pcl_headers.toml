@@ -48,3 +48,9 @@ path = "headers/pcl/ModelCoefficients.h"
 extern_from = "pcl/ModelCoefficients.h"
 output = "../src/pcl/pxd/model_coefficients.pxd"
 namespaces = ["pcl"]
+
+[[headers]]
+path = "headers/pcl/Vertices.h"
+extern_from = "pcl/Vertices.h"
+output = "../src/pcl/pxd/vertices.pxd"
+namespaces = ["pcl"]

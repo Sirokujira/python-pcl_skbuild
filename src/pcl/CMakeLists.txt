@@ -12,6 +12,17 @@ set(PCL_CYTHON_MODULES
     _kdtree
     _segmentation
     _grabber
+    _octree
+    _features
+    _surface
+    _registration
+    _pointtypes
+    _keypoints
+    _sac
+    _rangeimage
+    _recognition
+    _tracking
+    _people
 )
 
 foreach(module ${PCL_CYTHON_MODULES})

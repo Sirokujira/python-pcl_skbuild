@@ -116,15 +116,59 @@ wrapper for as long as a callback can fire, and disconnected in
 
 ## Upstream bugs belong in the wrapper, not in the caller's lap
 
-`PCDGrabber` with `frames_per_second=0` calls `std::terminate` inside PCL
-1.14.0 — reproducible in plain C++, so nothing a binding can catch. The
+`VFHEstimation::compute()` segfaults when no normals were set, and
+`PCDGrabber` with `frames_per_second=0` calls `std::terminate`, both
+inside PCL 1.14.0 — reproducible in plain C++, so nothing a binding can catch. The
 wrapper raises a `RuntimeError` naming the cause instead of letting the
 process abort. Same principle for a silent no-op: PCL treats a directory
 path as a single file and returns a zero-frame grabber, so the wrapper
 expands directories itself.
 
+`DifferenceOfNormalsEstimation` is the same shape of problem one level
+up: it makes `Feature::compute()` **private**, so `computeFeature()` is
+the only way in — and `computeFeature()` writes `output[i]` for every
+input point without ever resizing `output`, because resizing was
+`compute()`'s job. Calling the only public entry point as documented
+therefore writes past the end of an empty cloud. The wrapper sizes the
+output itself before the call. Verified both ways in plain C++: empty
+output segfaults, pre-sized output returns.
+
+`ParticleFilterTracker` is a third: it declares `bool changed_{false}`
+and never assigns it — only the OMP subclasses do — while
+`computeTracking()` gates both `resample()` and `update()` on that flag.
+The plain tracker therefore computes particle weights and throws them
+away, and `getResult()` returns the initial pose on every frame. The
+wrapper tracks `ParticleFilterOMPTracker` instead. Verified in plain C++
+against 1.14: the base reports (0,0,0) for a moving object, the OMP one
+follows it.
+
+Not every quirk is worth absorbing, though. PCL's octree treats the FIRST
+point of a cloud specially: `voxelSearch` can miss it, and
+`getPointIndicesFromNewVoxels` reports index 0 as new even for an
+unchanged cloud. Both reproduce in plain C++ against 1.14.0. Nothing here
+papers over them — a wrapper that silently dropped index 0 would be lying
+about what PCL returned — so the tests document the behaviour instead.
+
+And sometimes the bug is in the *documentation*: `pcl::people::HOG`'s
+`descriptor` out-parameter has no stated length, and a short buffer is a
+silent heap overflow. The size was measured by sentinel-filling across
+six parameter sets — `(h/bin - 2) * (w/bin - 2) * n_orients * 4` — and
+`people_args.h` owns the allocation so a caller cannot get it wrong.
+
 When PCL does something unusable, verify it in C++ first (that is what
-tells you it is not your bug), then decide in the `.pyx` layer.
+tells you it is not your bug), then decide in the `.pyx` layer: absorb it
+when it would otherwise crash or silently no-op, document it when it is
+merely surprising.
+
+## Cython traps found the hard way
+
+- **No comprehension or generator over a C++ reference.** Cython builds a
+  closure that holds the reference, and the generated scope object
+  segfaults on construction. `_polygon_list` in `_surface.pyx` uses plain
+  loops for exactly this reason; the crash looked like a PCL bug until a
+  backtrace put it in the closure's `tp_new`.
+- Every `cdef` method needs a declaration in the type's `.pxd` once one
+  exists, internal helpers included.
 
 ## Environment (relative/discovered only)
 

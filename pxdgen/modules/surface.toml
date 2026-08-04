@@ -1,0 +1,39 @@
+# pcl/surface — smoothing and hull reconstruction.
+# Only [[headers]] entries belong here; see pxdgen/pcl_headers.toml.
+
+[[headers]]
+path = "headers/pcl/surface/mls.h"
+extern_from = "pcl/surface/mls.h"
+output = "../src/pcl/pxd/surface/mls.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/surface/concave_hull.h"
+extern_from = "pcl/surface/concave_hull.h"
+output = "../src/pcl/pxd/surface/concave_hull.pxd"
+namespaces = ["pcl"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.vertices cimport Vertices",
+]
+
+[[headers]]
+path = "headers/pcl/surface/convex_hull.h"
+extern_from = "pcl/surface/convex_hull.h"
+output = "../src/pcl/pxd/surface/convex_hull.pxd"
+namespaces = ["pcl"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.vertices cimport Vertices",
+]
+
+[[headers]]
+path = "headers/pcl/surface/gp3.h"
+extern_from = "pcl/surface/gp3.h"
+output = "../src/pcl/pxd/surface/gp3.pxd"
+namespaces = ["pcl"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.vertices cimport Vertices",
+]

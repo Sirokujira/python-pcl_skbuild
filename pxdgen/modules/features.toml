@@ -1,0 +1,37 @@
+# pcl/features — descriptors computed from a cloud's local geometry.
+# Only [[headers]] entries belong here; see pxdgen/pcl_headers.toml.
+
+[[headers]]
+path = "headers/pcl/features/normal_3d.h"
+extern_from = "pcl/features/normal_3d.h"
+output = "../src/pcl/pxd/features/normal_3d.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/moment_of_inertia_estimation.h"
+extern_from = "pcl/features/moment_of_inertia_estimation.h"
+output = "../src/pcl/pxd/features/moment_of_inertia_estimation.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/vfh.h"
+extern_from = "pcl/features/vfh.h"
+output = "../src/pcl/pxd/features/vfh.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/integral_image_normal.h"
+extern_from = "pcl/features/integral_image_normal.h"
+output = "../src/pcl/pxd/features/integral_image_normal.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/don.h"
+extern_from = "pcl/features/don.h"
+output = "../src/pcl/pxd/features/don.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]

@@ -33,6 +33,31 @@ from pcl.pxd.filters.statistical_outlier_removal cimport (
     StatisticalOutlierRemoval as cStatisticalOutlierRemoval)
 from pcl.pxd.filters.radius_outlier_removal cimport (
     RadiusOutlierRemoval as cRadiusOutlierRemoval)
+from pcl.pxd.filters.extract_indices cimport (
+    ExtractIndices as cExtractIndices)
+from pcl.pxd.filters.crop_box cimport CropBox as cCropBox
+from pcl.pxd.filters.project_inliers cimport (
+    ProjectInliers as cProjectInliers)
+from pcl.pxd.filters.random_sample cimport RandomSample as cRandomSample
+from pcl.pxd.filters.uniform_sampling cimport (
+    UniformSampling as cUniformSampling)
+from pcl.pxd.point_indices cimport PointIndices
+from pcl.pxd.model_coefficients cimport ModelCoefficients
+from pcl.pxd.filters.crop_hull cimport CropHull as cCropHull
+from pcl.pxd.vertices cimport Vertices
+from libcpp.vector cimport vector
+from pcl.pxd.filters.fast_bilateral cimport (
+    FastBilateralFilter as cFastBilateralFilter)
+from pcl.pxd.filters.conditional_removal cimport (
+    ConditionAnd as cConditionAnd,
+    ConditionalRemoval as cConditionalRemoval)
+from pcl.pxd.compat.eigen_args cimport (
+    setCropBoxMax, setCropBoxMin, setCropBoxRotation, setCropBoxTranslation)
+from pcl.pxd.compat.condition_args cimport (
+    COMPARE_EQ, COMPARE_GE, COMPARE_GT, COMPARE_LE, COMPARE_LT,
+    addFieldComparison, makeConditionAnd, setCondition)
+
+from libcpp.memory cimport shared_ptr
 
 from pcl._pointcloud cimport PointCloud
 
@@ -276,6 +301,407 @@ cdef class RadiusOutlierRemoval:
 
     def set_negative(self, bint negative):
         self.me.setNegative(negative)
+
+    def filter(self):
+        cdef PointCloud pc = PointCloud()
+        cdef cPointCloud[PointXYZ]* out = pc.ptr()
+        with nogil:
+            self.me.filter(deref(out))
+        return pc
+
+
+cdef class ExtractIndices:
+    """Pull a subset of points out by index (pcl::ExtractIndices).
+
+    The other half of segmentation: `Segmentation.segment()` and
+    `EuclideanClusterExtraction.Extract()` hand back indices, and this is
+    what turns them into a cloud.
+    """
+
+    cdef cExtractIndices[PointXYZ]* me
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cExtractIndices[PointXYZ]()
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_indices(self, indices not None):
+        """Select these point indices (any iterable of ints)."""
+        cdef shared_ptr[PointIndices] holder
+        holder.reset(new PointIndices())
+        cdef int value
+        for value in indices:
+            deref(holder).indices.push_back(value)
+        self.me.setIndices(holder)
+
+    def set_negative(self, bint negative):
+        """Invert: keep everything the indices do NOT name."""
+        self.me.setNegative(negative)
+
+    def get_negative(self):
+        return self.me.getNegative()
+
+    def set_keep_organized(self, bint keep_organized):
+        self.me.setKeepOrganized(keep_organized)
+
+    def filter(self):
+        cdef PointCloud pc = PointCloud()
+        cdef cPointCloud[PointXYZ]* out = pc.ptr()
+        with nogil:
+            self.me.filter(deref(out))
+        return pc
+
+
+cdef class CropBox:
+    """Keep the points inside an axis-aligned (or rotated) box
+    (pcl::CropBox).
+
+    `set_Min`/`set_Max` take plain floats through
+    pcl/compat/eigen_args.h — PCL's own setters take Eigen vectors,
+    which Cython cannot build.
+    """
+
+    cdef cCropBox[PointXYZ]* me
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cCropBox[PointXYZ]()
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_Min(self, float x, float y, float z):
+        setCropBoxMin(deref(self.me), x, y, z)
+
+    def set_Max(self, float x, float y, float z):
+        setCropBoxMax(deref(self.me), x, y, z)
+
+    def set_Translation(self, float x, float y, float z):
+        setCropBoxTranslation(deref(self.me), x, y, z)
+
+    def set_Rotation(self, float roll, float pitch, float yaw):
+        """Box orientation as roll/pitch/yaw, in radians."""
+        setCropBoxRotation(deref(self.me), roll, pitch, yaw)
+
+    def set_negative(self, bint negative):
+        self.me.setNegative(negative)
+
+    def filter(self):
+        cdef PointCloud pc = PointCloud()
+        cdef cPointCloud[PointXYZ]* out = pc.ptr()
+        with nogil:
+            self.me.filter(deref(out))
+        return pc
+
+
+cdef class ProjectInliers:
+    """Project points onto a parametric model (pcl::ProjectInliers).
+
+    The usual next step after `Segmentation.segment()`, using the
+    coefficients it returned.
+    """
+
+    cdef cProjectInliers[PointXYZ]* me
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cProjectInliers[PointXYZ]()
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_model_type(self, int model):
+        """Model to project onto, e.g. ``pcl.SACMODEL_PLANE``."""
+        self.me.setModelType(model)
+
+    def get_model_type(self):
+        return self.me.getModelType()
+
+    def set_model_coefficients(self, coefficients not None):
+        """The coefficient list `Segmentation.segment()` returned."""
+        cdef shared_ptr[ModelCoefficients] holder
+        holder.reset(new ModelCoefficients())
+        cdef float value
+        for value in coefficients:
+            deref(holder).values.push_back(value)
+        self.me.setModelCoefficients(holder)
+
+    def set_copy_all_data(self, bint value):
+        self.me.setCopyAllData(value)
+
+    def filter(self):
+        cdef PointCloud pc = PointCloud()
+        cdef cPointCloud[PointXYZ]* out = pc.ptr()
+        with nogil:
+            self.me.filter(deref(out))
+        return pc
+
+
+cdef class RandomSample:
+    """Keep a random subset of a fixed size (pcl::RandomSample)."""
+
+    cdef cRandomSample[PointXYZ]* me
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cRandomSample[PointXYZ]()
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_sample(self, unsigned int sample):
+        """How many points to keep."""
+        self.me.setSample(sample)
+
+    def get_sample(self):
+        return self.me.getSample()
+
+    def set_seed(self, unsigned int seed):
+        """Fix the seed to make the sample reproducible."""
+        self.me.setSeed(seed)
+
+    def get_seed(self):
+        return self.me.getSeed()
+
+    def filter(self):
+        cdef PointCloud pc = PointCloud()
+        cdef cPointCloud[PointXYZ]* out = pc.ptr()
+        with nogil:
+            self.me.filter(deref(out))
+        return pc
+
+
+cdef class UniformSampling:
+    """One point per sphere of a given radius (pcl::UniformSampling).
+
+    python-pcl reaches this through pcl/pxi/KeyPoint/, because PCL used
+    to ship it under keypoints/; since 1.9 it is a filter.
+    """
+
+    cdef cUniformSampling[PointXYZ]* me
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cUniformSampling[PointXYZ]()
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_RadiusSearch(self, double radius):
+        self.me.setRadiusSearch(radius)
+
+    def filter(self):
+        cdef PointCloud pc = PointCloud()
+        cdef cPointCloud[PointXYZ]* out = pc.ptr()
+        with nogil:
+            self.me.filter(deref(out))
+        return pc
+
+
+# ComparisonOps::CompareOp, re-exported from the header through the shim
+# so the values are not copied into Python to drift.
+CompareOp_GT = COMPARE_GT
+CompareOp_GE = COMPARE_GE
+CompareOp_LT = COMPARE_LT
+CompareOp_LE = COMPARE_LE
+CompareOp_EQ = COMPARE_EQ
+
+
+cdef class ConditionAnd:
+    """A conjunction of field comparisons (pcl::ConditionAnd).
+
+    Every comparison added must hold for a point to survive
+    `ConditionalRemoval`.
+
+        cond = cloud.make_ConditionAnd()
+        cond.add_Comparison2("z", pcl.CompareOp_GT, 0.0)
+        cond.add_Comparison2("z", pcl.CompareOp_LT, 1.0)
+
+    The tree is built through pcl/compat/condition_args.h: its nodes are
+    shared_ptrs to abstract bases, and Cython cannot perform the
+    derived-to-base shared_ptr conversions that assembling one needs.
+    """
+
+    cdef shared_ptr[cConditionAnd[PointXYZ]] thisptr
+
+    def __cinit__(self):
+        self.thisptr = makeConditionAnd()
+
+    def add_Comparison2(self, field_name, int op, double value):
+        """Add ``field_name <op> value``; *op* is one of the
+        ``pcl.CompareOp_*`` constants."""
+        addFieldComparison(deref(self.thisptr), _tobytes(field_name), op,
+                           value)
+        return self
+
+
+cdef class ConditionalRemoval:
+    """Keep the points a condition accepts (pcl::ConditionalRemoval)."""
+
+    cdef cConditionalRemoval[PointXYZ]* me
+    # Keeps the condition alive for as long as the filter refers to it.
+    cdef object condition
+
+    def __cinit__(self, ConditionAnd condition=None, PointCloud pc=None):
+        self.me = new cConditionalRemoval[PointXYZ]()
+        self.condition = None
+        if condition is not None:
+            self.set_Condition(condition)
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_Condition(self, ConditionAnd condition not None):
+        self.condition = condition
+        setCondition(deref(self.me), condition.thisptr)
+
+    def set_KeepOrganized(self, bint keep_organized):
+        self.me.setKeepOrganized(keep_organized)
+
+    def get_KeepOrganized(self):
+        return self.me.getKeepOrganized()
+
+    def filter(self):
+        cdef PointCloud pc = PointCloud()
+        cdef cPointCloud[PointXYZ]* out = pc.ptr()
+        with nogil:
+            self.me.filter(deref(out))
+        return pc
+
+
+cdef class FastBilateralFilter:
+    """Edge-preserving smoothing for ORGANIZED clouds
+    (pcl::FastBilateralFilter).
+
+    It works on the depth image, so an unorganized cloud comes back
+    unchanged — build the input with
+    `PointCloud.from_organized_array()`.
+    """
+
+    cdef cFastBilateralFilter[PointXYZ]* me
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cFastBilateralFilter[PointXYZ]()
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_sigma_s(self, float sigma_s):
+        """Spatial extent of the smoothing, in pixels."""
+        self.me.setSigmaS(sigma_s)
+
+    def get_sigma_s(self):
+        return self.me.getSigmaS()
+
+    def set_sigma_r(self, float sigma_r):
+        """Depth difference an edge has to exceed to be preserved."""
+        self.me.setSigmaR(sigma_r)
+
+    def get_sigma_r(self):
+        return self.me.getSigmaR()
+
+    def filter(self):
+        cdef PointCloud pc = PointCloud()
+        cdef cPointCloud[PointXYZ]* out = pc.ptr()
+        with nogil:
+            self.me.filter(deref(out))
+        return pc
+
+
+cdef class CropHull:
+    """Keep the points inside a hull (pcl::CropHull).
+
+    Takes what `ConvexHull.reconstruct_with_polygons()` returns, which
+    is what turns a hull from a shape into a region selector:
+
+        hull_points, polygons = region.make_ConvexHull().reconstruct_with_polygons()
+        crop = cloud.make_crophull()
+        crop.set_HullCloud(hull_points)
+        crop.set_HullIndices(polygons)
+        crop.set_Dim(3)
+        inside = crop.filter()
+    """
+
+    cdef cCropHull[PointXYZ]* me
+    # Keeps the hull cloud alive: PCL holds it by shared_ptr, but so must
+    # the Python object that owns the handle.
+    cdef object hull_cloud
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cCropHull[PointXYZ]()
+        self.hull_cloud = None
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_HullCloud(self, PointCloud pc not None):
+        self.hull_cloud = pc
+        self.me.setHullCloud(pc.thisptr_shared)
+
+    def set_HullIndices(self, polygons not None):
+        """The polygon list `reconstruct_with_polygons()` returned."""
+        cdef vector[Vertices] hull
+        cdef Vertices polygon
+        cdef int index
+        for entry in polygons:
+            polygon = Vertices()
+            for index in entry:
+                polygon.vertices.push_back(index)
+            hull.push_back(polygon)
+        self.me.setHullIndices(hull)
+
+    def set_Dim(self, int dim):
+        """2 for a planar hull, 3 for a volume."""
+        self.me.setDim(dim)
+
+    def set_CropOutside(self, bint crop_outside):
+        """True (the default) keeps what is inside the hull."""
+        self.me.setCropOutside(crop_outside)
 
     def filter(self):
         cdef PointCloud pc = PointCloud()

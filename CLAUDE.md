@@ -43,11 +43,27 @@ src/pcl/compat/*.h          C++ shims for what Cython cannot state
 
 ## Wrapped so far
 
-`PointCloud` (+ PCD I/O via `pcl.load` / `pcl.save`), `VoxelGridFilter`,
-`ApproximateVoxelGrid`, `PassThroughFilter`,
-`StatisticalOutlierRemovalFilter`, `RadiusOutlierRemoval`, `KdTreeFLANN`,
-`Segmentation` (SAC), `EuclideanClusterExtraction`, and the sensor side:
-`PCDGrabber`, `HDLGrabber`. Names follow
+`PointCloud` (+ PCD/PLY I/O via `pcl.load` / `pcl.save`, `.gz`
+transparent), `PointCloud_PointXYZI` / `_PointXYZRGB` / `_PointXYZRGBA`
+(with `to_rgb_array` / `from_rgb_array` uint8 colour views alongside
+python-pcl's packed-float column), `VoxelGridFilter`, `ApproximateVoxelGrid`,
+`PassThroughFilter`, `StatisticalOutlierRemovalFilter`,
+`RadiusOutlierRemoval`, `ExtractIndices`, `CropBox`, `ProjectInliers`,
+`RandomSample`, `UniformSampling`, `ConditionAnd` / `ConditionalRemoval`,
+`HarrisKeypoint3D`, `SegmentationNormal`, `ProgressiveMorphologicalFilter`,
+`RandomSampleConsensus` + the `SampleConsensusModel*` builders,
+`IntegralImageNormalEstimation`, `DifferenceOfNormalsEstimation`,
+`ConditionalEuclideanClustering`,
+`GreedyProjectionTriangulation`, `CropHull`, `RangeImage` + NARF keypoints,
+`KdTreeFLANN`, `OctreePointCloudSearch`,
+`OctreePointCloudChangeDetector`, `NormalEstimation`,
+`MomentOfInertiaEstimation`, `MovingLeastSquares`, `ConcaveHull`,
+`ConvexHull`, `IterativeClosestPoint`,
+`IterativeClosestPointNonLinear`, `GeneralizedIterativeClosestPoint`,
+`NormalDistributionsTransform`, `Segmentation` (SAC),
+`EuclideanClusterExtraction`, `GeometricConsistencyGrouping`,
+`Hough3DGrouping`, `ParticleFilterTracker`, `pcl.hog`, and the sensor
+side: `PCDGrabber`, `HDLGrabber`. Names follow
 [sirokujira/python-pcl](https://github.com/sirokujira/python-pcl),
 including the `cloud.make_*()` factory methods.
 

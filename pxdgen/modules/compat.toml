@@ -4,6 +4,33 @@
 # Only [[headers]] entries belong here; see pxdgen/pcl_headers.toml.
 
 [[headers]]
+path = "headers/pcl/compat/eigen_args.h"
+extern_from = "pcl/compat/eigen_args.h"
+output = "../src/pcl/pxd/compat/eigen_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ, Normal",
+    "from pcl.pxd.filters.crop_box cimport CropBox",
+    "from pcl.pxd.segmentation.sac_segmentation cimport SACSegmentation",
+    "from pcl.pxd.segmentation.sac_segmentation_normals cimport SACSegmentationFromNormals",
+]
+
+[[headers]]
+path = "headers/pcl/compat/eigen_results.h"
+extern_from = "pcl/compat/eigen_results.h"
+output = "../src/pcl/pxd/compat/eigen_results.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.registration.icp cimport IterativeClosestPoint",
+    "from pcl.pxd.registration.icp_nl cimport IterativeClosestPointNonLinear",
+    "from pcl.pxd.registration.gicp cimport GeneralizedIterativeClosestPoint",
+    "from pcl.pxd.registration.ndt cimport NormalDistributionsTransform",
+    "from pcl.pxd.features.moment_of_inertia_estimation cimport MomentOfInertiaEstimation",
+    "from pcl.pxd.octree.octree_search cimport OctreePointCloudSearch",
+]
+
+[[headers]]
 path = "headers/pcl/compat/grabber_callback.h"
 extern_from = "pcl/compat/grabber_callback.h"
 output = "../src/pcl/pxd/compat/grabber_callback.pxd"
@@ -14,3 +41,83 @@ extra_cimports = [
     "from pcl.pxd.io.pcd_grabber cimport PCDGrabber",
     "from pcl.pxd.io.hdl_grabber cimport HDLGrabber",
 ]
+
+[[headers]]
+path = "headers/pcl/compat/keypoint_args.h"
+extern_from = "pcl/compat/keypoint_args.h"
+output = "../src/pcl/pxd/compat/keypoint_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ, PointXYZI",
+    "from pcl.pxd.keypoints.harris_3d cimport HarrisKeypoint3D",
+]
+
+[[headers]]
+path = "headers/pcl/compat/condition_args.h"
+extern_from = "pcl/compat/condition_args.h"
+output = "../src/pcl/pxd/compat/condition_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.filters.conditional_removal cimport ConditionAnd, ConditionalRemoval",
+]
+
+[[headers]]
+path = "headers/pcl/compat/sac_models.h"
+extern_from = "pcl/compat/sac_models.h"
+output = "../src/pcl/pxd/compat/sac_models.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.sample_consensus.sac_model cimport SampleConsensusModel",
+    "from pcl.pxd.sample_consensus.ransac cimport RandomSampleConsensus",
+]
+
+[[headers]]
+path = "headers/pcl/compat/organized_args.h"
+extern_from = "pcl/compat/organized_args.h"
+output = "../src/pcl/pxd/compat/organized_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ, Normal",
+    "from pcl.pxd.features.integral_image_normal cimport IntegralImageNormalEstimation",
+    "from pcl.pxd.segmentation.conditional_euclidean_clustering cimport ConditionalEuclideanClustering",
+]
+
+[[headers]]
+path = "headers/pcl/compat/range_image_args.h"
+extern_from = "pcl/compat/range_image_args.h"
+output = "../src/pcl/pxd/compat/range_image_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.range_image.range_image cimport RangeImage",
+]
+
+[[headers]]
+path = "headers/pcl/compat/recognition_args.h"
+extern_from = "pcl/compat/recognition_args.h"
+output = "../src/pcl/pxd/compat/recognition_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+]
+
+[[headers]]
+path = "headers/pcl/compat/tracking_args.h"
+extern_from = "pcl/compat/tracking_args.h"
+output = "../src/pcl/pxd/compat/tracking_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+]
+
+[[headers]]
+path = "headers/pcl/compat/people_args.h"
+extern_from = "pcl/compat/people_args.h"
+output = "../src/pcl/pxd/compat/people_args.pxd"
+namespaces = ["pclcompat"]

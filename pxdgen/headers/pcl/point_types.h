@@ -131,4 +131,11 @@ struct PointNormal {
     };
 };
 
+
+// A 308-bin Viewpoint Feature Histogram: one descriptor for a whole
+// cloud, which is why VFHEstimation's output cloud holds a single point.
+struct VFHSignature308 {
+    float histogram[308];
+};
+
 }  // namespace pcl
