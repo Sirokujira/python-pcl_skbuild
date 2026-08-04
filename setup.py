@@ -40,7 +40,11 @@ setup(
         exclude=["*.tests", "*.tests.*", "tests.*", "tests"],
     ),
     package_dir={'': 'src'},
-    package_data={'pcl.pxd': ['*.pxd'], 'pcl': ['*.pxd']},
+    # pxd declarations ship with the wheel so downstream Cython code can
+    # cimport them. Keyed on '' rather than per-package: src/pcl/pxd/ has a
+    # subpackage per PCL module and naming them individually is a list that
+    # silently goes stale.
+    package_data={'': ['*.pxd']},
     zip_safe=False,
     install_requires=install_requires,
     python_requires='>=3.9',

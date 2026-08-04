@@ -8,8 +8,53 @@ hand-written. The API follows sirokujira/python-pcl.
 import os.path
 
 from ._pointcloud import PointCloud, PointCloudXYZ
+from ._filters import (
+    ApproximateVoxelGrid,
+    PassThroughFilter,
+    RadiusOutlierRemoval,
+    StatisticalOutlierRemovalFilter,
+    VoxelGridFilter,
+)
+from ._kdtree import KdTreeFLANN
+from ._segmentation import (
+    EuclideanClusterExtraction,
+    Segmentation,
+    SAC_LMEDS,
+    SAC_MLESAC,
+    SAC_MSAC,
+    SAC_PROSAC,
+    SAC_RANSAC,
+    SAC_RMSAC,
+    SAC_RRANSAC,
+    SACMODEL_CIRCLE2D,
+    SACMODEL_CIRCLE3D,
+    SACMODEL_CONE,
+    SACMODEL_CYLINDER,
+    SACMODEL_LINE,
+    SACMODEL_NORMAL_PLANE,
+    SACMODEL_NORMAL_SPHERE,
+    SACMODEL_PARALLEL_LINE,
+    SACMODEL_PARALLEL_PLANE,
+    SACMODEL_PERPENDICULAR_PLANE,
+    SACMODEL_PLANE,
+    SACMODEL_SPHERE,
+    SACMODEL_STICK,
+)
 
-__all__ = ["PointCloud", "PointCloudXYZ", "load", "save"]
+__all__ = [
+    "PointCloud", "PointCloudXYZ", "load", "save",
+    "VoxelGridFilter", "ApproximateVoxelGrid", "PassThroughFilter",
+    "StatisticalOutlierRemovalFilter", "RadiusOutlierRemoval",
+    "KdTreeFLANN",
+    "Segmentation", "EuclideanClusterExtraction",
+    "SAC_RANSAC", "SAC_LMEDS", "SAC_MSAC", "SAC_RRANSAC", "SAC_RMSAC",
+    "SAC_MLESAC", "SAC_PROSAC",
+    "SACMODEL_PLANE", "SACMODEL_LINE", "SACMODEL_CIRCLE2D",
+    "SACMODEL_CIRCLE3D", "SACMODEL_SPHERE", "SACMODEL_CYLINDER",
+    "SACMODEL_CONE", "SACMODEL_PARALLEL_LINE",
+    "SACMODEL_PERPENDICULAR_PLANE", "SACMODEL_PARALLEL_PLANE",
+    "SACMODEL_NORMAL_PLANE", "SACMODEL_NORMAL_SPHERE", "SACMODEL_STICK",
+]
 
 __version__ = "0.1.0"
 

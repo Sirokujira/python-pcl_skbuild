@@ -1,0 +1,9 @@
+# pcl/kdtree — nearest-neighbour search.
+# Only [[headers]] entries belong here; see pxdgen/pcl_headers.toml.
+
+[[headers]]
+path = "headers/pcl/kdtree/kdtree_flann.h"
+extern_from = "pcl/kdtree/kdtree_flann.h"
+output = "../src/pcl/pxd/kdtree/kdtree_flann.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]

@@ -1,0 +1,15 @@
+# pcl/sample_consensus — method and model type constants used by
+# SACSegmentation. Only [[headers]] entries belong here; see
+# pxdgen/pcl_headers.toml.
+
+[[headers]]
+path = "headers/pcl/sample_consensus/method_types.h"
+extern_from = "pcl/sample_consensus/method_types.h"
+output = "../src/pcl/pxd/sample_consensus/method_types.pxd"
+namespaces = ["pcl"]
+
+[[headers]]
+path = "headers/pcl/sample_consensus/model_types.h"
+extern_from = "pcl/sample_consensus/model_types.h"
+output = "../src/pcl/pxd/sample_consensus/model_types.pxd"
+namespaces = ["pcl"]

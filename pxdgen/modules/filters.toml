@@ -1,0 +1,37 @@
+# pcl/filters — downsampling and outlier removal.
+# Only [[headers]] entries belong here; see pxdgen/pcl_headers.toml.
+
+[[headers]]
+path = "headers/pcl/filters/voxel_grid.h"
+extern_from = "pcl/filters/voxel_grid.h"
+output = "../src/pcl/pxd/filters/voxel_grid.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/filters/approximate_voxel_grid.h"
+extern_from = "pcl/filters/approximate_voxel_grid.h"
+output = "../src/pcl/pxd/filters/approximate_voxel_grid.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/filters/passthrough.h"
+extern_from = "pcl/filters/passthrough.h"
+output = "../src/pcl/pxd/filters/passthrough.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/filters/statistical_outlier_removal.h"
+extern_from = "pcl/filters/statistical_outlier_removal.h"
+output = "../src/pcl/pxd/filters/statistical_outlier_removal.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/filters/radius_outlier_removal.h"
+extern_from = "pcl/filters/radius_outlier_removal.h"
+output = "../src/pcl/pxd/filters/radius_outlier_removal.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]

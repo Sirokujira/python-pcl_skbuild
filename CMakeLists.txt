@@ -23,7 +23,19 @@ if(APPLE)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13")
 endif(APPLE)
 
-find_package(PCL REQUIRED COMPONENTS common io)
+find_package(PCL REQUIRED COMPONENTS common io filters kdtree search segmentation)
+
+# Supported range: PCL 1.11+. 1.11 is where boost::shared_ptr became
+# std::shared_ptr across the API; the generated pxd declare std::shared_ptr
+# unconditionally, so an older PCL fails deep inside the C++ compile with
+# unreadable template errors. Fail here instead, with a message that says
+# what to do. See .claude/rules/pipeline.md for the version policy.
+if(PCL_VERSION VERSION_LESS "1.11")
+    message(FATAL_ERROR
+        "PCL ${PCL_VERSION} found, but this package requires PCL 1.11 or newer "
+        "(1.11 switched boost::shared_ptr -> std::shared_ptr). Point PCL_ROOT "
+        "at a newer install, or use sirokujira/python-pcl for PCL 1.7/1.8.")
+endif()
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src ${PCL_INCLUDE_DIRS})
 if(NumPy_FOUND)

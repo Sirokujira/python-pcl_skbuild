@@ -1,0 +1,23 @@
+# pcl/segmentation — model fitting and clustering.
+# Only [[headers]] entries belong here; see pxdgen/pcl_headers.toml.
+
+[[headers]]
+path = "headers/pcl/segmentation/sac_segmentation.h"
+extern_from = "pcl/segmentation/sac_segmentation.h"
+output = "../src/pcl/pxd/segmentation/sac_segmentation.pxd"
+namespaces = ["pcl"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.point_indices cimport PointIndices",
+    "from pcl.pxd.model_coefficients cimport ModelCoefficients",
+]
+
+[[headers]]
+path = "headers/pcl/segmentation/extract_clusters.h"
+extern_from = "pcl/segmentation/extract_clusters.h"
+output = "../src/pcl/pxd/segmentation/extract_clusters.pxd"
+namespaces = ["pcl"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.point_indices cimport PointIndices",
+]
