@@ -222,3 +222,89 @@ def test_concave_hull_alpha_controls_detail(cloud):
     # A tighter alpha follows the surface more closely, so it keeps more
     # points than one large enough to approach the convex hull.
     assert sizes[0] >= sizes[1]
+
+
+# --- difference of normals -------------------------------------------
+
+@pytest.fixture
+def plane_with_a_rough_patch():
+    """A flat grid with one bumpy square: structure at the small scale
+    only, which is exactly what DoN is meant to isolate."""
+    rng = np.random.RandomState(0)
+    grid = np.mgrid[0:40, 0:40].reshape(2, -1).T * 0.05
+    points = np.zeros((grid.shape[0], 3), dtype=np.float32)
+    points[:, :2] = grid
+    rough = (np.abs(grid[:, 0] - 1.0) < 0.3) & (np.abs(grid[:, 1] - 1.0) < 0.3)
+    points[rough, 2] = rng.uniform(-0.05, 0.05, rough.sum())
+    return pcl.PointCloud(points), rough
+
+
+def _don_for(cloud, small_radius=0.1, large_radius=0.5):
+    small = cloud.make_NormalEstimation()
+    small.set_RadiusSearch(small_radius)
+    large = cloud.make_NormalEstimation()
+    large.set_RadiusSearch(large_radius)
+
+    don = cloud.make_DifferenceOfNormalsEstimation()
+    don.set_NormalScaleSmall(small.compute_cloud())
+    don.set_NormalScaleLarge(large.compute_cloud())
+    return don
+
+
+def test_don_returns_one_row_per_point(plane_with_a_rough_patch):
+    cloud, _ = plane_with_a_rough_patch
+    result = _don_for(cloud).compute()
+    assert result.shape == (cloud.size, 4)
+    assert result.dtype == np.float32
+
+
+def test_don_output_is_finite(plane_with_a_rough_patch):
+    """PCL zeroes any non-finite difference itself, so nothing here has
+    to filter NaNs out."""
+    cloud, _ = plane_with_a_rough_patch
+    assert np.isfinite(_don_for(cloud).compute()).all()
+
+
+def test_don_responds_where_the_surface_has_structure(
+        plane_with_a_rough_patch):
+    cloud, rough = plane_with_a_rough_patch
+    magnitude = _don_for(cloud).compute()[:, 3]
+    assert magnitude[rough].mean() > magnitude[~rough].mean()
+
+
+def test_don_is_zero_on_a_plane(plane):
+    """Both scales see the same normal, so the difference vanishes —
+    the property that makes a threshold on it meaningful."""
+    magnitude = _don_for(plane, 0.1, 0.4).compute()[:, 3]
+    assert magnitude.max() == pytest.approx(0.0, abs=1e-5)
+
+
+def test_don_without_input_reports_it():
+    with pytest.raises(RuntimeError, match="set_InputCloud"):
+        pcl.DifferenceOfNormalsEstimation().compute()
+
+
+def test_don_without_both_scales_reports_it(plane):
+    don = plane.make_DifferenceOfNormalsEstimation()
+    with pytest.raises(RuntimeError, match="NormalScaleSmall"):
+        don.compute()
+
+    small = plane.make_NormalEstimation()
+    small.set_RadiusSearch(0.1)
+    don.set_NormalScaleSmall(small.compute_cloud())
+    with pytest.raises(RuntimeError, match="NormalScaleLarge"):
+        don.compute()
+
+
+def test_don_rejects_mismatched_normal_clouds(plane):
+    """PCL requires one normal per input point; without the check its
+    computeFeature() writes past the end of the output cloud."""
+    large = plane.make_NormalEstimation()
+    large.set_RadiusSearch(0.4)
+
+    don = plane.make_DifferenceOfNormalsEstimation()
+    don.set_NormalScaleSmall(
+        pcl.PointCloud_Normal(np.zeros((5, 4), dtype=np.float32)))
+    don.set_NormalScaleLarge(large.compute_cloud())
+    with pytest.raises(ValueError, match="one normal per input point"):
+        don.compute()

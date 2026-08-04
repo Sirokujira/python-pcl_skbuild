@@ -23,12 +23,14 @@ from cython.operator cimport dereference as deref
 
 from libcpp.vector cimport vector
 
-from pcl.pxd.point_types cimport PointXYZ, Normal, VFHSignature308
+from pcl.pxd.point_types cimport PointXYZ, Normal, PointNormal, VFHSignature308
 from pcl.pxd.point_cloud cimport PointCloud as cPointCloud
 from pcl.pxd.features.normal_3d cimport NormalEstimation as cNormalEstimation
 from pcl.pxd.features.moment_of_inertia_estimation cimport (
     MomentOfInertiaEstimation as cMomentOfInertiaEstimation)
 from pcl.pxd.features.vfh cimport VFHEstimation as cVFHEstimation
+from pcl.pxd.features.don cimport (
+    DifferenceOfNormalsEstimation as cDifferenceOfNormalsEstimation)
 from pcl.pxd.features.integral_image_normal cimport (
     IntegralImageNormalEstimation as cIntegralImageNormalEstimation)
 from pcl.pxd.compat.organized_args cimport (
@@ -382,3 +384,93 @@ cdef class IntegralImageNormalEstimation:
         with nogil:
             self.me.compute(deref(out))
         return wrap_normal_cloud(holder)
+
+
+cdef class DifferenceOfNormalsEstimation:
+    """Scale-based feature isolation (pcl::DifferenceOfNormalsEstimation).
+
+    The difference between normals estimated at two radii is large
+    exactly where the surface has structure at that scale, so
+    thresholding it isolates features of a chosen size:
+
+        small = cloud.make_NormalEstimation(); small.set_RadiusSearch(0.05)
+        large = cloud.make_NormalEstimation(); large.set_RadiusSearch(0.5)
+        don = cloud.make_DifferenceOfNormalsEstimation()
+        don.set_NormalScaleSmall(small.compute_cloud())
+        don.set_NormalScaleLarge(large.compute_cloud())
+        magnitude = don.compute()[:, 3]
+
+    The two radii must differ, and the larger is the scale of the
+    features you keep.
+    """
+
+    cdef cDifferenceOfNormalsEstimation[PointXYZ, Normal, PointNormal]* me
+    cdef Py_ssize_t n_input
+    cdef Py_ssize_t n_small
+    cdef Py_ssize_t n_large
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cDifferenceOfNormalsEstimation[
+            PointXYZ, Normal, PointNormal]()
+        self.n_input = -1
+        self.n_small = -1
+        self.n_large = -1
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+        self.n_input = pc.size
+
+    def set_NormalScaleSmall(self, PointCloud_Normal normals not None):
+        self.me.setNormalScaleSmall(normals.thisptr_shared)
+        self.n_small = normals.size
+
+    def set_NormalScaleLarge(self, PointCloud_Normal normals not None):
+        self.me.setNormalScaleLarge(normals.thisptr_shared)
+        self.n_large = normals.size
+
+    def compute(self):
+        """Return an ``(n, 4)`` float32 array: the difference vector and
+        its magnitude in the fourth column."""
+        import numpy as np
+        if self.n_input < 0:
+            raise RuntimeError("set_InputCloud() is required before compute()")
+        if self.n_small < 0 or self.n_large < 0:
+            raise RuntimeError(
+                "both set_NormalScaleSmall() and set_NormalScaleLarge() "
+                "are required before compute()")
+        if self.n_small != self.n_input or self.n_large != self.n_input:
+            raise ValueError(
+                "both normal clouds must have one normal per input point: "
+                "input %d, small %d, large %d"
+                % (self.n_input, self.n_small, self.n_large))
+
+        cdef cPointCloud[PointNormal] out
+        if not self.me.initCompute():
+            raise RuntimeError("DifferenceOfNormalsEstimation setup failed")
+        # PCL never sizes this for us. DoN makes Feature::compute()
+        # private, and that is the method that would have resized the
+        # output; computeFeature() writes output[i] for every input point
+        # regardless. Calling it on an empty cloud segfaults — verified in
+        # plain C++ against PCL 1.14.
+        out.resize(<size_t> self.n_input)
+        with nogil:
+            self.me.computeFeature(out)
+
+        cdef Py_ssize_t n = <Py_ssize_t> out.size()
+        result = np.empty((n, 4), dtype=np.float32)
+        cdef float[:, ::1] view = result
+        cdef PointNormal* p
+        cdef Py_ssize_t i
+        for i in range(n):
+            p = &out[<size_t> i]
+            view[i, 0] = p.normal_x
+            view[i, 1] = p.normal_y
+            view[i, 2] = p.normal_z
+            view[i, 3] = p.curvature
+        return result

@@ -429,6 +429,11 @@ cdef class PointCloud:
         from pcl._features import NormalEstimation
         return NormalEstimation(self)
 
+    def make_DifferenceOfNormalsEstimation(self):
+        """Return a DifferenceOfNormalsEstimation with this cloud."""
+        from pcl._features import DifferenceOfNormalsEstimation
+        return DifferenceOfNormalsEstimation(self)
+
     def make_MomentOfInertiaEstimation(self):
         """Return a MomentOfInertiaEstimation with this cloud as input."""
         from pcl._features import MomentOfInertiaEstimation

@@ -124,6 +124,15 @@ process abort. Same principle for a silent no-op: PCL treats a directory
 path as a single file and returns a zero-frame grabber, so the wrapper
 expands directories itself.
 
+`DifferenceOfNormalsEstimation` is the same shape of problem one level
+up: it makes `Feature::compute()` **private**, so `computeFeature()` is
+the only way in — and `computeFeature()` writes `output[i]` for every
+input point without ever resizing `output`, because resizing was
+`compute()`'s job. Calling the only public entry point as documented
+therefore writes past the end of an empty cloud. The wrapper sizes the
+output itself before the call. Verified both ways in plain C++: empty
+output segfaults, pre-sized output returns.
+
 Not every quirk is worth absorbing, though. PCL's octree treats the FIRST
 point of a cloud specially: `voxelSearch` can miss it, and
 `getPointIndicesFromNewVoxels` reports index 0 as new even for an

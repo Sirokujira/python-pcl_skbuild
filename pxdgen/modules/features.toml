@@ -28,3 +28,10 @@ extern_from = "pcl/features/integral_image_normal.h"
 output = "../src/pcl/pxd/features/integral_image_normal.pxd"
 namespaces = ["pcl"]
 extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/don.h"
+extern_from = "pcl/features/don.h"
+output = "../src/pcl/pxd/features/don.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
