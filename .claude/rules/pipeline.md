@@ -116,8 +116,9 @@ wrapper for as long as a callback can fire, and disconnected in
 
 ## Upstream bugs belong in the wrapper, not in the caller's lap
 
-`PCDGrabber` with `frames_per_second=0` calls `std::terminate` inside PCL
-1.14.0 — reproducible in plain C++, so nothing a binding can catch. The
+`VFHEstimation::compute()` segfaults when no normals were set, and
+`PCDGrabber` with `frames_per_second=0` calls `std::terminate`, both
+inside PCL 1.14.0 — reproducible in plain C++, so nothing a binding can catch. The
 wrapper raises a `RuntimeError` naming the cause instead of letting the
 process abort. Same principle for a silent no-op: PCL treats a directory
 path as a single file and returns a zero-frame grabber, so the wrapper

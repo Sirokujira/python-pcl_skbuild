@@ -64,3 +64,6 @@ cdef extern from "pcl/point_types.h" namespace "pcl" nogil:
         float data_n[4]
         float curvature
         float data_c[4]
+
+    cdef struct VFHSignature308:
+        float histogram[308]

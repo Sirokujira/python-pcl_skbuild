@@ -83,3 +83,10 @@ extern_from = "pcl/filters/conditional_removal.h"
 output = "../src/pcl/pxd/filters/conditional_removal.pxd"
 namespaces = ["pcl"]
 extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/filters/fast_bilateral.h"
+extern_from = "pcl/filters/fast_bilateral.h"
+output = "../src/pcl/pxd/filters/fast_bilateral.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]

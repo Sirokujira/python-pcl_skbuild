@@ -23,11 +23,12 @@ from cython.operator cimport dereference as deref
 
 from libcpp.vector cimport vector
 
-from pcl.pxd.point_types cimport PointXYZ, Normal
+from pcl.pxd.point_types cimport PointXYZ, Normal, VFHSignature308
 from pcl.pxd.point_cloud cimport PointCloud as cPointCloud
 from pcl.pxd.features.normal_3d cimport NormalEstimation as cNormalEstimation
 from pcl.pxd.features.moment_of_inertia_estimation cimport (
     MomentOfInertiaEstimation as cMomentOfInertiaEstimation)
+from pcl.pxd.features.vfh cimport VFHEstimation as cVFHEstimation
 from pcl.pxd.compat.eigen_results cimport (
     axisAlignedBoundingBox, eigenValues, eigenVectors, massCenter,
     orientedBoundingBox)
@@ -204,3 +205,89 @@ cdef class MomentOfInertiaEstimation:
             np.array([buf[k], buf[k + 1], buf[k + 2]], dtype=np.float32)
             for k in (0, 3, 6)
         )
+
+
+cdef class VFHEstimation:
+    """Viewpoint Feature Histogram (pcl::VFHEstimation).
+
+    One 308-bin descriptor for the whole cloud, used to recognise an
+    object independently of its pose. Needs normals:
+
+        normals = cloud.make_NormalEstimation()
+        normals.set_KSearch(20)
+        vfh = cloud.make_VFHEstimation()
+        vfh.set_InputNormals(normals.compute_cloud())
+        histogram = vfh.compute()
+    """
+
+    cdef cVFHEstimation[PointXYZ, Normal, VFHSignature308]* me
+    # PCL segfaults rather than complaining when normals are missing, so
+    # the wrapper has to know whether they were set.
+    cdef bint has_normals
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cVFHEstimation[PointXYZ, Normal, VFHSignature308]()
+        self.has_normals = False
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_InputNormals(self, PointCloud_Normal normals not None):
+        self.me.setInputNormals(normals.thisptr_shared)
+        self.has_normals = True
+
+    def set_KSearch(self, int k):
+        self.me.setKSearch(k)
+
+    def set_RadiusSearch(self, double radius):
+        self.me.setRadiusSearch(radius)
+
+    def set_ViewPoint(self, float x, float y, float z):
+        self.me.setViewPoint(x, y, z)
+
+    def set_NormalizeBins(self, bint normalize):
+        self.me.setNormalizeBins(normalize)
+
+    def set_NormalizeDistance(self, bint normalize):
+        self.me.setNormalizeDistance(normalize)
+
+    def set_FillSizeComponent(self, bint fill_size):
+        self.me.setFillSizeComponent(fill_size)
+
+    def compute(self):
+        """Return the descriptor as a length-308 float32 array.
+
+        VFH describes the whole cloud, so PCL's output holds one point;
+        the histogram inside it is what callers want.
+
+        Raises if no normals were set: PCL segfaults in that case rather
+        than reporting the error — reproduced in plain C++ against
+        1.14.0, so it is not a binding bug and nothing can catch it.
+        """
+        import numpy as np
+        if not self.has_normals:
+            raise RuntimeError(
+                "VFHEstimation needs normals: call set_InputNormals() with "
+                "a PointCloud_Normal (NormalEstimation.compute_cloud()). "
+                "PCL segfaults instead of reporting this.")
+
+        cdef cPointCloud[VFHSignature308] out
+        with nogil:
+            self.me.compute(out)
+
+        if out.size() == 0:
+            raise RuntimeError("VFH produced no descriptor")
+
+        result = np.empty(308, dtype=np.float32)
+        cdef float[::1] view = result
+        cdef VFHSignature308* p = &out[0]
+        cdef Py_ssize_t i
+        for i in range(308):
+            view[i] = p.histogram[i]
+        return result

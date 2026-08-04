@@ -25,6 +25,8 @@ from pcl.pxd.segmentation.extract_clusters cimport (
     EuclideanClusterExtraction as cEuclideanClusterExtraction)
 from pcl.pxd.segmentation.sac_segmentation_normals cimport (
     SACSegmentationFromNormals as cSACSegmentationFromNormals)
+from pcl.pxd.segmentation.min_cut_segmentation cimport (
+    MinCutSegmentation as cMinCutSegmentation)
 from pcl.pxd.segmentation.progressive_morphological_filter cimport (
     ProgressiveMorphologicalFilter as cProgressiveMorphologicalFilter)
 from pcl.pxd.point_types cimport Normal
@@ -310,3 +312,69 @@ cdef class ProgressiveMorphologicalFilter:
         with nogil:
             self.me.extract(ground)
         return [ground[i] for i in range(ground.size())]
+
+
+cdef class MinCutSegmentation:
+    """Foreground/background split by graph min-cut
+    (pcl::MinCutSegmentation).
+
+    Mark a few points as foreground and it partitions the rest around
+    them. `extract()` returns two clusters: background first, then
+    foreground.
+    """
+
+    cdef cMinCutSegmentation[PointXYZ]* me
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cMinCutSegmentation[PointXYZ]()
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_ForegroundPoints(self, PointCloud pc not None):
+        """Seed points known to be foreground. Required."""
+        self.me.setForegroundPoints(pc.thisptr_shared)
+
+    def set_Sigma(self, double sigma):
+        self.me.setSigma(sigma)
+
+    def get_Sigma(self):
+        return self.me.getSigma()
+
+    def set_Radius(self, double radius):
+        self.me.setRadius(radius)
+
+    def get_Radius(self):
+        return self.me.getRadius()
+
+    def set_SourceWeight(self, double weight):
+        self.me.setSourceWeight(weight)
+
+    def get_SourceWeight(self):
+        return self.me.getSourceWeight()
+
+    def set_NumberOfNeighbours(self, unsigned int count):
+        self.me.setNumberOfNeighbours(count)
+
+    def get_NumberOfNeighbours(self):
+        return self.me.getNumberOfNeighbours()
+
+    def get_MaxFlow(self):
+        """Cost of the cut; only meaningful after `extract()`."""
+        return self.me.getMaxFlow()
+
+    def extract(self):
+        """Return the clusters as a list of index lists."""
+        cdef vector[PointIndices] clusters
+        with nogil:
+            self.me.extract(clusters)
+        return [
+            [clusters[i].indices[j] for j in range(clusters[i].indices.size())]
+            for i in range(clusters.size())
+        ]

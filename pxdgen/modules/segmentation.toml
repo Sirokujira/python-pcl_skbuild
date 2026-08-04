@@ -39,3 +39,13 @@ extern_from = "pcl/segmentation/progressive_morphological_filter.h"
 output = "../src/pcl/pxd/segmentation/progressive_morphological_filter.pxd"
 namespaces = ["pcl"]
 extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/segmentation/min_cut_segmentation.h"
+extern_from = "pcl/segmentation/min_cut_segmentation.h"
+output = "../src/pcl/pxd/segmentation/min_cut_segmentation.pxd"
+namespaces = ["pcl"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.point_indices cimport PointIndices",
+]

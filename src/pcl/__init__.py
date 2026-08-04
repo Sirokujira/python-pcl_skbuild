@@ -19,7 +19,11 @@ from ._pointtypes import (
     PointCloud_PointXYZRGB,
     PointCloud_PointXYZRGBA,
 )
-from ._features import MomentOfInertiaEstimation, NormalEstimation
+from ._features import (
+    MomentOfInertiaEstimation,
+    NormalEstimation,
+    VFHEstimation,
+)
 from ._octree import OctreePointCloudChangeDetector, OctreePointCloudSearch
 from ._registration import (
     GeneralizedIterativeClosestPoint,
@@ -39,6 +43,7 @@ from ._filters import (
     ConditionalRemoval,
     CropBox,
     ExtractIndices,
+    FastBilateralFilter,
     PassThroughFilter,
     ProjectInliers,
     RadiusOutlierRemoval,
@@ -69,6 +74,7 @@ from ._sac import (
 from ._kdtree import KdTreeFLANN
 from ._segmentation import (
     EuclideanClusterExtraction,
+    MinCutSegmentation,
     ProgressiveMorphologicalFilter,
     Segmentation,
     SegmentationNormal,
@@ -110,13 +116,14 @@ __all__ = [
     "StatisticalOutlierRemovalFilter", "RadiusOutlierRemoval",
     "ExtractIndices", "CropBox", "ProjectInliers", "RandomSample",
     "UniformSampling", "ConditionAnd", "ConditionalRemoval",
+    "FastBilateralFilter",
     "CompareOp_GT", "CompareOp_GE", "CompareOp_LT", "CompareOp_LE",
     "CompareOp_EQ",
     "HarrisKeypoint3D",
     "HARRIS", "NOBLE", "LOWE", "TOMASI", "CURVATURE",
     "KdTreeFLANN",
     "OctreePointCloudSearch", "OctreePointCloudChangeDetector",
-    "NormalEstimation", "MomentOfInertiaEstimation",
+    "NormalEstimation", "MomentOfInertiaEstimation", "VFHEstimation",
     "MovingLeastSquares", "ConcaveHull", "ConvexHull",
     "IterativeClosestPoint", "IterativeClosestPointNonLinear",
     "GeneralizedIterativeClosestPoint", "NormalDistributionsTransform",
@@ -126,7 +133,7 @@ __all__ = [
     "SampleConsensusModelCircle2D", "SampleConsensusModelCircle3D",
     "SampleConsensusModelSphere", "SampleConsensusModelStick",
     "Segmentation", "SegmentationNormal", "EuclideanClusterExtraction",
-    "ProgressiveMorphologicalFilter",
+    "ProgressiveMorphologicalFilter", "MinCutSegmentation",
     "SAC_RANSAC", "SAC_LMEDS", "SAC_MSAC", "SAC_RRANSAC", "SAC_RMSAC",
     "SAC_MLESAC", "SAC_PROSAC",
     "SACMODEL_PLANE", "SACMODEL_LINE", "SACMODEL_CIRCLE2D",

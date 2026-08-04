@@ -149,15 +149,15 @@ column-major, so that is the layout PCL already has).
 |---|---|
 | core | `PointCloud`, `pcl.load` / `pcl.save` (PCD, PLY, `.gz`) |
 | point types | `PointCloud_PointXYZI`, `PointCloud_PointXYZRGB`, `PointCloud_PointXYZRGBA`, `PointCloud_Normal` (+ `pcl.load_XYZI` / `load_XYZRGB` / `load_XYZRGBA`) |
-| filters | `VoxelGridFilter`, `ApproximateVoxelGrid`, `PassThroughFilter`, `StatisticalOutlierRemovalFilter`, `RadiusOutlierRemoval`, `ExtractIndices`, `CropBox`, `ProjectInliers`, `RandomSample`, `UniformSampling` |
+| filters | `VoxelGridFilter`, `ApproximateVoxelGrid`, `PassThroughFilter`, `StatisticalOutlierRemovalFilter`, `RadiusOutlierRemoval`, `ExtractIndices`, `CropBox`, `ProjectInliers`, `RandomSample`, `UniformSampling`, `FastBilateralFilter` |
 | keypoints | `HarrisKeypoint3D` |
 | conditions | `ConditionAnd`, `ConditionalRemoval` (+ `pcl.CompareOp_*`) |
 | sample consensus | `RandomSampleConsensus` + `SampleConsensusModel{Plane,Line,Circle2D,Circle3D,Sphere,Stick}` |
 | search | `KdTreeFLANN`, `OctreePointCloudSearch`, `OctreePointCloudChangeDetector` |
-| features | `NormalEstimation`, `MomentOfInertiaEstimation` |
+| features | `NormalEstimation`, `MomentOfInertiaEstimation`, `VFHEstimation` |
 | surface | `MovingLeastSquares`, `ConcaveHull`, `ConvexHull` |
 | registration | `IterativeClosestPoint`, `IterativeClosestPointNonLinear`, `GeneralizedIterativeClosestPoint`, `NormalDistributionsTransform` |
-| segmentation | `Segmentation` (SAC), `SegmentationNormal`, `EuclideanClusterExtraction`, `ProgressiveMorphologicalFilter` |
+| segmentation | `Segmentation` (SAC), `SegmentationNormal`, `EuclideanClusterExtraction`, `ProgressiveMorphologicalFilter`, `MinCutSegmentation` |
 | sensors | `PCDGrabber`, `HDLGrabber` |
 
 The built artifacts are native extension modules (`_pointcloud`,

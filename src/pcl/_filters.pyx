@@ -43,6 +43,8 @@ from pcl.pxd.filters.uniform_sampling cimport (
     UniformSampling as cUniformSampling)
 from pcl.pxd.point_indices cimport PointIndices
 from pcl.pxd.model_coefficients cimport ModelCoefficients
+from pcl.pxd.filters.fast_bilateral cimport (
+    FastBilateralFilter as cFastBilateralFilter)
 from pcl.pxd.filters.conditional_removal cimport (
     ConditionAnd as cConditionAnd,
     ConditionalRemoval as cConditionalRemoval)
@@ -588,6 +590,51 @@ cdef class ConditionalRemoval:
 
     def get_KeepOrganized(self):
         return self.me.getKeepOrganized()
+
+    def filter(self):
+        cdef PointCloud pc = PointCloud()
+        cdef cPointCloud[PointXYZ]* out = pc.ptr()
+        with nogil:
+            self.me.filter(deref(out))
+        return pc
+
+
+cdef class FastBilateralFilter:
+    """Edge-preserving smoothing for ORGANIZED clouds
+    (pcl::FastBilateralFilter).
+
+    It works on the depth image, so an unorganized cloud comes back
+    unchanged — build the input with
+    `PointCloud.from_organized_array()`.
+    """
+
+    cdef cFastBilateralFilter[PointXYZ]* me
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cFastBilateralFilter[PointXYZ]()
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_sigma_s(self, float sigma_s):
+        """Spatial extent of the smoothing, in pixels."""
+        self.me.setSigmaS(sigma_s)
+
+    def get_sigma_s(self):
+        return self.me.getSigmaS()
+
+    def set_sigma_r(self, float sigma_r):
+        """Depth difference an edge has to exceed to be preserved."""
+        self.me.setSigmaR(sigma_r)
+
+    def get_sigma_r(self):
+        return self.me.getSigmaR()
 
     def filter(self):
         cdef PointCloud pc = PointCloud()

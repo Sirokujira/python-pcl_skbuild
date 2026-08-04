@@ -150,6 +150,50 @@ cdef class PointCloud:
             view[i, 2] = p.z
         return result
 
+    @property
+    def is_organized(self):
+        """True for a cloud laid out as a depth image (height > 1)."""
+        return self.ptr().height > 1
+
+    def from_organized_array(self, float[:, :, :] arr not None):
+        """Fill from a ``(height, width, 3)`` float32 array.
+
+        An organized cloud keeps the sensor's pixel grid, which is what
+        `FastBilateralFilter` and `IntegralImageNormalEstimation` need —
+        they work on the depth image, and silently do nothing without it.
+        """
+        if arr.shape[2] != 3:
+            raise ValueError(
+                "array must have shape (height, width, 3), got "
+                "(%d, %d, %d)" % (arr.shape[0], arr.shape[1], arr.shape[2]))
+        cdef Py_ssize_t height = arr.shape[0]
+        cdef Py_ssize_t width = arr.shape[1]
+        cdef cPointCloud[PointXYZ]* c = self.ptr()
+        c.resize(<size_t> (width * height))
+        c.width = <unsigned int> width
+        c.height = <unsigned int> height
+        cdef PointXYZ* p
+        cdef Py_ssize_t row, col, i
+        for row in range(height):
+            for col in range(width):
+                i = row * width + col
+                p = &(deref(c)[<size_t> i])
+                p.x = arr[row, col, 0]
+                p.y = arr[row, col, 1]
+                p.z = arr[row, col, 2]
+
+    def to_organized_array(self):
+        """Return a ``(height, width, 3)`` float32 array.
+
+        Raises for an unorganized cloud, which has no grid to return.
+        """
+        if not self.is_organized:
+            raise ValueError(
+                "cloud is not organized (height=%d); use to_array()"
+                % self.ptr().height)
+        return self.to_array().reshape(
+            self.ptr().height, self.ptr().width, 3)
+
     def from_list(self, _list):
         """Fill this pointcloud from a list of 3-tuples."""
         pts = list(_list)
@@ -346,6 +390,26 @@ cdef class PointCloud:
         """Return an OctreePointCloudChangeDetector holding this cloud."""
         from pcl._octree import OctreePointCloudChangeDetector
         return OctreePointCloudChangeDetector(resolution, self)
+
+    def make_VFHEstimation(self):
+        """Return a VFHEstimation with this cloud as input."""
+        from pcl._features import VFHEstimation
+        return VFHEstimation(self)
+
+    def make_IntegralImageNormalEstimation(self):
+        """Return an IntegralImageNormalEstimation with this cloud."""
+        from pcl._features import IntegralImageNormalEstimation
+        return IntegralImageNormalEstimation(self)
+
+    def make_FastBilateralFilter(self):
+        """Return a FastBilateralFilter with this cloud as input."""
+        from pcl._filters import FastBilateralFilter
+        return FastBilateralFilter(self)
+
+    def make_MinCutSegmentation(self):
+        """Return a MinCutSegmentation with this cloud as input."""
+        from pcl._segmentation import MinCutSegmentation
+        return MinCutSegmentation(self)
 
     def make_NormalEstimation(self):
         """Return a NormalEstimation with this cloud as input."""

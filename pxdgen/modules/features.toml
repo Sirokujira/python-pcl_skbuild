@@ -14,3 +14,10 @@ extern_from = "pcl/features/moment_of_inertia_estimation.h"
 output = "../src/pcl/pxd/features/moment_of_inertia_estimation.pxd"
 namespaces = ["pcl"]
 extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/vfh.h"
+extern_from = "pcl/features/vfh.h"
+output = "../src/pcl/pxd/features/vfh.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
