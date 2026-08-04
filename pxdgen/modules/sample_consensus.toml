@@ -13,3 +13,15 @@ path = "headers/pcl/sample_consensus/model_types.h"
 extern_from = "pcl/sample_consensus/model_types.h"
 output = "../src/pcl/pxd/sample_consensus/model_types.pxd"
 namespaces = ["pcl"]
+
+[[headers]]
+path = "headers/pcl/sample_consensus/sac_model.h"
+extern_from = "pcl/sample_consensus/sac_model.h"
+output = "../src/pcl/pxd/sample_consensus/sac_model.pxd"
+namespaces = ["pcl"]
+
+[[headers]]
+path = "headers/pcl/sample_consensus/ransac.h"
+extern_from = "pcl/sample_consensus/ransac.h"
+output = "../src/pcl/pxd/sample_consensus/ransac.pxd"
+namespaces = ["pcl"]

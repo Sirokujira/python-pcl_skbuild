@@ -152,6 +152,7 @@ column-major, so that is the layout PCL already has).
 | filters | `VoxelGridFilter`, `ApproximateVoxelGrid`, `PassThroughFilter`, `StatisticalOutlierRemovalFilter`, `RadiusOutlierRemoval`, `ExtractIndices`, `CropBox`, `ProjectInliers`, `RandomSample`, `UniformSampling` |
 | keypoints | `HarrisKeypoint3D` |
 | conditions | `ConditionAnd`, `ConditionalRemoval` (+ `pcl.CompareOp_*`) |
+| sample consensus | `RandomSampleConsensus` + `SampleConsensusModel{Plane,Line,Circle2D,Circle3D,Sphere,Stick}` |
 | search | `KdTreeFLANN`, `OctreePointCloudSearch`, `OctreePointCloudChangeDetector` |
 | features | `NormalEstimation`, `MomentOfInertiaEstimation` |
 | surface | `MovingLeastSquares`, `ConcaveHull`, `ConvexHull` |

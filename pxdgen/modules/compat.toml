@@ -61,3 +61,15 @@ extra_cimports = [
     "from pcl.pxd.point_types cimport PointXYZ",
     "from pcl.pxd.filters.conditional_removal cimport ConditionAnd, ConditionalRemoval",
 ]
+
+[[headers]]
+path = "headers/pcl/compat/sac_models.h"
+extern_from = "pcl/compat/sac_models.h"
+output = "../src/pcl/pxd/compat/sac_models.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.sample_consensus.sac_model cimport SampleConsensusModel",
+    "from pcl.pxd.sample_consensus.ransac cimport RandomSampleConsensus",
+]

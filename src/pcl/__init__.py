@@ -56,6 +56,16 @@ from ._keypoints import (
     HarrisKeypoint3D,
 )
 from ._grabber import HDLGrabber, PCDGrabber
+from ._sac import (
+    RandomSampleConsensus,
+    SampleConsensusModel,
+    SampleConsensusModelCircle2D,
+    SampleConsensusModelCircle3D,
+    SampleConsensusModelLine,
+    SampleConsensusModelPlane,
+    SampleConsensusModelSphere,
+    SampleConsensusModelStick,
+)
 from ._kdtree import KdTreeFLANN
 from ._segmentation import (
     EuclideanClusterExtraction,
@@ -111,6 +121,10 @@ __all__ = [
     "IterativeClosestPoint", "IterativeClosestPointNonLinear",
     "GeneralizedIterativeClosestPoint", "NormalDistributionsTransform",
     "PCDGrabber", "HDLGrabber",
+    "RandomSampleConsensus", "SampleConsensusModel",
+    "SampleConsensusModelPlane", "SampleConsensusModelLine",
+    "SampleConsensusModelCircle2D", "SampleConsensusModelCircle3D",
+    "SampleConsensusModelSphere", "SampleConsensusModelStick",
     "Segmentation", "SegmentationNormal", "EuclideanClusterExtraction",
     "ProgressiveMorphologicalFilter",
     "SAC_RANSAC", "SAC_LMEDS", "SAC_MSAC", "SAC_RRANSAC", "SAC_RMSAC",

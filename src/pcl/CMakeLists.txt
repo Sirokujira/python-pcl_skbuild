@@ -18,6 +18,7 @@ set(PCL_CYTHON_MODULES
     _registration
     _pointtypes
     _keypoints
+    _sac
 )
 
 foreach(module ${PCL_CYTHON_MODULES})
