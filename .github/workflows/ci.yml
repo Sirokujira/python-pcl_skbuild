@@ -1,11 +1,9 @@
 name: CI
 
-# Trigger discipline exists to keep the Actions quota alive.
-#
 # `push: branches: ["**"]` together with `pull_request` fires TWO complete
-# runs for every push to a branch with an open PR — the same commit billed
-# twice. Pushes are therefore limited to the default branch, and branch
-# work is covered by the pull_request event alone.
+# runs for every push to a branch with an open PR — the same commit tested
+# twice, in parallel, for nothing. Pushes are therefore limited to the
+# default branch, and branch work rides the pull_request event alone.
 on:
   push:
     branches: [main]
@@ -14,7 +12,7 @@ on:
   workflow_dispatch:
 
 # Superseding a run cancels the one it replaced; without this, pushing
-# three times in a minute pays for three full matrices.
+# three times in a minute occupies three full matrices of runners.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -23,52 +21,16 @@ permissions:
   contents: read
 
 jobs:
-  # Which runners this event deserves.
-  #
-  # macOS bills at 10x and Windows at 2x, so the full matrix costs ~67
-  # billable minutes against ~10 for Linux alone. A draft PR iterating gets
-  # Linux; the full matrix runs where it decides something — on the default
-  # branch, when a PR is marked ready for review, and on demand.
-  plan:
-    name: pick runners
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      pxd: ${{ steps.pick.outputs.pxd }}
-      build: ${{ steps.pick.outputs.build }}
-      full: ${{ steps.pick.outputs.full }}
-    steps:
-      - id: pick
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ] \
-             && [ "${{ github.event.pull_request.draft }}" = "true" ]; then
-            echo 'full=false' >> "$GITHUB_OUTPUT"
-            echo 'pxd=["ubuntu-latest"]' >> "$GITHUB_OUTPUT"
-            echo 'build=["ubuntu-latest"]' >> "$GITHUB_OUTPUT"
-          else
-            echo 'full=true' >> "$GITHUB_OUTPUT"
-            echo 'pxd=["ubuntu-latest","macos-latest","windows-latest"]' >> "$GITHUB_OUTPUT"
-            echo 'build=["ubuntu-latest","macos-latest"]' >> "$GITHUB_OUTPUT"
-          fi
-      - name: Say what will run
-        run: |
-          echo "full matrix: ${{ steps.pick.outputs.full }}"
-          echo "pxd-pipeline: ${{ steps.pick.outputs.pxd }}"
-          echo "build: ${{ steps.pick.outputs.build }}"
-          if [ "${{ steps.pick.outputs.full }}" != "true" ]; then
-            echo "::notice::Draft PR — Linux only. Mark the PR ready for review to run macOS and Windows."
-          fi
-
-  # pxd generation pipeline + cython transpile checks: no PCL needed.
+  # pxd generation pipeline + cython transpile checks: no PCL needed, runs
+  # on every OS.
   pxd-pipeline:
     name: pxd-pipeline / ${{ matrix.os }}
-    needs: plan
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON(needs.plan.outputs.pxd) }}
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -98,13 +60,12 @@ jobs:
   # Full build against real PCL headers/libraries.
   build:
     name: build / ${{ matrix.os }}
-    needs: plan
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON(needs.plan.outputs.build) }}
+        os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
