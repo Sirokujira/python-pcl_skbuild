@@ -401,6 +401,11 @@ cdef class PointCloud:
         from pcl._features import IntegralImageNormalEstimation
         return IntegralImageNormalEstimation(self)
 
+    def make_ConditionalEuclideanClustering(self):
+        """Return a ConditionalEuclideanClustering with this cloud."""
+        from pcl._segmentation import ConditionalEuclideanClustering
+        return ConditionalEuclideanClustering(self)
+
     def make_FastBilateralFilter(self):
         """Return a FastBilateralFilter with this cloud as input."""
         from pcl._filters import FastBilateralFilter

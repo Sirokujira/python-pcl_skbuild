@@ -14,6 +14,8 @@ src/pcl/pxd/sample_consensus/{method,model}_types.pxd.
 
 from cython.operator cimport dereference as deref
 
+import traceback
+
 from libcpp.vector cimport vector
 
 from pcl.pxd.point_types cimport PointXYZ
@@ -31,6 +33,10 @@ from pcl.pxd.segmentation.progressive_morphological_filter cimport (
     ProgressiveMorphologicalFilter as cProgressiveMorphologicalFilter)
 from pcl.pxd.point_types cimport Normal
 from pcl.pxd.compat.eigen_args cimport setSegmentationAxis
+from pcl.pxd.segmentation.conditional_euclidean_clustering cimport (
+    ConditionalEuclideanClustering as cConditionalEuclideanClustering)
+from pcl.pxd.compat.organized_args cimport (
+    ClusterConditionFn, setClusterCondition)
 cimport pcl.pxd.sample_consensus.method_types as method_types
 cimport pcl.pxd.sample_consensus.model_types as model_types
 
@@ -374,6 +380,114 @@ cdef class MinCutSegmentation:
         cdef vector[PointIndices] clusters
         with nogil:
             self.me.extract(clusters)
+        return [
+            [clusters[i].indices[j] for j in range(clusters[i].indices.size())]
+            for i in range(clusters.size())
+        ]
+
+
+cdef bint _call_condition(object predicate, const PointXYZ& a,
+                          const PointXYZ& b, float sqr_distance) noexcept:
+    """Run the Python predicate, swallowing anything it raises.
+
+    An exception escaping here would unwind out of a `noexcept` C
+    function called from inside PCL's clustering loop: std::terminate,
+    i.e. the interpreter dies with no traceback. A raising predicate is
+    treated as "not the same cluster" and the failure is printed.
+    """
+    try:
+        return bool(predicate((a.x, a.y, a.z), (b.x, b.y, b.z),
+                              sqr_distance))
+    except BaseException:
+        traceback.print_exc()
+        return False
+
+
+cdef bint _condition_trampoline(const PointXYZ& a, const PointXYZ& b,
+                                float sqr_distance,
+                                void* user_data) noexcept nogil:
+    """The C function pointer PCL ends up calling, once per neighbour."""
+    cdef bint keep
+    with gil:
+        keep = _call_condition(<object> user_data, a, b, sqr_distance)
+    return keep
+
+
+cdef class ConditionalEuclideanClustering:
+    """Euclidean clustering with a caller-supplied join test
+    (pcl::ConditionalEuclideanClustering).
+
+    The predicate decides whether two neighbouring points belong to the
+    same cluster:
+
+        def same_cluster(a, b, squared_distance):
+            return abs(a[2] - b[2]) < 0.05
+
+        cec = cloud.make_ConditionalEuclideanClustering()
+        cec.set_ClusterTolerance(0.1)
+        cec.set_ConditionFunction(same_cluster)
+        clusters = cec.segment()
+
+    PCL calls it once per candidate neighbour pair, so it is the slow
+    path by construction — see bench/README.md. `EuclideanClusterExtraction`
+    keeps the whole loop in C++ when a plain distance test will do.
+    """
+
+    cdef cConditionalEuclideanClustering[PointXYZ]* me
+    # Holds the predicate alive for as long as PCL may call it; the shim
+    # only has a borrowed void*.
+    cdef object condition
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cConditionalEuclideanClustering[PointXYZ]()
+        self.condition = None
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_ConditionFunction(self, predicate):
+        """``predicate(a, b, squared_distance) -> bool``, where *a* and
+        *b* are ``(x, y, z)`` tuples. Required."""
+        if not callable(predicate):
+            raise TypeError("condition must be callable")
+        self.condition = predicate
+        setClusterCondition(deref(self.me),
+                            <ClusterConditionFn> _condition_trampoline,
+                            <void*> self.condition)
+
+    def set_ClusterTolerance(self, float tolerance):
+        self.me.setClusterTolerance(tolerance)
+
+    def get_ClusterTolerance(self):
+        return self.me.getClusterTolerance()
+
+    def set_MinClusterSize(self, int min_size):
+        self.me.setMinClusterSize(min_size)
+
+    def get_MinClusterSize(self):
+        return self.me.getMinClusterSize()
+
+    def set_MaxClusterSize(self, int max_size):
+        self.me.setMaxClusterSize(max_size)
+
+    def get_MaxClusterSize(self):
+        return self.me.getMaxClusterSize()
+
+    def segment(self):
+        """Return the clusters as a list of index lists."""
+        if self.condition is None:
+            raise RuntimeError(
+                "set_ConditionFunction() is required: PCL calls an unset "
+                "condition and crashes")
+        cdef vector[PointIndices] clusters
+        with nogil:
+            self.me.segment(clusters)
         return [
             [clusters[i].indices[j] for j in range(clusters[i].indices.size())]
             for i in range(clusters.size())

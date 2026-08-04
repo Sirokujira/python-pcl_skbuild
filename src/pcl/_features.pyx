@@ -29,6 +29,12 @@ from pcl.pxd.features.normal_3d cimport NormalEstimation as cNormalEstimation
 from pcl.pxd.features.moment_of_inertia_estimation cimport (
     MomentOfInertiaEstimation as cMomentOfInertiaEstimation)
 from pcl.pxd.features.vfh cimport VFHEstimation as cVFHEstimation
+from pcl.pxd.features.integral_image_normal cimport (
+    IntegralImageNormalEstimation as cIntegralImageNormalEstimation)
+from pcl.pxd.compat.organized_args cimport (
+    IINE_AVERAGE_3D_GRADIENT, IINE_AVERAGE_DEPTH_CHANGE,
+    IINE_COVARIANCE_MATRIX, IINE_SIMPLE_3D_GRADIENT,
+    setNormalEstimationMethod)
 from pcl.pxd.compat.eigen_results cimport (
     axisAlignedBoundingBox, eigenValues, eigenVectors, massCenter,
     orientedBoundingBox)
@@ -291,3 +297,88 @@ cdef class VFHEstimation:
         for i in range(308):
             view[i] = p.histogram[i]
         return result
+
+
+# IntegralImageNormalEstimation::NormalEstimationMethod, re-exported from
+# the header through the shim so the values cannot drift.
+COVARIANCE_MATRIX = IINE_COVARIANCE_MATRIX
+AVERAGE_3D_GRADIENT = IINE_AVERAGE_3D_GRADIENT
+AVERAGE_DEPTH_CHANGE = IINE_AVERAGE_DEPTH_CHANGE
+SIMPLE_3D_GRADIENT = IINE_SIMPLE_3D_GRADIENT
+
+
+cdef class IntegralImageNormalEstimation:
+    """Normals straight from a depth image
+    (pcl::IntegralImageNormalEstimation).
+
+    Much faster than `NormalEstimation`, but it needs an ORGANIZED cloud
+    — build one with `PointCloud.from_organized_array()`. On an
+    unorganized cloud PCL returns nothing, so the wrapper says so rather
+    than handing back an empty array.
+    """
+
+    cdef cIntegralImageNormalEstimation[PointXYZ, Normal]* me
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cIntegralImageNormalEstimation[PointXYZ, Normal]()
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        if not pc.is_organized:
+            raise ValueError(
+                "IntegralImageNormalEstimation needs an organized cloud "
+                "(height > 1); build one with "
+                "PointCloud.from_organized_array()")
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_NormalEstimationMethod(self, int method):
+        """One of `pcl.COVARIANCE_MATRIX`, `AVERAGE_3D_GRADIENT`,
+        `AVERAGE_DEPTH_CHANGE`, `SIMPLE_3D_GRADIENT`."""
+        setNormalEstimationMethod(deref(self.me), method)
+
+    def set_MaxDepthChangeFactor(self, float factor):
+        self.me.setMaxDepthChangeFactor(factor)
+
+    def set_NormalSmoothingSize(self, float size):
+        self.me.setNormalSmoothingSize(size)
+
+    def set_DepthDependentSmoothing(self, bint enable):
+        self.me.setDepthDependentSmoothing(enable)
+
+    def set_ViewPoint(self, float x, float y, float z):
+        self.me.setViewPoint(x, y, z)
+
+    def compute(self):
+        """Return an ``(n, 4)`` float32 array:
+        ``normal_x, normal_y, normal_z, curvature``."""
+        import numpy as np
+        cdef cPointCloud[Normal] out
+        with nogil:
+            self.me.compute(out)
+
+        cdef Py_ssize_t n = <Py_ssize_t> out.size()
+        result = np.empty((n, 4), dtype=np.float32)
+        cdef float[:, ::1] view = result
+        cdef Normal* p
+        cdef Py_ssize_t i
+        for i in range(n):
+            p = &out[<size_t> i]
+            view[i, 0] = p.normal_x
+            view[i, 1] = p.normal_y
+            view[i, 2] = p.normal_z
+            view[i, 3] = p.curvature
+        return result
+
+    def compute_cloud(self):
+        """Return the normals as a :class:`PointCloud_Normal`."""
+        cdef shared_ptr[cPointCloud[Normal]] holder
+        holder.reset(new cPointCloud[Normal]())
+        cdef cPointCloud[Normal]* out = holder.get()
+        with nogil:
+            self.me.compute(deref(out))
+        return wrap_normal_cloud(holder)

@@ -20,6 +20,11 @@ from ._pointtypes import (
     PointCloud_PointXYZRGBA,
 )
 from ._features import (
+    AVERAGE_3D_GRADIENT,
+    AVERAGE_DEPTH_CHANGE,
+    COVARIANCE_MATRIX,
+    SIMPLE_3D_GRADIENT,
+    IntegralImageNormalEstimation,
     MomentOfInertiaEstimation,
     NormalEstimation,
     VFHEstimation,
@@ -73,6 +78,7 @@ from ._sac import (
 )
 from ._kdtree import KdTreeFLANN
 from ._segmentation import (
+    ConditionalEuclideanClustering,
     EuclideanClusterExtraction,
     MinCutSegmentation,
     ProgressiveMorphologicalFilter,
@@ -124,6 +130,9 @@ __all__ = [
     "KdTreeFLANN",
     "OctreePointCloudSearch", "OctreePointCloudChangeDetector",
     "NormalEstimation", "MomentOfInertiaEstimation", "VFHEstimation",
+    "IntegralImageNormalEstimation",
+    "COVARIANCE_MATRIX", "AVERAGE_3D_GRADIENT", "AVERAGE_DEPTH_CHANGE",
+    "SIMPLE_3D_GRADIENT",
     "MovingLeastSquares", "ConcaveHull", "ConvexHull",
     "IterativeClosestPoint", "IterativeClosestPointNonLinear",
     "GeneralizedIterativeClosestPoint", "NormalDistributionsTransform",
@@ -134,6 +143,7 @@ __all__ = [
     "SampleConsensusModelSphere", "SampleConsensusModelStick",
     "Segmentation", "SegmentationNormal", "EuclideanClusterExtraction",
     "ProgressiveMorphologicalFilter", "MinCutSegmentation",
+    "ConditionalEuclideanClustering",
     "SAC_RANSAC", "SAC_LMEDS", "SAC_MSAC", "SAC_RRANSAC", "SAC_RMSAC",
     "SAC_MLESAC", "SAC_PROSAC",
     "SACMODEL_PLANE", "SACMODEL_LINE", "SACMODEL_CIRCLE2D",

@@ -73,3 +73,14 @@ extra_cimports = [
     "from pcl.pxd.sample_consensus.sac_model cimport SampleConsensusModel",
     "from pcl.pxd.sample_consensus.ransac cimport RandomSampleConsensus",
 ]
+
+[[headers]]
+path = "headers/pcl/compat/organized_args.h"
+extern_from = "pcl/compat/organized_args.h"
+output = "../src/pcl/pxd/compat/organized_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ, Normal",
+    "from pcl.pxd.features.integral_image_normal cimport IntegralImageNormalEstimation",
+    "from pcl.pxd.segmentation.conditional_euclidean_clustering cimport ConditionalEuclideanClustering",
+]
