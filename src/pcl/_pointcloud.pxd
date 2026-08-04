@@ -19,3 +19,9 @@ cdef class PointCloud:
     # Every cdef method has to be declared here once the type has a pxd,
     # even the internal ones.
     cdef Py_ssize_t _normalize_index(self, index) except -1
+
+
+# Adopt an existing pcl::PointCloud instead of allocating a new one — how
+# a cloud that arrived from PCL (a grabber frame, say) becomes a
+# PointCloud without copying its points.
+cdef PointCloud wrap_cloud(shared_ptr[cPointCloud[PointXYZ]] ptr)

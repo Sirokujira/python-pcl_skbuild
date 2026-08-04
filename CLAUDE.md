@@ -38,6 +38,7 @@ pxdgen/modules/*.toml       [[headers]] entries per PCL module, nothing else
 src/pcl/pxd/**/*.pxd        GENERATED (one subpackage per PCL module)
 src/pcl/*.pyx               hand-written wrappers, one extension module each
 src/pcl/_pointcloud.pxd     hand-written; exports PointCloud to the others
+src/pcl/compat/*.h          C++ shims for what Cython cannot state
 ```
 
 ## Wrapped so far
@@ -45,9 +46,15 @@ src/pcl/_pointcloud.pxd     hand-written; exports PointCloud to the others
 `PointCloud` (+ PCD I/O via `pcl.load` / `pcl.save`), `VoxelGridFilter`,
 `ApproximateVoxelGrid`, `PassThroughFilter`,
 `StatisticalOutlierRemovalFilter`, `RadiusOutlierRemoval`, `KdTreeFLANN`,
-`Segmentation` (SAC), `EuclideanClusterExtraction`. Names follow
+`Segmentation` (SAC), `EuclideanClusterExtraction`, and the sensor side:
+`PCDGrabber`, `HDLGrabber`. Names follow
 [sirokujira/python-pcl](https://github.com/sirokujira/python-pcl),
 including the `cloud.make_*()` factory methods.
+
+Sensors deliver frames through `register_callback(handler)`; PCL calls
+back on its own thread. The bridge is `src/pcl/compat/grabber_callback.h`
+plus the trampoline in `_grabber.pyx` — read the callback/GIL section of
+the rules before touching either.
 
 ## About .pyd / .so binary modules
 
