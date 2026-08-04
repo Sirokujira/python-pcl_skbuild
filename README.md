@@ -92,10 +92,33 @@ HDL/VLP capture through the same interface. Exceptions raised inside a
 handler are printed and the stream continues — letting one escape into
 PCL's callback would terminate the interpreter.
 
-Wrapped so far: `PointCloud` with PCD I/O, `VoxelGridFilter`,
-`ApproximateVoxelGrid`, `PassThroughFilter`,
-`StatisticalOutlierRemovalFilter`, `RadiusOutlierRemoval`, `KdTreeFLANN`,
-`Segmentation`, `EuclideanClusterExtraction`, `PCDGrabber`, `HDLGrabber`.
+### Registration
+
+```python
+icp = source.make_IterativeClosestPoint()
+converged, transform, estimate, fitness = icp.icp(source, target, max_iter=100)
+
+ndt = source.make_NormalDistributionsTransform()   # not in python-pcl
+ndt.set_Resolution(1.0)
+ndt.set_StepSize(0.1)
+converged, transform, estimate, fitness = ndt.ndt(source, target)
+```
+
+`transform` is a 4x4 float32 array in Fortran order (Eigen is
+column-major, so that is the layout PCL already has).
+
+### Wrapped so far
+
+| area | classes |
+|---|---|
+| core | `PointCloud`, `pcl.load` / `pcl.save` (PCD, PLY, `.gz`) |
+| filters | `VoxelGridFilter`, `ApproximateVoxelGrid`, `PassThroughFilter`, `StatisticalOutlierRemovalFilter`, `RadiusOutlierRemoval` |
+| search | `KdTreeFLANN`, `OctreePointCloudSearch`, `OctreePointCloudChangeDetector` |
+| features | `NormalEstimation`, `MomentOfInertiaEstimation` |
+| surface | `MovingLeastSquares`, `ConcaveHull`, `ConvexHull` |
+| registration | `IterativeClosestPoint`, `IterativeClosestPointNonLinear`, `GeneralizedIterativeClosestPoint`, `NormalDistributionsTransform` |
+| segmentation | `Segmentation` (SAC), `EuclideanClusterExtraction` |
+| sensors | `PCDGrabber`, `HDLGrabber` |
 
 The built artifacts are native extension modules (`_pointcloud`,
 `_filters`, `_kdtree`, `_segmentation`; `.so` on Linux/macOS, `.pyd` on

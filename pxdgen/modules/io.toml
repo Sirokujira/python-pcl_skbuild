@@ -9,6 +9,13 @@ namespaces = ["pcl::io"]
 extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
 
 [[headers]]
+path = "headers/pcl/io/ply_io.h"
+extern_from = "pcl/io/ply_io.h"
+output = "../src/pcl/pxd/io/ply_io.pxd"
+namespaces = ["pcl::io"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
 path = "headers/pcl/io/grabber.h"
 extern_from = "pcl/io/grabber.h"
 output = "../src/pcl/pxd/io/grabber.pxd"

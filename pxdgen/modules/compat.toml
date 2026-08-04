@@ -4,6 +4,21 @@
 # Only [[headers]] entries belong here; see pxdgen/pcl_headers.toml.
 
 [[headers]]
+path = "headers/pcl/compat/eigen_results.h"
+extern_from = "pcl/compat/eigen_results.h"
+output = "../src/pcl/pxd/compat/eigen_results.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.registration.icp cimport IterativeClosestPoint",
+    "from pcl.pxd.registration.icp_nl cimport IterativeClosestPointNonLinear",
+    "from pcl.pxd.registration.gicp cimport GeneralizedIterativeClosestPoint",
+    "from pcl.pxd.registration.ndt cimport NormalDistributionsTransform",
+    "from pcl.pxd.features.moment_of_inertia_estimation cimport MomentOfInertiaEstimation",
+    "from pcl.pxd.octree.octree_search cimport OctreePointCloudSearch",
+]
+
+[[headers]]
 path = "headers/pcl/compat/grabber_callback.h"
 extern_from = "pcl/compat/grabber_callback.h"
 output = "../src/pcl/pxd/compat/grabber_callback.pxd"

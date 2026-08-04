@@ -1,0 +1,16 @@
+# pcl/octree — voxel-tree search and change detection.
+# Only [[headers]] entries belong here; see pxdgen/pcl_headers.toml.
+
+[[headers]]
+path = "headers/pcl/octree/octree_search.h"
+extern_from = "pcl/octree/octree_search.h"
+output = "../src/pcl/pxd/octree/octree_search.pxd"
+namespaces = ["pcl::octree"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/octree/octree_pointcloud_changedetector.h"
+extern_from = "pcl/octree/octree_pointcloud_changedetector.h"
+output = "../src/pcl/pxd/octree/octree_pointcloud_changedetector.pxd"
+namespaces = ["pcl::octree"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]

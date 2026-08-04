@@ -24,6 +24,7 @@ from libcpp.string cimport string
 from pcl.pxd.point_types cimport PointXYZ
 from pcl.pxd.point_cloud cimport PointCloud as cPointCloud
 from pcl.pxd.io.pcd_io cimport loadPCDFile, savePCDFile
+from pcl.pxd.io.ply_io cimport loadPLYFile, savePLYFile
 
 
 cdef string _topath(path):
@@ -219,6 +220,24 @@ cdef class PointCloud:
             error = savePCDFile[PointXYZ](s, deref(c), binary)
         return error
 
+    def _from_ply_file(self, path):
+        """Fill this cloud from a .ply file; returns PCL's error code."""
+        cdef string s = _topath(path)
+        cdef cPointCloud[PointXYZ]* c = self.ptr()
+        cdef int error
+        with nogil:
+            error = loadPLYFile[PointXYZ](s, deref(c))
+        return error
+
+    def _to_ply_file(self, path, cbool binary=False):
+        """Write this cloud to a .ply file; returns PCL's error code."""
+        cdef string s = _topath(path)
+        cdef cPointCloud[PointXYZ]* c = self.ptr()
+        cdef int error
+        with nogil:
+            error = savePLYFile[PointXYZ](s, deref(c), binary)
+        return error
+
     # --- algorithm factories (python-pcl compatible) -------------------
     #
     # The imports are deferred to call time on purpose. _filters, _kdtree
@@ -267,6 +286,61 @@ cdef class PointCloud:
         """Return a EuclideanClusterExtraction with this cloud as input."""
         from pcl._segmentation import EuclideanClusterExtraction
         return EuclideanClusterExtraction(self)
+
+    def make_octreeSearch(self, double resolution):
+        """Return an OctreePointCloudSearch built from this cloud."""
+        from pcl._octree import OctreePointCloudSearch
+        return OctreePointCloudSearch(resolution, self)
+
+    def make_octreeChangeDetector(self, double resolution):
+        """Return an OctreePointCloudChangeDetector holding this cloud."""
+        from pcl._octree import OctreePointCloudChangeDetector
+        return OctreePointCloudChangeDetector(resolution, self)
+
+    def make_NormalEstimation(self):
+        """Return a NormalEstimation with this cloud as input."""
+        from pcl._features import NormalEstimation
+        return NormalEstimation(self)
+
+    def make_MomentOfInertiaEstimation(self):
+        """Return a MomentOfInertiaEstimation with this cloud as input."""
+        from pcl._features import MomentOfInertiaEstimation
+        return MomentOfInertiaEstimation(self)
+
+    def make_moving_least_squares(self):
+        """Return a MovingLeastSquares with this cloud as input."""
+        from pcl._surface import MovingLeastSquares
+        return MovingLeastSquares(self)
+
+    def make_ConcaveHull(self):
+        """Return a ConcaveHull with this cloud as input."""
+        from pcl._surface import ConcaveHull
+        return ConcaveHull(self)
+
+    def make_ConvexHull(self):
+        """Return a ConvexHull with this cloud as input."""
+        from pcl._surface import ConvexHull
+        return ConvexHull(self)
+
+    def make_IterativeClosestPoint(self):
+        """Return an IterativeClosestPoint."""
+        from pcl._registration import IterativeClosestPoint
+        return IterativeClosestPoint()
+
+    def make_IterativeClosestPointNonLinear(self):
+        """Return an IterativeClosestPointNonLinear."""
+        from pcl._registration import IterativeClosestPointNonLinear
+        return IterativeClosestPointNonLinear()
+
+    def make_GeneralizedIterativeClosestPoint(self):
+        """Return a GeneralizedIterativeClosestPoint."""
+        from pcl._registration import GeneralizedIterativeClosestPoint
+        return GeneralizedIterativeClosestPoint()
+
+    def make_NormalDistributionsTransform(self):
+        """Return a NormalDistributionsTransform."""
+        from pcl._registration import NormalDistributionsTransform
+        return NormalDistributionsTransform()
 
 
 cdef PointCloud wrap_cloud(shared_ptr[cPointCloud[PointXYZ]] ptr):

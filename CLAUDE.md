@@ -43,11 +43,17 @@ src/pcl/compat/*.h          C++ shims for what Cython cannot state
 
 ## Wrapped so far
 
-`PointCloud` (+ PCD I/O via `pcl.load` / `pcl.save`), `VoxelGridFilter`,
-`ApproximateVoxelGrid`, `PassThroughFilter`,
-`StatisticalOutlierRemovalFilter`, `RadiusOutlierRemoval`, `KdTreeFLANN`,
-`Segmentation` (SAC), `EuclideanClusterExtraction`, and the sensor side:
-`PCDGrabber`, `HDLGrabber`. Names follow
+`PointCloud` (+ PCD/PLY I/O via `pcl.load` / `pcl.save`, `.gz`
+transparent), `VoxelGridFilter`, `ApproximateVoxelGrid`,
+`PassThroughFilter`, `StatisticalOutlierRemovalFilter`,
+`RadiusOutlierRemoval`, `KdTreeFLANN`, `OctreePointCloudSearch`,
+`OctreePointCloudChangeDetector`, `NormalEstimation`,
+`MomentOfInertiaEstimation`, `MovingLeastSquares`, `ConcaveHull`,
+`ConvexHull`, `IterativeClosestPoint`,
+`IterativeClosestPointNonLinear`, `GeneralizedIterativeClosestPoint`,
+`NormalDistributionsTransform`, `Segmentation` (SAC),
+`EuclideanClusterExtraction`, and the sensor side: `PCDGrabber`,
+`HDLGrabber`. Names follow
 [sirokujira/python-pcl](https://github.com/sirokujira/python-pcl),
 including the `cloud.make_*()` factory methods.
 

@@ -1,0 +1,16 @@
+# pcl/features — descriptors computed from a cloud's local geometry.
+# Only [[headers]] entries belong here; see pxdgen/pcl_headers.toml.
+
+[[headers]]
+path = "headers/pcl/features/normal_3d.h"
+extern_from = "pcl/features/normal_3d.h"
+output = "../src/pcl/pxd/features/normal_3d.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/moment_of_inertia_estimation.h"
+extern_from = "pcl/features/moment_of_inertia_estimation.h"
+output = "../src/pcl/pxd/features/moment_of_inertia_estimation.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]

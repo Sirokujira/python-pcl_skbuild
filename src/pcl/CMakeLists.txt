@@ -12,6 +12,10 @@ set(PCL_CYTHON_MODULES
     _kdtree
     _segmentation
     _grabber
+    _octree
+    _features
+    _surface
+    _registration
 )
 
 foreach(module ${PCL_CYTHON_MODULES})

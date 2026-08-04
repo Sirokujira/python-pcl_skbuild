@@ -1,0 +1,30 @@
+# pcl/registration — aligning one cloud onto another.
+# Only [[headers]] entries belong here; see pxdgen/pcl_headers.toml.
+
+[[headers]]
+path = "headers/pcl/registration/icp.h"
+extern_from = "pcl/registration/icp.h"
+output = "../src/pcl/pxd/registration/icp.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/registration/icp_nl.h"
+extern_from = "pcl/registration/icp_nl.h"
+output = "../src/pcl/pxd/registration/icp_nl.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/registration/gicp.h"
+extern_from = "pcl/registration/gicp.h"
+output = "../src/pcl/pxd/registration/gicp.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/registration/ndt.h"
+extern_from = "pcl/registration/ndt.h"
+output = "../src/pcl/pxd/registration/ndt.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]

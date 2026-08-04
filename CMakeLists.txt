@@ -23,7 +23,9 @@ if(APPLE)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13")
 endif(APPLE)
 
-find_package(PCL REQUIRED COMPONENTS common io filters kdtree search segmentation)
+find_package(PCL REQUIRED COMPONENTS
+    common io filters kdtree octree search segmentation features surface
+    registration)
 
 # Supported range: PCL 1.11+. 1.11 is where boost::shared_ptr became
 # std::shared_ptr across the API; the generated pxd declare std::shared_ptr

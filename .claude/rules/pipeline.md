@@ -123,8 +123,17 @@ process abort. Same principle for a silent no-op: PCL treats a directory
 path as a single file and returns a zero-frame grabber, so the wrapper
 expands directories itself.
 
+Not every quirk is worth absorbing, though. PCL's octree treats the FIRST
+point of a cloud specially: `voxelSearch` can miss it, and
+`getPointIndicesFromNewVoxels` reports index 0 as new even for an
+unchanged cloud. Both reproduce in plain C++ against 1.14.0. Nothing here
+papers over them — a wrapper that silently dropped index 0 would be lying
+about what PCL returned — so the tests document the behaviour instead.
+
 When PCL does something unusable, verify it in C++ first (that is what
-tells you it is not your bug), then decide in the `.pyx` layer.
+tells you it is not your bug), then decide in the `.pyx` layer: absorb it
+when it would otherwise crash or silently no-op, document it when it is
+merely surprising.
 
 ## Environment (relative/discovered only)
 
