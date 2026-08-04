@@ -8,6 +8,9 @@
       "Bash(cython:*)",
       "Bash(pip install:*)",
       "Bash(cmake --version)"
+    ],
+    "deny": [
+      "Edit(src/pcl/pxd/**)"
     ]
   }
 }

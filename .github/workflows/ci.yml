@@ -6,21 +6,33 @@ on:
   pull_request:
 
 jobs:
-  # Fast job, no PCL: pxd generation pipeline + cython transpile checks.
+  # pxd generation pipeline + cython transpile checks: no PCL needed, runs
+  # on every OS.
   pxd-pipeline:
-    runs-on: ubuntu-latest
+    name: pxd-pipeline / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install clang (builtin headers for libclang)
+      - name: Install clang (builtin headers for libclang) — Linux
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y clang
+      - name: Install LLVM (clang for builtin headers) — Windows
+        if: runner.os == 'Windows'
+        run: |
+          choco install llvm -y --no-progress
+          echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
+      # macOS: Xcode Command Line Tools provide clang out of the box
       # NOTE: requires the sirokujira/cppast2autopxd repository to be
-      # readable by CI (public, or a token configured); until it is
-      # published on PyPI the git+ URL is the install source.
+      # readable by CI; until it is on PyPI the git+ URL is the source.
       - name: Install cppast2autopxd + test deps
         run: |
           pip install "git+https://github.com/sirokujira/cppast2autopxd.git"
@@ -30,19 +42,34 @@ jobs:
 
   # Full build against real PCL headers/libraries.
   build:
-    runs-on: ubuntu-latest
+    name: build / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install PCL
+      - name: Install PCL — Linux
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libpcl-dev
+      - name: Install PCL — macOS
+        if: runner.os == 'macOS'
+        run: brew install pcl
       - name: Build package
         run: pip install -v .
       - name: Run runtime tests
         run: |
           pip install pytest
           pytest tests/test_pointcloud.py -v
+
+  # Windows build is not in the matrix yet: PCL via vcpkg takes hours of
+  # compile time on hosted runners. The pxd-pipeline job above covers the
+  # generator path on Windows; the extension build itself is exercised on
+  # Linux/macOS. (Local Windows builds work via `pip install .` with a
+  # PCL_ROOT install — see README.)
