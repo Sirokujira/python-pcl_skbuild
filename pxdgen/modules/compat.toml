@@ -84,3 +84,14 @@ extra_cimports = [
     "from pcl.pxd.features.integral_image_normal cimport IntegralImageNormalEstimation",
     "from pcl.pxd.segmentation.conditional_euclidean_clustering cimport ConditionalEuclideanClustering",
 ]
+
+[[headers]]
+path = "headers/pcl/compat/range_image_args.h"
+extern_from = "pcl/compat/range_image_args.h"
+output = "../src/pcl/pxd/compat/range_image_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.range_image.range_image cimport RangeImage",
+]

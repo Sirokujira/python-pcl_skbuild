@@ -72,6 +72,11 @@ from ._keypoints import (
     HarrisKeypoint3D,
 )
 from ._grabber import HDLGrabber, PCDGrabber
+from ._rangeimage import (
+    CAMERA_FRAME,
+    LASER_FRAME,
+    RangeImage,
+)
 from ._sac import (
     RandomSampleConsensus,
     SampleConsensusModel,
@@ -145,6 +150,7 @@ __all__ = [
     "IterativeClosestPoint", "IterativeClosestPointNonLinear",
     "GeneralizedIterativeClosestPoint", "NormalDistributionsTransform",
     "PCDGrabber", "HDLGrabber",
+    "RangeImage", "CAMERA_FRAME", "LASER_FRAME",
     "RandomSampleConsensus", "SampleConsensusModel",
     "SampleConsensusModelPlane", "SampleConsensusModelLine",
     "SampleConsensusModelCircle2D", "SampleConsensusModelCircle3D",

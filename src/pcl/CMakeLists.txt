@@ -19,6 +19,7 @@ set(PCL_CYTHON_MODULES
     _pointtypes
     _keypoints
     _sac
+    _rangeimage
 )
 
 foreach(module ${PCL_CYTHON_MODULES})

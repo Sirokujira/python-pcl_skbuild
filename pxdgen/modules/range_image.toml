@@ -1,0 +1,8 @@
+# pcl/range_image — the pixel-grid view of a cloud.
+# Only [[headers]] entries belong here; see pxdgen/pcl_headers.toml.
+
+[[headers]]
+path = "headers/pcl/range_image/range_image.h"
+extern_from = "pcl/range_image/range_image.h"
+output = "../src/pcl/pxd/range_image/range_image.pxd"
+namespaces = ["pcl"]

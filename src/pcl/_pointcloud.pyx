@@ -376,6 +376,14 @@ cdef class PointCloud:
         from pcl._filters import UniformSampling
         return UniformSampling(self)
 
+    def make_RangeImage(self, float angular_resolution=0.008726646):
+        """Return a RangeImage rendered from this cloud.
+
+        The default resolution is 0.5 degrees in radians, PCL's own.
+        """
+        from pcl._rangeimage import RangeImage
+        return RangeImage(self, angular_resolution)
+
     def make_HarrisKeypoint3D(self):
         """Return a HarrisKeypoint3D with this cloud as input."""
         from pcl._keypoints import HarrisKeypoint3D
