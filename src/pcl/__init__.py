@@ -73,6 +73,9 @@ from ._keypoints import (
     HarrisKeypoint3D,
 )
 from ._grabber import HDLGrabber, PCDGrabber
+from ._people import hog, hog_descriptor_size
+from ._recognition import GeometricConsistencyGrouping, Hough3DGrouping
+from ._tracking import ParticleFilterTracker
 from ._rangeimage import (
     CAMERA_FRAME,
     LASER_FRAME,
@@ -152,6 +155,9 @@ __all__ = [
     "GeneralizedIterativeClosestPoint", "NormalDistributionsTransform",
     "PCDGrabber", "HDLGrabber",
     "RangeImage", "CAMERA_FRAME", "LASER_FRAME",
+    "GeometricConsistencyGrouping", "Hough3DGrouping",
+    "ParticleFilterTracker",
+    "hog", "hog_descriptor_size",
     "RandomSampleConsensus", "SampleConsensusModel",
     "SampleConsensusModelPlane", "SampleConsensusModelLine",
     "SampleConsensusModelCircle2D", "SampleConsensusModelCircle3D",

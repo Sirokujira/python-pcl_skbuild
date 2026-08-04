@@ -95,3 +95,29 @@ extra_cimports = [
     "from pcl.pxd.point_cloud cimport PointCloud",
     "from pcl.pxd.range_image.range_image cimport RangeImage",
 ]
+
+[[headers]]
+path = "headers/pcl/compat/recognition_args.h"
+extern_from = "pcl/compat/recognition_args.h"
+output = "../src/pcl/pxd/compat/recognition_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+]
+
+[[headers]]
+path = "headers/pcl/compat/tracking_args.h"
+extern_from = "pcl/compat/tracking_args.h"
+output = "../src/pcl/pxd/compat/tracking_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+]
+
+[[headers]]
+path = "headers/pcl/compat/people_args.h"
+extern_from = "pcl/compat/people_args.h"
+output = "../src/pcl/pxd/compat/people_args.pxd"
+namespaces = ["pclcompat"]

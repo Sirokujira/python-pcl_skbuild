@@ -159,11 +159,27 @@ column-major, so that is the layout PCL already has).
 | surface | `MovingLeastSquares`, `ConcaveHull`, `ConvexHull`, `GreedyProjectionTriangulation` |
 | registration | `IterativeClosestPoint`, `IterativeClosestPointNonLinear`, `GeneralizedIterativeClosestPoint`, `NormalDistributionsTransform` |
 | segmentation | `Segmentation` (SAC), `SegmentationNormal`, `EuclideanClusterExtraction`, `ProgressiveMorphologicalFilter`, `MinCutSegmentation`, `ConditionalEuclideanClustering` |
+| recognition | `GeometricConsistencyGrouping`, `Hough3DGrouping` |
+| tracking | `ParticleFilterTracker` |
+| people | `pcl.hog` / `pcl.hog_descriptor_size` |
 | sensors | `PCDGrabber`, `HDLGrabber` |
 
 The built artifacts are native extension modules (`_pointcloud`,
 `_filters`, `_kdtree`, `_segmentation`; `.so` on Linux/macOS, `.pyd` on
 Windows) installed into the `pcl` package.
+
+### Not wrapped, and why
+
+- **`pcl/visualization`** — needs VTK development headers, which turns a
+  `pip install` into a VTK build. Everything here works headless; render
+  with whatever the caller already has (matplotlib, Open3D, `pcl_viewer`).
+- **The rest of `pcl/people`** — `person_cluster.h` does an unconditional
+  `#include <pcl/visualization/pcl_visualizer.h>`, so `PersonCluster`,
+  `HeightMap2D`, `HeadBasedSubclustering` and
+  `GroundBasedPeopleDetectionApp` all inherit the VTK dependency above.
+  `GroundBasedPeopleDetectionApp` additionally needs a trained SVM file
+  that this package cannot ship. `HOG` includes only `point_types.h`, so
+  it is wrapped.
 
 ## Performance
 

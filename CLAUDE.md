@@ -61,8 +61,9 @@ python-pcl's packed-float column), `VoxelGridFilter`, `ApproximateVoxelGrid`,
 `ConvexHull`, `IterativeClosestPoint`,
 `IterativeClosestPointNonLinear`, `GeneralizedIterativeClosestPoint`,
 `NormalDistributionsTransform`, `Segmentation` (SAC),
-`EuclideanClusterExtraction`, and the sensor side: `PCDGrabber`,
-`HDLGrabber`. Names follow
+`EuclideanClusterExtraction`, `GeometricConsistencyGrouping`,
+`Hough3DGrouping`, `ParticleFilterTracker`, `pcl.hog`, and the sensor
+side: `PCDGrabber`, `HDLGrabber`. Names follow
 [sirokujira/python-pcl](https://github.com/sirokujira/python-pcl),
 including the `cloud.make_*()` factory methods.
 

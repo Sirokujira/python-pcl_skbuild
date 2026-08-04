@@ -20,6 +20,9 @@ set(PCL_CYTHON_MODULES
     _keypoints
     _sac
     _rangeimage
+    _recognition
+    _tracking
+    _people
 )
 
 foreach(module ${PCL_CYTHON_MODULES})

@@ -133,12 +133,27 @@ therefore writes past the end of an empty cloud. The wrapper sizes the
 output itself before the call. Verified both ways in plain C++: empty
 output segfaults, pre-sized output returns.
 
+`ParticleFilterTracker` is a third: it declares `bool changed_{false}`
+and never assigns it — only the OMP subclasses do — while
+`computeTracking()` gates both `resample()` and `update()` on that flag.
+The plain tracker therefore computes particle weights and throws them
+away, and `getResult()` returns the initial pose on every frame. The
+wrapper tracks `ParticleFilterOMPTracker` instead. Verified in plain C++
+against 1.14: the base reports (0,0,0) for a moving object, the OMP one
+follows it.
+
 Not every quirk is worth absorbing, though. PCL's octree treats the FIRST
 point of a cloud specially: `voxelSearch` can miss it, and
 `getPointIndicesFromNewVoxels` reports index 0 as new even for an
 unchanged cloud. Both reproduce in plain C++ against 1.14.0. Nothing here
 papers over them — a wrapper that silently dropped index 0 would be lying
 about what PCL returned — so the tests document the behaviour instead.
+
+And sometimes the bug is in the *documentation*: `pcl::people::HOG`'s
+`descriptor` out-parameter has no stated length, and a short buffer is a
+silent heap overflow. The size was measured by sentinel-filling across
+six parameter sets — `(h/bin - 2) * (w/bin - 2) * n_orients * 4` — and
+`people_args.h` owns the allocation so a caller cannot get it wrong.
 
 When PCL does something unusable, verify it in C++ first (that is what
 tells you it is not your bug), then decide in the `.pyx` layer: absorb it
