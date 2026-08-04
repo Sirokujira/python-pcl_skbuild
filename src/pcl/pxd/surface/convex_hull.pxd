@@ -5,7 +5,9 @@
 
 from libcpp cimport bool
 from libcpp.memory cimport shared_ptr
+from libcpp.vector cimport vector
 from pcl.pxd.point_cloud cimport PointCloud
+from pcl.pxd.vertices cimport Vertices
 
 cdef extern from "pcl/surface/convex_hull.h" namespace "pcl" nogil:
     cdef cppclass ConvexHull[PointInT]:
@@ -17,3 +19,4 @@ cdef extern from "pcl/surface/convex_hull.h" namespace "pcl" nogil:
         double getTotalArea() except +
         double getTotalVolume() except +
         void reconstruct(PointCloud[PointInT]& points) except +
+        void reconstruct(PointCloud[PointInT]& points, vector[Vertices]& polygons) except +

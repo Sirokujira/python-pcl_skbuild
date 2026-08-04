@@ -16,13 +16,37 @@ meaning one thing.
 
 from cython.operator cimport dereference as deref
 
-from pcl.pxd.point_types cimport PointXYZ, PointNormal
+from libcpp.memory cimport shared_ptr
+from libcpp.vector cimport vector
+
+from pcl.pxd.point_types cimport Normal, PointXYZ, PointNormal
 from pcl.pxd.point_cloud cimport PointCloud as cPointCloud
 from pcl.pxd.surface.mls cimport MovingLeastSquares as cMovingLeastSquares
 from pcl.pxd.surface.concave_hull cimport ConcaveHull as cConcaveHull
 from pcl.pxd.surface.convex_hull cimport ConvexHull as cConvexHull
+from pcl.pxd.surface.gp3 cimport (
+    GreedyProjectionTriangulation as cGreedyProjectionTriangulation)
+from pcl.pxd.vertices cimport Vertices
 
 from pcl._pointcloud cimport PointCloud, wrap_cloud
+from pcl._pointtypes cimport PointCloud_Normal
+
+
+cdef object _polygon_list(vector[Vertices]& polygons):
+    """PCL's vector<Vertices> as a list of index tuples.
+
+    Plain loops on purpose: a comprehension or generator over a C++
+    reference makes Cython build a closure holding that reference, and
+    the generated scope object segfaults on construction.
+    """
+    cdef size_t i, j
+    result = []
+    for i in range(polygons.size()):
+        polygon = []
+        for j in range(polygons[i].vertices.size()):
+            polygon.append(polygons[i].vertices[j])
+        result.append(tuple(polygon))
+    return result
 
 
 cdef class MovingLeastSquares:
@@ -150,6 +174,17 @@ cdef class ConcaveHull:
             hull.reconstruct(deref(out))
         return result
 
+    def reconstruct_with_polygons(self):
+        """Return ``(points, polygons)``; each polygon is a tuple of
+        indices into *points*. That pair is what `CropHull` takes."""
+        cdef PointCloud result = PointCloud()
+        cdef cPointCloud[PointXYZ]* out = result.ptr()
+        cdef cConcaveHull[PointXYZ]* hull = self.me
+        cdef vector[Vertices] polygons
+        with nogil:
+            hull.reconstruct(deref(out), polygons)
+        return result, _polygon_list(polygons)
+
 
 cdef class ConvexHull:
     """Convex hull of a cloud (pcl::ConvexHull)."""
@@ -191,3 +226,123 @@ cdef class ConvexHull:
         with nogil:
             hull.reconstruct(deref(out))
         return result
+
+    def reconstruct_with_polygons(self):
+        """Return ``(points, polygons)``; each polygon is a tuple of
+        indices into *points*. That pair is what `CropHull` takes."""
+        cdef PointCloud result = PointCloud()
+        cdef cPointCloud[PointXYZ]* out = result.ptr()
+        cdef cConvexHull[PointXYZ]* hull = self.me
+        cdef vector[Vertices] polygons
+        with nogil:
+            hull.reconstruct(deref(out), polygons)
+        return result, _polygon_list(polygons)
+
+
+cdef class GreedyProjectionTriangulation:
+    """Triangulate a cloud that has normals (pcl::GreedyProjectionTriangulation).
+
+    Meshing needs both geometry and orientation, and PCL wants them in
+    one PointNormal cloud; `set_InputCloud` takes the two separately and
+    joins them, so callers never build that type by hand:
+
+        normals = cloud.make_NormalEstimation()
+        normals.set_KSearch(20)
+        gp3 = cloud.make_GreedyProjectionTriangulation()
+        gp3.set_InputCloud(cloud, normals.compute_cloud())
+        gp3.set_SearchRadius(0.5)
+        triangles = gp3.reconstruct()
+
+    `reconstruct` returns index triples into the ORIGINAL cloud, so the
+    points never leave Python's side of the boundary.
+    """
+
+    cdef cGreedyProjectionTriangulation[PointNormal]* me
+    cdef bint has_input
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cGreedyProjectionTriangulation[PointNormal]()
+        self.has_input = False
+        # A cloud alone is not enough input, so a constructor argument
+        # only records intent; set_InputCloud does the real work.
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None,
+                       PointCloud_Normal normals not None):
+        """Join *pc* and *normals* into the PointNormal cloud PCL wants."""
+        cdef Py_ssize_t n = <Py_ssize_t> pc.ptr().size()
+        if <Py_ssize_t> normals.ptr().size() != n:
+            raise ValueError(
+                "cloud and normals must have the same length, got %d and %d"
+                % (n, normals.ptr().size()))
+
+        cdef shared_ptr[cPointCloud[PointNormal]] joined
+        joined.reset(new cPointCloud[PointNormal]())
+        cdef cPointCloud[PointNormal]* out = joined.get()
+        out.resize(<size_t> n)
+        out.width = <unsigned int> n
+        out.height = 1
+
+        cdef cPointCloud[PointXYZ]* src = pc.ptr()
+        cdef cPointCloud[Normal]* nrm = normals.ptr()
+        cdef PointNormal* dst
+        cdef Py_ssize_t i
+        for i in range(n):
+            dst = &(deref(out)[<size_t> i])
+            dst.x = deref(src)[<size_t> i].x
+            dst.y = deref(src)[<size_t> i].y
+            dst.z = deref(src)[<size_t> i].z
+            dst.normal_x = deref(nrm)[<size_t> i].normal_x
+            dst.normal_y = deref(nrm)[<size_t> i].normal_y
+            dst.normal_z = deref(nrm)[<size_t> i].normal_z
+            dst.curvature = deref(nrm)[<size_t> i].curvature
+
+        self.me.setInputCloud(joined)
+        self.has_input = True
+
+    def set_SearchRadius(self, double radius):
+        """Longest edge a triangle may have. Required."""
+        self.me.setSearchRadius(radius)
+
+    def get_SearchRadius(self):
+        return self.me.getSearchRadius()
+
+    def set_Mu(self, double mu):
+        """Neighbour distance multiplier, relative to the nearest one."""
+        self.me.setMu(mu)
+
+    def get_Mu(self):
+        return self.me.getMu()
+
+    def set_MaximumNearestNeighbors(self, int count):
+        self.me.setMaximumNearestNeighbors(count)
+
+    def get_MaximumNearestNeighbors(self):
+        return self.me.getMaximumNearestNeighbors()
+
+    def set_MaximumSurfaceAngle(self, double angle):
+        self.me.setMaximumSurfaceAngle(angle)
+
+    def set_MinimumAngle(self, double angle):
+        self.me.setMinimumAngle(angle)
+
+    def set_MaximumAngle(self, double angle):
+        self.me.setMaximumAngle(angle)
+
+    def set_NormalConsistency(self, bint consistent):
+        self.me.setNormalConsistency(consistent)
+
+    def reconstruct(self):
+        """Return the triangles as a list of index triples."""
+        if not self.has_input:
+            raise RuntimeError(
+                "set_InputCloud(cloud, normals) is required before "
+                "reconstruct()")
+        cdef vector[Vertices] polygons
+        cdef cGreedyProjectionTriangulation[PointNormal]* mesher = self.me
+        with nogil:
+            mesher.reconstruct(polygons)
+        return _polygon_list(polygons)

@@ -43,6 +43,9 @@ from pcl.pxd.filters.uniform_sampling cimport (
     UniformSampling as cUniformSampling)
 from pcl.pxd.point_indices cimport PointIndices
 from pcl.pxd.model_coefficients cimport ModelCoefficients
+from pcl.pxd.filters.crop_hull cimport CropHull as cCropHull
+from pcl.pxd.vertices cimport Vertices
+from libcpp.vector cimport vector
 from pcl.pxd.filters.fast_bilateral cimport (
     FastBilateralFilter as cFastBilateralFilter)
 from pcl.pxd.filters.conditional_removal cimport (
@@ -635,6 +638,70 @@ cdef class FastBilateralFilter:
 
     def get_sigma_r(self):
         return self.me.getSigmaR()
+
+    def filter(self):
+        cdef PointCloud pc = PointCloud()
+        cdef cPointCloud[PointXYZ]* out = pc.ptr()
+        with nogil:
+            self.me.filter(deref(out))
+        return pc
+
+
+cdef class CropHull:
+    """Keep the points inside a hull (pcl::CropHull).
+
+    Takes what `ConvexHull.reconstruct_with_polygons()` returns, which
+    is what turns a hull from a shape into a region selector:
+
+        hull_points, polygons = region.make_ConvexHull().reconstruct_with_polygons()
+        crop = cloud.make_crophull()
+        crop.set_HullCloud(hull_points)
+        crop.set_HullIndices(polygons)
+        crop.set_Dim(3)
+        inside = crop.filter()
+    """
+
+    cdef cCropHull[PointXYZ]* me
+    # Keeps the hull cloud alive: PCL holds it by shared_ptr, but so must
+    # the Python object that owns the handle.
+    cdef object hull_cloud
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cCropHull[PointXYZ]()
+        self.hull_cloud = None
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_HullCloud(self, PointCloud pc not None):
+        self.hull_cloud = pc
+        self.me.setHullCloud(pc.thisptr_shared)
+
+    def set_HullIndices(self, polygons not None):
+        """The polygon list `reconstruct_with_polygons()` returned."""
+        cdef vector[Vertices] hull
+        cdef Vertices polygon
+        cdef int index
+        for entry in polygons:
+            polygon = Vertices()
+            for index in entry:
+                polygon.vertices.push_back(index)
+            hull.push_back(polygon)
+        self.me.setHullIndices(hull)
+
+    def set_Dim(self, int dim):
+        """2 for a planar hull, 3 for a volume."""
+        self.me.setDim(dim)
+
+    def set_CropOutside(self, bint crop_outside):
+        """True (the default) keeps what is inside the hull."""
+        self.me.setCropOutside(crop_outside)
 
     def filter(self):
         cdef PointCloud pc = PointCloud()

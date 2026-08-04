@@ -136,6 +136,16 @@ tells you it is not your bug), then decide in the `.pyx` layer: absorb it
 when it would otherwise crash or silently no-op, document it when it is
 merely surprising.
 
+## Cython traps found the hard way
+
+- **No comprehension or generator over a C++ reference.** Cython builds a
+  closure that holds the reference, and the generated scope object
+  segfaults on construction. `_polygon_list` in `_surface.pyx` uses plain
+  loops for exactly this reason; the crash looked like a PCL bug until a
+  backtrace put it in the closure's `tp_new`.
+- Every `cdef` method needs a declaration in the type's `.pxd` once one
+  exists, internal helpers included.
+
 ## Environment (relative/discovered only)
 
 - PCL is found via CMake `find_package(PCL)`; a custom install is passed

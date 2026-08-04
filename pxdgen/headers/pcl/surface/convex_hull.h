@@ -4,7 +4,9 @@
 #pragma once
 
 #include <memory>
+#include <vector>
 
+#include <pcl/Vertices.h>
 #include <pcl/point_cloud.h>
 
 namespace pcl {
@@ -24,6 +26,8 @@ public:
     double getTotalVolume() const;
 
     void reconstruct(PointCloud<PointInT>& points);
+    void reconstruct(PointCloud<PointInT>& points,
+                     std::vector<Vertices>& polygons);
 };
 
 }  // namespace pcl

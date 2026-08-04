@@ -431,6 +431,16 @@ cdef class PointCloud:
         from pcl._surface import MovingLeastSquares
         return MovingLeastSquares(self)
 
+    def make_crophull(self):
+        """Return a CropHull with this cloud as input."""
+        from pcl._filters import CropHull
+        return CropHull(self)
+
+    def make_GreedyProjectionTriangulation(self):
+        """Return a GreedyProjectionTriangulation."""
+        from pcl._surface import GreedyProjectionTriangulation
+        return GreedyProjectionTriangulation()
+
     def make_ConcaveHull(self):
         """Return a ConcaveHull with this cloud as input."""
         from pcl._surface import ConcaveHull

@@ -4,7 +4,9 @@
 # distutils: language = c++
 
 from libcpp.memory cimport shared_ptr
+from libcpp.vector cimport vector
 from pcl.pxd.point_cloud cimport PointCloud
+from pcl.pxd.vertices cimport Vertices
 
 cdef extern from "pcl/surface/concave_hull.h" namespace "pcl" nogil:
     cdef cppclass ConcaveHull[PointInT]:
@@ -15,3 +17,4 @@ cdef extern from "pcl/surface/concave_hull.h" namespace "pcl" nogil:
         void setDimension(int dimension) except +
         int getDimension() except +
         void reconstruct(PointCloud[PointInT]& points) except +
+        void reconstruct(PointCloud[PointInT]& points, vector[Vertices]& polygons) except +

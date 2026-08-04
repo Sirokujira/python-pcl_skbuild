@@ -36,7 +36,12 @@ from ._registration import (
     IterativeClosestPointNonLinear,
     NormalDistributionsTransform,
 )
-from ._surface import ConcaveHull, ConvexHull, MovingLeastSquares
+from ._surface import (
+    ConcaveHull,
+    ConvexHull,
+    GreedyProjectionTriangulation,
+    MovingLeastSquares,
+)
 from ._filters import (
     ApproximateVoxelGrid,
     CompareOp_EQ,
@@ -47,6 +52,7 @@ from ._filters import (
     ConditionAnd,
     ConditionalRemoval,
     CropBox,
+    CropHull,
     ExtractIndices,
     FastBilateralFilter,
     PassThroughFilter,
@@ -120,7 +126,8 @@ __all__ = [
     "load_XYZI", "load_XYZRGB", "load_XYZRGBA", "save_XYZRGBA",
     "VoxelGridFilter", "ApproximateVoxelGrid", "PassThroughFilter",
     "StatisticalOutlierRemovalFilter", "RadiusOutlierRemoval",
-    "ExtractIndices", "CropBox", "ProjectInliers", "RandomSample",
+    "ExtractIndices", "CropBox", "CropHull", "ProjectInliers",
+    "RandomSample",
     "UniformSampling", "ConditionAnd", "ConditionalRemoval",
     "FastBilateralFilter",
     "CompareOp_GT", "CompareOp_GE", "CompareOp_LT", "CompareOp_LE",
@@ -134,6 +141,7 @@ __all__ = [
     "COVARIANCE_MATRIX", "AVERAGE_3D_GRADIENT", "AVERAGE_DEPTH_CHANGE",
     "SIMPLE_3D_GRADIENT",
     "MovingLeastSquares", "ConcaveHull", "ConvexHull",
+    "GreedyProjectionTriangulation",
     "IterativeClosestPoint", "IterativeClosestPointNonLinear",
     "GeneralizedIterativeClosestPoint", "NormalDistributionsTransform",
     "PCDGrabber", "HDLGrabber",

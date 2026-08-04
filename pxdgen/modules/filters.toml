@@ -90,3 +90,13 @@ extern_from = "pcl/filters/fast_bilateral.h"
 output = "../src/pcl/pxd/filters/fast_bilateral.pxd"
 namespaces = ["pcl"]
 extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/filters/crop_hull.h"
+extern_from = "pcl/filters/crop_hull.h"
+output = "../src/pcl/pxd/filters/crop_hull.pxd"
+namespaces = ["pcl"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.vertices cimport Vertices",
+]
