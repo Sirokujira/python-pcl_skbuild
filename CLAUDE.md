@@ -48,7 +48,9 @@ transparent), `PointCloud_PointXYZI` / `_PointXYZRGB` / `_PointXYZRGBA`
 (with `to_rgb_array` / `from_rgb_array` uint8 colour views alongside
 python-pcl's packed-float column), `VoxelGridFilter`, `ApproximateVoxelGrid`,
 `PassThroughFilter`, `StatisticalOutlierRemovalFilter`,
-`RadiusOutlierRemoval`, `KdTreeFLANN`, `OctreePointCloudSearch`,
+`RadiusOutlierRemoval`, `ExtractIndices`, `CropBox`, `ProjectInliers`,
+`RandomSample`, `UniformSampling`, `HarrisKeypoint3D`,
+`KdTreeFLANN`, `OctreePointCloudSearch`,
 `OctreePointCloudChangeDetector`, `NormalEstimation`,
 `MomentOfInertiaEstimation`, `MovingLeastSquares`, `ConcaveHull`,
 `ConvexHull`, `IterativeClosestPoint`,

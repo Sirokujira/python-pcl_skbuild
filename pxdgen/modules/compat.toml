@@ -4,6 +4,16 @@
 # Only [[headers]] entries belong here; see pxdgen/pcl_headers.toml.
 
 [[headers]]
+path = "headers/pcl/compat/eigen_args.h"
+extern_from = "pcl/compat/eigen_args.h"
+output = "../src/pcl/pxd/compat/eigen_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.filters.crop_box cimport CropBox",
+]
+
+[[headers]]
 path = "headers/pcl/compat/eigen_results.h"
 extern_from = "pcl/compat/eigen_results.h"
 output = "../src/pcl/pxd/compat/eigen_results.pxd"
@@ -28,4 +38,14 @@ extra_cimports = [
     "from pcl.pxd.point_types cimport PointXYZ",
     "from pcl.pxd.io.pcd_grabber cimport PCDGrabber",
     "from pcl.pxd.io.hdl_grabber cimport HDLGrabber",
+]
+
+[[headers]]
+path = "headers/pcl/compat/keypoint_args.h"
+extern_from = "pcl/compat/keypoint_args.h"
+output = "../src/pcl/pxd/compat/keypoint_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ, PointXYZI",
+    "from pcl.pxd.keypoints.harris_3d cimport HarrisKeypoint3D",
 ]

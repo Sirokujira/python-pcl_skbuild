@@ -35,3 +35,44 @@ extern_from = "pcl/filters/radius_outlier_removal.h"
 output = "../src/pcl/pxd/filters/radius_outlier_removal.pxd"
 namespaces = ["pcl"]
 extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/filters/extract_indices.h"
+extern_from = "pcl/filters/extract_indices.h"
+output = "../src/pcl/pxd/filters/extract_indices.pxd"
+namespaces = ["pcl"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.point_indices cimport PointIndices",
+]
+
+[[headers]]
+path = "headers/pcl/filters/crop_box.h"
+extern_from = "pcl/filters/crop_box.h"
+output = "../src/pcl/pxd/filters/crop_box.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/filters/project_inliers.h"
+extern_from = "pcl/filters/project_inliers.h"
+output = "../src/pcl/pxd/filters/project_inliers.pxd"
+namespaces = ["pcl"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.model_coefficients cimport ModelCoefficients",
+]
+
+[[headers]]
+path = "headers/pcl/filters/random_sample.h"
+extern_from = "pcl/filters/random_sample.h"
+output = "../src/pcl/pxd/filters/random_sample.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/filters/uniform_sampling.h"
+extern_from = "pcl/filters/uniform_sampling.h"
+output = "../src/pcl/pxd/filters/uniform_sampling.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]

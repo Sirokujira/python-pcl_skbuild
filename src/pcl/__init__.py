@@ -29,10 +29,23 @@ from ._registration import (
 from ._surface import ConcaveHull, ConvexHull, MovingLeastSquares
 from ._filters import (
     ApproximateVoxelGrid,
+    CropBox,
+    ExtractIndices,
     PassThroughFilter,
+    ProjectInliers,
     RadiusOutlierRemoval,
+    RandomSample,
     StatisticalOutlierRemovalFilter,
+    UniformSampling,
     VoxelGridFilter,
+)
+from ._keypoints import (
+    CURVATURE,
+    HARRIS,
+    LOWE,
+    NOBLE,
+    TOMASI,
+    HarrisKeypoint3D,
 )
 from ._grabber import HDLGrabber, PCDGrabber
 from ._kdtree import KdTreeFLANN
@@ -68,6 +81,10 @@ __all__ = [
     "load_XYZI", "load_XYZRGB", "load_XYZRGBA", "save_XYZRGBA",
     "VoxelGridFilter", "ApproximateVoxelGrid", "PassThroughFilter",
     "StatisticalOutlierRemovalFilter", "RadiusOutlierRemoval",
+    "ExtractIndices", "CropBox", "ProjectInliers", "RandomSample",
+    "UniformSampling",
+    "HarrisKeypoint3D",
+    "HARRIS", "NOBLE", "LOWE", "TOMASI", "CURVATURE",
     "KdTreeFLANN",
     "OctreePointCloudSearch", "OctreePointCloudChangeDetector",
     "NormalEstimation", "MomentOfInertiaEstimation",

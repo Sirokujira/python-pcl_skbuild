@@ -287,6 +287,36 @@ cdef class PointCloud:
         from pcl._segmentation import EuclideanClusterExtraction
         return EuclideanClusterExtraction(self)
 
+    def make_ExtractIndices(self):
+        """Return an ExtractIndices with this cloud as input."""
+        from pcl._filters import ExtractIndices
+        return ExtractIndices(self)
+
+    def make_cropbox(self):
+        """Return a CropBox with this cloud as input."""
+        from pcl._filters import CropBox
+        return CropBox(self)
+
+    def make_ProjectInliers(self):
+        """Return a ProjectInliers with this cloud as input."""
+        from pcl._filters import ProjectInliers
+        return ProjectInliers(self)
+
+    def make_RandomSample(self):
+        """Return a RandomSample with this cloud as input."""
+        from pcl._filters import RandomSample
+        return RandomSample(self)
+
+    def make_UniformSampling(self):
+        """Return a UniformSampling with this cloud as input."""
+        from pcl._filters import UniformSampling
+        return UniformSampling(self)
+
+    def make_HarrisKeypoint3D(self):
+        """Return a HarrisKeypoint3D with this cloud as input."""
+        from pcl._keypoints import HarrisKeypoint3D
+        return HarrisKeypoint3D(self)
+
     def make_octreeSearch(self, double resolution):
         """Return an OctreePointCloudSearch built from this cloud."""
         from pcl._octree import OctreePointCloudSearch

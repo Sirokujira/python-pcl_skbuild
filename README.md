@@ -72,6 +72,25 @@ inliers, coefficients = seg.segment()
 pcl.save(downsampled, "out.pcd", binary=True)
 ```
 
+### Segmentation, end to end
+
+PCL hands back indices and model coefficients; `ExtractIndices` and
+`ProjectInliers` turn them into clouds:
+
+```python
+seg = cloud.make_segmenter()
+seg.set_model_type(pcl.SACMODEL_PLANE)
+seg.set_method_type(pcl.SAC_RANSAC)
+seg.set_distance_threshold(0.01)
+indices, coefficients = seg.segment()
+
+extract = cloud.make_ExtractIndices()
+extract.set_indices(indices)
+plane = extract.filter()            # the fitted plane
+extract.set_negative(True)
+rest = extract.filter()             # everything else
+```
+
 ### Colour
 
 `to_array()` keeps python-pcl's `(n, 4)` layout, whose fourth column is
@@ -130,7 +149,8 @@ column-major, so that is the layout PCL already has).
 |---|---|
 | core | `PointCloud`, `pcl.load` / `pcl.save` (PCD, PLY, `.gz`) |
 | point types | `PointCloud_PointXYZI`, `PointCloud_PointXYZRGB`, `PointCloud_PointXYZRGBA` (+ `pcl.load_XYZI` / `load_XYZRGB` / `load_XYZRGBA`) |
-| filters | `VoxelGridFilter`, `ApproximateVoxelGrid`, `PassThroughFilter`, `StatisticalOutlierRemovalFilter`, `RadiusOutlierRemoval` |
+| filters | `VoxelGridFilter`, `ApproximateVoxelGrid`, `PassThroughFilter`, `StatisticalOutlierRemovalFilter`, `RadiusOutlierRemoval`, `ExtractIndices`, `CropBox`, `ProjectInliers`, `RandomSample`, `UniformSampling` |
+| keypoints | `HarrisKeypoint3D` |
 | search | `KdTreeFLANN`, `OctreePointCloudSearch`, `OctreePointCloudChangeDetector` |
 | features | `NormalEstimation`, `MomentOfInertiaEstimation` |
 | surface | `MovingLeastSquares`, `ConcaveHull`, `ConvexHull` |
