@@ -16,6 +16,7 @@ set(PCL_CYTHON_MODULES
     _features
     _surface
     _registration
+    _pointtypes
 )
 
 foreach(module ${PCL_CYTHON_MODULES})

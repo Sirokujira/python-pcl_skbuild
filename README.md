@@ -72,6 +72,23 @@ inliers, coefficients = seg.segment()
 pcl.save(downsampled, "out.pcd", binary=True)
 ```
 
+### Colour
+
+`to_array()` keeps python-pcl's `(n, 4)` layout, whose fourth column is
+the packed RGB value reinterpreted as a float — a bit pattern, not a
+number, so arithmetic on it is meaningless. The uint8 views are what
+colour handling actually wants:
+
+```python
+cloud = pcl.load_XYZRGB("scene.pcd")
+xyz = cloud.to_xyz_array()      # (n, 3) float32
+rgb = cloud.to_rgb_array()      # (n, 3) uint8
+
+cloud.from_rgb_array(xyz, rgb)  # and back
+```
+
+Both views read the same union, so neither costs a conversion.
+
 ### Sensors
 
 A grabber is PCL's streaming-sensor interface. Register a callback and
@@ -112,6 +129,7 @@ column-major, so that is the layout PCL already has).
 | area | classes |
 |---|---|
 | core | `PointCloud`, `pcl.load` / `pcl.save` (PCD, PLY, `.gz`) |
+| point types | `PointCloud_PointXYZI`, `PointCloud_PointXYZRGB`, `PointCloud_PointXYZRGBA` (+ `pcl.load_XYZI` / `load_XYZRGB` / `load_XYZRGBA`) |
 | filters | `VoxelGridFilter`, `ApproximateVoxelGrid`, `PassThroughFilter`, `StatisticalOutlierRemovalFilter`, `RadiusOutlierRemoval` |
 | search | `KdTreeFLANN`, `OctreePointCloudSearch`, `OctreePointCloudChangeDetector` |
 | features | `NormalEstimation`, `MomentOfInertiaEstimation` |

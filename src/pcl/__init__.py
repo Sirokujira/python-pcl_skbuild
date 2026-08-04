@@ -13,6 +13,11 @@ import shutil
 import tempfile
 
 from ._pointcloud import PointCloud, PointCloudXYZ
+from ._pointtypes import (
+    PointCloud_PointXYZI,
+    PointCloud_PointXYZRGB,
+    PointCloud_PointXYZRGBA,
+)
 from ._features import MomentOfInertiaEstimation, NormalEstimation
 from ._octree import OctreePointCloudChangeDetector, OctreePointCloudSearch
 from ._registration import (
@@ -58,6 +63,9 @@ from ._segmentation import (
 
 __all__ = [
     "PointCloud", "PointCloudXYZ", "load", "save",
+    "PointCloud_PointXYZI", "PointCloud_PointXYZRGB",
+    "PointCloud_PointXYZRGBA",
+    "load_XYZI", "load_XYZRGB", "load_XYZRGBA", "save_XYZRGBA",
     "VoxelGridFilter", "ApproximateVoxelGrid", "PassThroughFilter",
     "StatisticalOutlierRemovalFilter", "RadiusOutlierRemoval",
     "KdTreeFLANN",
@@ -92,6 +100,25 @@ def load(path, format=None):
     filename and open it themselves, so a gzipped cloud is unreadable
     without this (strawlab/python-pcl#131).
     """
+    return _load(PointCloud, path, format)
+
+
+def load_XYZI(path, format=None):
+    """Load a :class:`PointCloud_PointXYZI` from *path*."""
+    return _load(PointCloud_PointXYZI, path, format)
+
+
+def load_XYZRGB(path, format=None):
+    """Load a :class:`PointCloud_PointXYZRGB` from *path*."""
+    return _load(PointCloud_PointXYZRGB, path, format)
+
+
+def load_XYZRGBA(path, format=None):
+    """Load a :class:`PointCloud_PointXYZRGBA` from *path*."""
+    return _load(PointCloud_PointXYZRGBA, path, format)
+
+
+def _load(cls, path, format):
     fmt = _infer_format(path, format)
     if fmt not in _LOADERS:
         raise ValueError(
@@ -99,7 +126,7 @@ def load(path, format=None):
             % (fmt, ", ".join(sorted(_LOADERS)))
         )
 
-    cloud = PointCloud()
+    cloud = cls()
     if _is_gzipped(path, format):
         with _decompressed(path, fmt) as plain:
             error = getattr(cloud, _LOADERS[fmt])(plain)
@@ -111,7 +138,7 @@ def load(path, format=None):
 
 
 def save(cloud, path, format=None, binary=False):
-    """Save :class:`PointCloud` *cloud* to *path* (.pcd or .ply;
+    """Save a cloud of any wrapped point type to *path* (.pcd or .ply;
     ``format`` overrides the extension)."""
     fmt = _infer_format(path, format)
     if fmt not in _SAVERS:
@@ -122,6 +149,11 @@ def save(cloud, path, format=None, binary=False):
     error = getattr(cloud, _SAVERS[fmt])(path, binary)
     if error:
         raise IOError("error while saving %s (code %d)" % (path, error))
+
+
+def save_XYZRGBA(cloud, path, format=None, binary=False):
+    """python-pcl spelling; `save` already handles every point type."""
+    return save(cloud, path, format=format, binary=binary)
 
 
 def _is_gzipped(path, format):
