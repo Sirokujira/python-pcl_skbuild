@@ -231,14 +231,21 @@ def _load(cls, path, format):
 
 def save(cloud, path, format=None, binary=False):
     """Save a cloud of any wrapped point type to *path* (.pcd or .ply;
-    ``format`` overrides the extension)."""
+    ``format`` overrides the extension).
+
+    A ``.gz`` suffix compresses, mirroring :func:`load`.
+    """
     fmt = _infer_format(path, format)
     if fmt not in _SAVERS:
         raise ValueError(
             "unsupported format %r (wrapped: %s)"
             % (fmt, ", ".join(sorted(_SAVERS)))
         )
-    error = getattr(cloud, _SAVERS[fmt])(path, binary)
+    writer = getattr(cloud, _SAVERS[fmt])
+    if _is_gzipped(path, format):
+        error = _save_gzipped(writer, path, fmt, binary)
+    else:
+        error = writer(path, binary)
     if error:
         raise IOError("error while saving %s (code %d)" % (path, error))
 
@@ -250,6 +257,29 @@ def save_XYZRGBA(cloud, path, format=None, binary=False):
 
 def _is_gzipped(path, format):
     return format is None and str(path).lower().endswith(".gz")
+
+
+def _save_gzipped(writer, path, fmt, binary):
+    """Write through a plain temporary file, then gzip it into place.
+
+    The save-side counterpart of `_decompressed`, and needed for the same
+    reason: PCL's writers take a filename and open it themselves, so they
+    cannot compress. Without this, `save` left an UNCOMPRESSED cloud at a
+    `.gz` path and `load` then refused to read it back.
+
+    Compresses only on a successful write, so a failed save does not
+    leave a truncated `.gz` behind.
+    """
+    handle, plain = tempfile.mkstemp(suffix="." + fmt)
+    os.close(handle)
+    try:
+        error = writer(plain, binary)
+        if not error:
+            with open(plain, "rb") as src, gzip.open(path, "wb") as dst:
+                shutil.copyfileobj(src, dst)
+        return error
+    finally:
+        os.unlink(plain)
 
 
 @contextlib.contextmanager
