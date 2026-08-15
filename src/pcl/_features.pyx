@@ -23,9 +23,12 @@ from cython.operator cimport dereference as deref
 
 from libcpp.vector cimport vector
 
-from pcl.pxd.point_types cimport PointXYZ, Normal, PointNormal, VFHSignature308
+from pcl.pxd.point_types cimport (
+    PointXYZ, Normal, PointNormal, VFHSignature308, FPFHSignature33, SHOT352)
 from pcl.pxd.point_cloud cimport PointCloud as cPointCloud
 from pcl.pxd.features.normal_3d cimport NormalEstimation as cNormalEstimation
+from pcl.pxd.features.fpfh cimport FPFHEstimation as cFPFHEstimation
+from pcl.pxd.features.shot cimport SHOTEstimation as cSHOTEstimation
 from pcl.pxd.features.moment_of_inertia_estimation cimport (
     MomentOfInertiaEstimation as cMomentOfInertiaEstimation)
 from pcl.pxd.features.vfh cimport VFHEstimation as cVFHEstimation
@@ -473,4 +476,195 @@ cdef class DifferenceOfNormalsEstimation:
             view[i, 1] = p.normal_y
             view[i, 2] = p.normal_z
             view[i, 3] = p.curvature
+        return result
+
+
+cdef class FPFHEstimation:
+    """Fast Point Feature Histograms (pcl::FPFHEstimation).
+
+    One 33-bin descriptor per point — the workhorse of PCL's
+    registration and recognition tutorials. Matching two clouds'
+    descriptors yields the (model, scene) correspondences that
+    GeometricConsistencyGrouping / Hough3DGrouping turn into poses:
+
+        normals = cloud.make_NormalEstimation()
+        normals.set_KSearch(20)
+        fpfh = cloud.make_FPFHEstimation()
+        fpfh.set_InputNormals(normals.compute_cloud())
+        fpfh.set_RadiusSearch(0.05)
+        descriptors = fpfh.compute()          # (n, 33) float32
+    """
+
+    cdef cFPFHEstimation[PointXYZ, Normal, FPFHSignature33]* me
+    cdef Py_ssize_t n_input
+    cdef Py_ssize_t n_normals
+    cdef bint has_search
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cFPFHEstimation[PointXYZ, Normal, FPFHSignature33]()
+        self.n_input = -1
+        self.n_normals = -1
+        self.has_search = False
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+        self.n_input = pc.size
+
+    def set_InputNormals(self, PointCloud_Normal normals not None):
+        self.me.setInputNormals(normals.thisptr_shared)
+        self.n_normals = normals.size
+
+    def set_KSearch(self, int k):
+        self.me.setKSearch(k)
+        self.has_search = True
+
+    def get_KSearch(self):
+        return self.me.getKSearch()
+
+    def set_RadiusSearch(self, double radius):
+        self.me.setRadiusSearch(radius)
+        self.has_search = True
+
+    def get_RadiusSearch(self):
+        return self.me.getRadiusSearch()
+
+    def compute(self):
+        """Return an ``(n, 33)`` float32 array, one histogram per point.
+
+        The guards exist because PCL's own failure mode for each of these
+        is an error print followed by an EMPTY output cloud — a silent
+        no-op by the time it reaches Python.
+        """
+        import numpy as np
+        if self.n_input < 0:
+            raise RuntimeError("set_InputCloud() is required before compute()")
+        if self.n_normals < 0:
+            raise RuntimeError(
+                "FPFHEstimation needs normals: call set_InputNormals() with "
+                "a PointCloud_Normal (NormalEstimation.compute_cloud())")
+        if self.n_normals != self.n_input:
+            raise ValueError(
+                "normals must have one entry per input point: "
+                "input %d, normals %d" % (self.n_input, self.n_normals))
+        if not self.has_search:
+            raise RuntimeError(
+                "set_KSearch() or set_RadiusSearch() is required before "
+                "compute()")
+
+        cdef cPointCloud[FPFHSignature33] out
+        with nogil:
+            self.me.compute(out)
+
+        cdef Py_ssize_t n = <Py_ssize_t> out.size()
+        result = np.empty((n, 33), dtype=np.float32)
+        cdef float[:, ::1] view = result
+        cdef FPFHSignature33* p
+        cdef Py_ssize_t i, j
+        for i in range(n):
+            p = &out[<size_t> i]
+            for j in range(33):
+                view[i, j] = p.histogram[j]
+        return result
+
+
+cdef class SHOTEstimation:
+    """Signature of Histograms of Orientations (pcl::SHOTEstimation).
+
+    The 352-bin descriptor PCL's correspondence-grouping tutorial
+    matches. Unlike FPFH it requires a RADIUS — PCL rejects a k-nearest
+    setup for it — so that is the only search setting offered:
+
+        shot = cloud.make_SHOTEstimation()
+        shot.set_InputNormals(normals)
+        shot.set_RadiusSearch(0.05)
+        descriptors = shot.compute()          # (n, 352) float32
+
+    A point whose neighbourhood is too sparse for a stable reference
+    frame gets a NaN descriptor — that is PCL reporting "no descriptor
+    here", and callers filter with ``np.isfinite`` before matching.
+    """
+
+    cdef cSHOTEstimation[PointXYZ, Normal, SHOT352]* me
+    cdef Py_ssize_t n_input
+    cdef Py_ssize_t n_normals
+    cdef bint has_radius
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cSHOTEstimation[PointXYZ, Normal, SHOT352]()
+        self.n_input = -1
+        self.n_normals = -1
+        self.has_radius = False
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+        self.n_input = pc.size
+
+    def set_InputNormals(self, PointCloud_Normal normals not None):
+        self.me.setInputNormals(normals.thisptr_shared)
+        self.n_normals = normals.size
+
+    def set_RadiusSearch(self, double radius):
+        if radius <= 0:
+            raise ValueError("radius must be > 0, got %r" % radius)
+        self.me.setRadiusSearch(radius)
+        self.has_radius = True
+
+    def get_RadiusSearch(self):
+        return self.me.getRadiusSearch()
+
+    def set_LRFRadius(self, float radius):
+        """Support radius of the local reference frames, when it should
+        differ from the descriptor radius."""
+        self.me.setLRFRadius(radius)
+
+    def get_LRFRadius(self):
+        return self.me.getLRFRadius()
+
+    def compute(self):
+        """Return an ``(n, 352)`` float32 array, one descriptor per point.
+
+        Guarded like FPFH: PCL's own failure mode for a missing input is
+        an error print and an empty output.
+        """
+        import numpy as np
+        if self.n_input < 0:
+            raise RuntimeError("set_InputCloud() is required before compute()")
+        if self.n_normals < 0:
+            raise RuntimeError(
+                "SHOTEstimation needs normals: call set_InputNormals() with "
+                "a PointCloud_Normal (NormalEstimation.compute_cloud())")
+        if self.n_normals != self.n_input:
+            raise ValueError(
+                "normals must have one entry per input point: "
+                "input %d, normals %d" % (self.n_input, self.n_normals))
+        if not self.has_radius:
+            raise RuntimeError(
+                "set_RadiusSearch() is required before compute(): SHOT "
+                "rejects a k-nearest setup")
+
+        cdef cPointCloud[SHOT352] out
+        with nogil:
+            self.me.compute(out)
+
+        cdef Py_ssize_t n = <Py_ssize_t> out.size()
+        result = np.empty((n, 352), dtype=np.float32)
+        cdef float[:, ::1] view = result
+        cdef SHOT352* p
+        cdef Py_ssize_t i, j
+        for i in range(n):
+            p = &out[<size_t> i]
+            for j in range(352):
+                view[i, j] = p.descriptor[j]
         return result

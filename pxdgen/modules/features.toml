@@ -35,3 +35,17 @@ extern_from = "pcl/features/don.h"
 output = "../src/pcl/pxd/features/don.pxd"
 namespaces = ["pcl"]
 extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/fpfh.h"
+extern_from = "pcl/features/fpfh.h"
+output = "../src/pcl/pxd/features/fpfh.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/shot.h"
+extern_from = "pcl/features/shot.h"
+output = "../src/pcl/pxd/features/shot.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]

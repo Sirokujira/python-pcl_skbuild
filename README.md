@@ -155,7 +155,7 @@ column-major, so that is the layout PCL already has).
 | conditions | `ConditionAnd`, `ConditionalRemoval` (+ `pcl.CompareOp_*`) |
 | sample consensus | `RandomSampleConsensus` + `SampleConsensusModel{Plane,Line,Circle2D,Circle3D,Sphere,Stick}` |
 | search | `KdTreeFLANN`, `OctreePointCloudSearch`, `OctreePointCloudChangeDetector` |
-| features | `NormalEstimation`, `IntegralImageNormalEstimation`, `DifferenceOfNormalsEstimation`, `MomentOfInertiaEstimation`, `VFHEstimation` |
+| features | `NormalEstimation`, `IntegralImageNormalEstimation`, `DifferenceOfNormalsEstimation`, `MomentOfInertiaEstimation`, `VFHEstimation`, `FPFHEstimation`, `SHOTEstimation` |
 | surface | `MovingLeastSquares`, `ConcaveHull`, `ConvexHull`, `GreedyProjectionTriangulation` |
 | registration | `IterativeClosestPoint`, `IterativeClosestPointNonLinear`, `GeneralizedIterativeClosestPoint`, `NormalDistributionsTransform` |
 | segmentation | `Segmentation` (SAC), `SegmentationNormal`, `EuclideanClusterExtraction`, `ProgressiveMorphologicalFilter`, `MinCutSegmentation`, `ConditionalEuclideanClustering` |

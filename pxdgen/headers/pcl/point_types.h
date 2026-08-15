@@ -138,4 +138,16 @@ struct VFHSignature308 {
     float histogram[308];
 };
 
+// A Fast Point Feature Histogram: 3 angular features x 11 bins, one
+// descriptor per point.
+struct FPFHSignature33 {
+    float histogram[33];
+};
+
+// A SHOT descriptor plus the local reference frame it was computed in.
+struct SHOT352 {
+    float descriptor[352];
+    float rf[9];
+};
+
 }  // namespace pcl
