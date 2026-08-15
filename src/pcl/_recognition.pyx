@@ -26,6 +26,8 @@ from libcpp.vector cimport vector
 
 from pcl.pxd.compat.recognition_args cimport (
     geometricConsistencyGrouping, hough3DGrouping)
+from pcl.pxd.compat.matching_args cimport (
+    matchFpfhDescriptors, matchShotDescriptors)
 
 from pcl._pointcloud cimport PointCloud
 
@@ -237,3 +239,76 @@ cdef class Hough3DGrouping(_CorrespondenceGrouping):
                 model_indices, scene_indices, distances,
                 rf_radius, bin_size, threshold, transforms, counts, pairs)
         return _instances(transforms, counts, pairs)
+
+
+def match_descriptors(model_descriptors, scene_descriptors,
+                      double max_distance=-1.0):
+    """Match every scene descriptor to its nearest model descriptor.
+
+    The step between FPFH/SHOT estimation and correspondence grouping:
+
+        pairs = pcl.match_descriptors(model_desc, scene_desc)
+        instances = grouping.recognize(pairs)
+
+    *model_descriptors* and *scene_descriptors* are the ``(n, 33)`` /
+    ``(n, 352)`` float32 arrays the estimators return; both must have the
+    same width. Matching runs on a FLANN kd-tree (pcl::KdTreeFLANN), so
+    it scales where a numpy broadcast cannot.
+
+    *max_distance* drops matches farther than that in descriptor space
+    (PCL's grouping tutorial uses 0.25 for unit-length SHOT); negative
+    means unbounded. Rows containing NaN — SHOT's "no descriptor here" —
+    are skipped on both sides.
+
+    Returns a list of ``(model_index, scene_index, distance)``, the form
+    ``recognize()`` accepts directly.
+    """
+    import numpy as np
+
+    model = np.ascontiguousarray(model_descriptors, dtype=np.float32)
+    scene = np.ascontiguousarray(scene_descriptors, dtype=np.float32)
+    if model.ndim != 2 or scene.ndim != 2:
+        raise ValueError(
+            "descriptors must be 2-D (n, dim) arrays, got shapes %r and %r"
+            % (model.shape, scene.shape))
+    if model.shape[1] != scene.shape[1]:
+        raise ValueError(
+            "model and scene descriptors differ in width: %d vs %d"
+            % (model.shape[1], scene.shape[1]))
+
+    cdef int dim = <int> model.shape[1]
+    if dim not in (33, 352):
+        raise ValueError(
+            "unsupported descriptor width %d (wrapped: 33 for FPFH, "
+            "352 for SHOT)" % dim)
+
+    cdef vector[float] model_flat
+    cdef vector[float] scene_flat
+    cdef float[::1] model_view = model.reshape(-1)
+    cdef float[::1] scene_view = scene.reshape(-1)
+    cdef Py_ssize_t i
+    model_flat.resize(model_view.shape[0])
+    for i in range(model_view.shape[0]):
+        model_flat[i] = model_view[i]
+    scene_flat.resize(scene_view.shape[0])
+    for i in range(scene_view.shape[0]):
+        scene_flat[i] = scene_view[i]
+
+    cdef vector[int] model_indices
+    cdef vector[int] scene_indices
+    cdef vector[float] distances
+    cdef float bound = <float> max_distance
+    if dim == 33:
+        with nogil:
+            matchFpfhDescriptors(model_flat, scene_flat, bound,
+                                 model_indices, scene_indices, distances)
+    else:
+        with nogil:
+            matchShotDescriptors(model_flat, scene_flat, bound,
+                                 model_indices, scene_indices, distances)
+
+    result = []
+    for i in range(<Py_ssize_t> scene_indices.size()):
+        result.append((model_indices[i], scene_indices[i],
+                       float(distances[i])))
+    return result

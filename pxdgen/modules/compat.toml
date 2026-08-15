@@ -121,3 +121,9 @@ path = "headers/pcl/compat/people_args.h"
 extern_from = "pcl/compat/people_args.h"
 output = "../src/pcl/pxd/compat/people_args.pxd"
 namespaces = ["pclcompat"]
+
+[[headers]]
+path = "headers/pcl/compat/matching_args.h"
+extern_from = "pcl/compat/matching_args.h"
+output = "../src/pcl/pxd/compat/matching_args.pxd"
+namespaces = ["pclcompat"]

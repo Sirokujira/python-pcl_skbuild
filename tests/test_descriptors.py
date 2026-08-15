@@ -191,11 +191,8 @@ def test_descriptors_matching_and_grouping_recover_a_pose():
     model_desc = describe(model)
     scene_desc = describe(scene)
 
-    # Nearest-neighbour matching; brute force is fine at this scale.
-    squared = ((model_desc[:, None, :] - scene_desc[None, :, :]) ** 2
-               ).sum(axis=2)
-    nearest = squared.argmin(axis=1)
-    pairs = [(i, int(nearest[i])) for i in range(len(model_desc))]
+    pairs = pcl.match_descriptors(model_desc, scene_desc)
+    assert len(pairs) == scene.size
 
     grouping = pcl.GeometricConsistencyGrouping(model, scene)
     grouping.set_GCSize(0.05)
@@ -209,3 +206,73 @@ def test_descriptors_matching_and_grouping_recover_a_pose():
     assert len(correspondences) >= 50
     assert transform[:3, 3] == pytest.approx(translation, abs=0.05)
     assert transform[:3, :3] == pytest.approx(np.eye(3), abs=0.05)
+
+
+# --- descriptor matching -----------------------------------------------
+
+def test_match_agrees_with_brute_force():
+    """FLANN must return exactly the nearest neighbours numpy finds."""
+    rng = np.random.RandomState(0)
+    model = rng.rand(200, 33).astype(np.float32) * 10
+    scene = model[rng.permutation(200)]
+
+    pairs = pcl.match_descriptors(model, scene)
+    assert len(pairs) == 200
+    squared = ((scene[:, None, :] - model[None, :, :]) ** 2).sum(axis=2)
+    expected = squared.argmin(axis=1)
+    for model_index, scene_index, distance in pairs:
+        assert expected[scene_index] == model_index
+        assert distance == pytest.approx(0.0, abs=1e-4)
+
+
+def test_match_skips_nan_rows_on_both_sides():
+    """NaN is SHOT's "no descriptor here"; FLANN would index or match it
+    as garbage rather than failing."""
+    rng = np.random.RandomState(1)
+    model = rng.rand(50, 33).astype(np.float32)
+    scene = model.copy()
+    model[7] = np.nan
+    scene[5] = np.nan
+
+    pairs = pcl.match_descriptors(model, scene)
+    assert len(pairs) == 49
+    assert all(scene_index != 5 for _, scene_index, _ in pairs)
+    assert all(model_index != 7 for model_index, _, _ in pairs)
+
+
+def test_match_max_distance_bounds_the_matches():
+    rng = np.random.RandomState(2)
+    model = rng.rand(100, 33).astype(np.float32)
+    scene = rng.rand(100, 33).astype(np.float32)
+
+    bounded = pcl.match_descriptors(model, scene, max_distance=0.5)
+    unbounded = pcl.match_descriptors(model, scene)
+    assert len(bounded) < len(unbounded) == 100
+    assert all(distance <= 0.5 for _, _, distance in bounded)
+
+
+def test_match_works_for_shot_width_too(box, box_normals):
+    descriptors = _shot(box, box_normals).compute()
+    pairs = pcl.match_descriptors(descriptors, descriptors)
+    assert len(pairs) == box.size
+    # Matching a set against itself: everything at distance ~0.
+    assert all(distance == pytest.approx(0.0, abs=1e-5)
+               for _, _, distance in pairs)
+
+
+def test_match_rejects_mismatched_and_unknown_widths():
+    fpfh_like = np.zeros((5, 33), dtype=np.float32)
+    with pytest.raises(ValueError, match="differ in width"):
+        pcl.match_descriptors(fpfh_like, np.zeros((5, 352), dtype=np.float32))
+    with pytest.raises(ValueError, match="unsupported descriptor width"):
+        pcl.match_descriptors(np.zeros((5, 40), dtype=np.float32),
+                              np.zeros((5, 40), dtype=np.float32))
+    with pytest.raises(ValueError, match="2-D"):
+        pcl.match_descriptors(np.zeros(33, dtype=np.float32), fpfh_like)
+
+
+def test_match_of_empty_input_is_empty():
+    empty = np.zeros((0, 33), dtype=np.float32)
+    some = np.zeros((4, 33), dtype=np.float32)
+    assert pcl.match_descriptors(empty, some) == []
+    assert pcl.match_descriptors(some, empty) == []
