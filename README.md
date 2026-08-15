@@ -159,7 +159,7 @@ column-major, so that is the layout PCL already has).
 | surface | `MovingLeastSquares`, `ConcaveHull`, `ConvexHull`, `GreedyProjectionTriangulation` |
 | registration | `IterativeClosestPoint`, `IterativeClosestPointNonLinear`, `GeneralizedIterativeClosestPoint`, `NormalDistributionsTransform` |
 | segmentation | `Segmentation` (SAC), `SegmentationNormal`, `EuclideanClusterExtraction`, `ProgressiveMorphologicalFilter`, `MinCutSegmentation`, `ConditionalEuclideanClustering` |
-| recognition | `GeometricConsistencyGrouping`, `Hough3DGrouping` |
+| recognition | `GeometricConsistencyGrouping`, `Hough3DGrouping`, `pcl.match_descriptors` (FLANN) |
 | tracking | `ParticleFilterTracker` |
 | people | `pcl.hog` / `pcl.hog_descriptor_size` |
 | sensors | `PCDGrabber`, `HDLGrabber` |

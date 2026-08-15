@@ -76,7 +76,11 @@ from ._keypoints import (
 )
 from ._grabber import HDLGrabber, PCDGrabber
 from ._people import hog, hog_descriptor_size
-from ._recognition import GeometricConsistencyGrouping, Hough3DGrouping
+from ._recognition import (
+    GeometricConsistencyGrouping,
+    Hough3DGrouping,
+    match_descriptors,
+)
 from ._tracking import ParticleFilterTracker
 from ._rangeimage import (
     CAMERA_FRAME,
@@ -158,7 +162,7 @@ __all__ = [
     "GeneralizedIterativeClosestPoint", "NormalDistributionsTransform",
     "PCDGrabber", "HDLGrabber",
     "RangeImage", "CAMERA_FRAME", "LASER_FRAME",
-    "GeometricConsistencyGrouping", "Hough3DGrouping",
+    "GeometricConsistencyGrouping", "Hough3DGrouping", "match_descriptors",
     "ParticleFilterTracker",
     "hog", "hog_descriptor_size",
     "RandomSampleConsensus", "SampleConsensusModel",
