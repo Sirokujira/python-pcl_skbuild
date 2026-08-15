@@ -404,6 +404,16 @@ cdef class PointCloud:
         from pcl._features import VFHEstimation
         return VFHEstimation(self)
 
+    def make_FPFHEstimation(self):
+        """Return an FPFHEstimation with this cloud as input."""
+        from pcl._features import FPFHEstimation
+        return FPFHEstimation(self)
+
+    def make_SHOTEstimation(self):
+        """Return a SHOTEstimation with this cloud as input."""
+        from pcl._features import SHOTEstimation
+        return SHOTEstimation(self)
+
     def make_IntegralImageNormalEstimation(self):
         """Return an IntegralImageNormalEstimation with this cloud."""
         from pcl._features import IntegralImageNormalEstimation

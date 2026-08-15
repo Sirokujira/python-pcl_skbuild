@@ -67,3 +67,10 @@ cdef extern from "pcl/point_types.h" namespace "pcl" nogil:
 
     cdef struct VFHSignature308:
         float histogram[308]
+
+    cdef struct FPFHSignature33:
+        float histogram[33]
+
+    cdef struct SHOT352:
+        float descriptor[352]
+        float rf[9]
