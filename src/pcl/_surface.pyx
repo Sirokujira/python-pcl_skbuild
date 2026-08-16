@@ -17,6 +17,7 @@ meaning one thing.
 from cython.operator cimport dereference as deref
 
 from libcpp.memory cimport shared_ptr
+from libcpp.string cimport string
 from libcpp.vector cimport vector
 
 from pcl.pxd.point_types cimport Normal, PointXYZ, PointNormal
@@ -27,6 +28,9 @@ from pcl.pxd.surface.convex_hull cimport ConvexHull as cConvexHull
 from pcl.pxd.surface.gp3 cimport (
     GreedyProjectionTriangulation as cGreedyProjectionTriangulation)
 from pcl.pxd.vertices cimport Vertices
+from pcl.pxd.compat.mesh_args cimport (
+    MESH_FORMAT_OBJ, MESH_FORMAT_PLY, MESH_FORMAT_VTK, loadMesh,
+    saveMesh)
 
 from pcl._pointcloud cimport PointCloud, wrap_cloud
 from pcl._pointtypes cimport PointCloud_Normal
@@ -346,3 +350,98 @@ cdef class GreedyProjectionTriangulation:
         with nogil:
             mesher.reconstruct(polygons)
         return _polygon_list(polygons)
+
+
+# Mesh file formats, by extension. VTK is write-only: PCL's VTK-format
+# reader lives in pcl/io/vtk_lib_io.h, which needs the VTK libraries —
+# the same dependency that keeps pcl/visualization out of this package.
+_MESH_FORMATS = {"ply": MESH_FORMAT_PLY, "obj": MESH_FORMAT_OBJ,
+                 "vtk": MESH_FORMAT_VTK}
+_MESH_READABLE = ("ply", "obj")
+
+
+cdef _mesh_format(path, format, readable):
+    import os.path
+    name = format if format is not None else os.path.splitext(str(path))[1][1:]
+    name = name.lower()
+    allowed = _MESH_READABLE if readable else tuple(sorted(_MESH_FORMATS))
+    if name not in allowed:
+        raise ValueError(
+            "unsupported mesh format %r (%s: %s)"
+            % (name, "readable" if readable else "writable",
+               ", ".join(allowed)))
+    return _MESH_FORMATS[name]
+
+
+def save_mesh(PointCloud cloud not None, polygons, path, format=None,
+              bint binary=False):
+    """Write a mesh to *path* (.ply, .obj or .vtk).
+
+    *polygons* is what `reconstruct()` and `reconstruct_with_polygons()`
+    return: an iterable of index tuples into *cloud*. So a reconstruction
+    can be saved directly:
+
+        mesher = cloud.make_GreedyProjectionTriangulation()
+        ...
+        pcl.save_mesh(cloud, mesher.reconstruct(), "surface.ply")
+
+    `binary` applies to PLY only; OBJ and VTK are text formats.
+    """
+    cdef int fmt = _mesh_format(path, format, False)
+
+    cdef vector[int] indices
+    cdef vector[int] counts
+    cdef Py_ssize_t n = <Py_ssize_t> cloud.size
+    cdef int index
+    for polygon in polygons:
+        counts.push_back(<int> len(polygon))
+        for value in polygon:
+            index = <int> value
+            if index < 0 or index >= n:
+                raise IndexError(
+                    "polygon index %d is outside the cloud (%d points)"
+                    % (index, n))
+            indices.push_back(index)
+
+    cdef bytes encoded = str(path).encode()
+    cdef string target = encoded
+    cdef cPointCloud[PointXYZ]* src = cloud.ptr()
+    cdef int error
+    with nogil:
+        error = saveMesh(target, deref(src), indices, counts, fmt, binary)
+    if error:
+        raise IOError("error while saving mesh %s (code %d)" % (path, error))
+
+
+def load_mesh(path, format=None):
+    """Read a mesh from *path* (.ply or .obj).
+
+    Returns ``(cloud, polygons)`` in the same shape `save_mesh` takes and
+    `reconstruct_with_polygons()` returns.
+    """
+    cdef int fmt = _mesh_format(path, format, True)
+
+    cdef shared_ptr[cPointCloud[PointXYZ]] holder
+    holder.reset(new cPointCloud[PointXYZ]())
+    cdef vector[int] indices
+    cdef vector[int] counts
+    cdef bytes encoded = str(path).encode()
+    cdef string source = encoded
+    cdef cPointCloud[PointXYZ]* out = holder.get()
+    cdef int error
+    with nogil:
+        error = loadMesh(source, fmt, deref(out), indices, counts)
+    if error:
+        raise IOError("error while loading mesh %s (code %d)" % (path, error))
+
+    # Plain loops, not comprehensions: see the Cython traps section of
+    # .claude/rules/pipeline.md.
+    polygons = []
+    cdef Py_ssize_t i, j, offset = 0
+    for i in range(<Py_ssize_t> counts.size()):
+        polygon = []
+        for j in range(counts[i]):
+            polygon.append(indices[offset + j])
+        offset += counts[i]
+        polygons.append(tuple(polygon))
+    return wrap_cloud(holder), polygons

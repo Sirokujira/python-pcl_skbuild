@@ -4,6 +4,8 @@ Skipped when the package is not built (requires PCL at build time):
 pip install . && pytest tests/
 """
 
+import os
+
 import numpy as np
 import pytest
 
@@ -181,3 +183,104 @@ def test_crop_hull_keeps_its_hull_cloud_alive(cube_region):
     crop.set_Dim(3)
     del hull_points
     assert crop.filter().size >= 0
+
+
+# --- mesh files --------------------------------------------------------
+
+@pytest.fixture
+def quad():
+    """Two triangles sharing an edge — a mesh small enough to read."""
+    cloud = pcl.PointCloud(
+        np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0]],
+                 dtype=np.float32))
+    return cloud, [(0, 1, 2), (1, 3, 2)]
+
+
+@pytest.mark.parametrize("suffix", [".ply", ".obj", ".vtk"])
+def test_save_mesh_writes_every_format(tmp_path, quad, suffix):
+    cloud, polygons = quad
+    path = str(tmp_path / ("mesh" + suffix))
+    pcl.save_mesh(cloud, polygons, path)
+    assert os.path.getsize(path) > 0
+
+
+@pytest.mark.parametrize("suffix", [".ply", ".obj"])
+def test_mesh_round_trips(tmp_path, quad, suffix):
+    cloud, polygons = quad
+    path = str(tmp_path / ("mesh" + suffix))
+    pcl.save_mesh(cloud, polygons, path)
+
+    loaded, loaded_polygons = pcl.load_mesh(path)
+    assert loaded.size == cloud.size
+    assert loaded.to_array() == pytest.approx(cloud.to_array(), abs=1e-5)
+    assert loaded_polygons == polygons
+
+
+def test_binary_ply_mesh_round_trips(tmp_path, quad):
+    cloud, polygons = quad
+    path = str(tmp_path / "mesh.ply")
+    pcl.save_mesh(cloud, polygons, path, binary=True)
+    loaded, loaded_polygons = pcl.load_mesh(path)
+    assert loaded_polygons == polygons
+    assert loaded.to_array() == pytest.approx(cloud.to_array(), abs=1e-5)
+
+
+def test_a_reconstruction_can_be_saved_and_reloaded(
+        tmp_path, sphere, sphere_normals):
+    """The loop this closes: triangulation produces triangles, and until
+    now there was no way to persist them."""
+    mesher = sphere.make_GreedyProjectionTriangulation()
+    mesher.set_InputCloud(sphere, sphere_normals)
+    mesher.set_SearchRadius(0.3)
+    mesher.set_Mu(2.5)
+    mesher.set_MaximumNearestNeighbors(100)
+    triangles = mesher.reconstruct()
+
+    path = str(tmp_path / "surface.ply")
+    pcl.save_mesh(sphere, triangles, path)
+
+    loaded, loaded_triangles = pcl.load_mesh(path)
+    assert loaded.size == sphere.size
+    assert loaded_triangles == triangles
+
+
+def test_a_hull_can_be_saved(tmp_path, cube_region):
+    hull = cube_region.make_ConvexHull()
+    hull.set_Dimension(3)
+    points, polygons = hull.reconstruct_with_polygons()
+
+    path = str(tmp_path / "hull.obj")
+    pcl.save_mesh(points, polygons, path)
+
+    loaded, loaded_polygons = pcl.load_mesh(path)
+    assert loaded.size == points.size
+    assert len(loaded_polygons) == len(polygons)
+
+
+def test_format_can_be_given_explicitly(tmp_path, quad):
+    cloud, polygons = quad
+    path = str(tmp_path / "mesh.data")
+    pcl.save_mesh(cloud, polygons, path, format="ply")
+    assert pcl.load_mesh(path, format="ply")[1] == polygons
+
+
+def test_save_mesh_rejects_an_out_of_range_index(tmp_path, quad):
+    cloud, _ = quad
+    with pytest.raises(IndexError, match="outside the cloud"):
+        pcl.save_mesh(cloud, [(0, 1, 99)], str(tmp_path / "bad.ply"))
+
+
+def test_unsupported_formats_report_what_is_supported(tmp_path, quad):
+    cloud, polygons = quad
+    with pytest.raises(ValueError, match="writable"):
+        pcl.save_mesh(cloud, polygons, str(tmp_path / "mesh.stl"))
+
+    # VTK is write-only: PCL's VTK reader needs the VTK libraries.
+    pcl.save_mesh(cloud, polygons, str(tmp_path / "mesh.vtk"))
+    with pytest.raises(ValueError, match="readable"):
+        pcl.load_mesh(str(tmp_path / "mesh.vtk"))
+
+
+def test_load_mesh_reports_a_missing_file(tmp_path):
+    with pytest.raises(IOError):
+        pcl.load_mesh(str(tmp_path / "does_not_exist.ply"))

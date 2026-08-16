@@ -44,6 +44,8 @@ from ._surface import (
     ConvexHull,
     GreedyProjectionTriangulation,
     MovingLeastSquares,
+    load_mesh,
+    save_mesh,
 )
 from ._filters import (
     ApproximateVoxelGrid,
@@ -157,7 +159,7 @@ __all__ = [
     "COVARIANCE_MATRIX", "AVERAGE_3D_GRADIENT", "AVERAGE_DEPTH_CHANGE",
     "SIMPLE_3D_GRADIENT",
     "MovingLeastSquares", "ConcaveHull", "ConvexHull",
-    "GreedyProjectionTriangulation",
+    "GreedyProjectionTriangulation", "save_mesh", "load_mesh",
     "IterativeClosestPoint", "IterativeClosestPointNonLinear",
     "GeneralizedIterativeClosestPoint", "NormalDistributionsTransform",
     "PCDGrabber", "HDLGrabber",
