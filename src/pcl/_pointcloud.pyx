@@ -25,6 +25,7 @@ from pcl.pxd.point_types cimport PointXYZ
 from pcl.pxd.point_cloud cimport PointCloud as cPointCloud
 from pcl.pxd.io.pcd_io cimport loadPCDFile, savePCDFile
 from pcl.pxd.io.ply_io cimport loadPLYFile, savePLYFile
+from pcl.pxd.compat.transform_args cimport isRigidTransform, transformCloud
 
 
 cdef string _topath(path):
@@ -207,6 +208,47 @@ cdef class PointCloud:
             p.y = y
             p.z = z
             i += 1
+
+    def transform(self, matrix):
+        """Return this cloud moved by a 4x4 transform.
+
+        Takes what registration and recognition hand back, so a result
+        can be applied without a numpy round trip:
+
+            converged, matrix, _, _ = icp.icp(source, target)
+            aligned = source.transform(matrix)
+
+        Raises when the matrix is not a rigid motion — PCL would apply a
+        scaling or reflecting one silently.
+        """
+        import numpy as np
+
+        values = np.asarray(matrix, dtype=np.float32)
+        if values.shape != (4, 4):
+            raise ValueError(
+                "transform must be a (4, 4) matrix, got shape %r"
+                % (values.shape,))
+        if not np.isfinite(values).all():
+            raise ValueError("transform contains non-finite values")
+
+        # Column-major is Eigen's own storage and what the shim expects,
+        # so a matrix from finalTransformation() or recognize() goes
+        # straight back in without reordering.
+        flat = np.asfortranarray(values).reshape(-1, order="F")
+        cdef float buf[16]
+        cdef Py_ssize_t i
+        for i in range(16):
+            buf[i] = <float> flat[i]
+
+        if not isRigidTransform(buf, 1e-3):
+            raise ValueError(
+                "transform is not a rigid motion (its 3x3 block must be a "
+                "rotation and its last row (0, 0, 0, 1)); PCL would apply "
+                "a scaling or reflecting matrix silently")
+
+        cdef PointCloud result = PointCloud()
+        transformCloud(deref(self.ptr()), deref(result.ptr()), buf)
+        return result
 
     def to_list(self):
         """Return this object as a list of 3-tuples."""

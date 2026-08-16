@@ -44,7 +44,8 @@ src/pcl/compat/*.h          C++ shims for what Cython cannot state
 ## Wrapped so far
 
 `PointCloud` (+ PCD/PLY I/O via `pcl.load` / `pcl.save`, `.gz`
-transparent), `PointCloud_PointXYZI` / `_PointXYZRGB` / `_PointXYZRGBA`
+transparent, and `cloud.transform(matrix)` to apply a registration or
+recognition result), `PointCloud_PointXYZI` / `_PointXYZRGB` / `_PointXYZRGBA`
 (with `to_rgb_array` / `from_rgb_array` uint8 colour views alongside
 python-pcl's packed-float column), `VoxelGridFilter`, `ApproximateVoxelGrid`,
 `PassThroughFilter`, `StatisticalOutlierRemovalFilter`,

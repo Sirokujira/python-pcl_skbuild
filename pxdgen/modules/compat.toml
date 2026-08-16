@@ -127,3 +127,13 @@ path = "headers/pcl/compat/matching_args.h"
 extern_from = "pcl/compat/matching_args.h"
 output = "../src/pcl/pxd/compat/matching_args.pxd"
 namespaces = ["pclcompat"]
+
+[[headers]]
+path = "headers/pcl/compat/transform_args.h"
+extern_from = "pcl/compat/transform_args.h"
+output = "../src/pcl/pxd/compat/transform_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ, PointXYZI, PointXYZRGB, PointXYZRGBA",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+]
