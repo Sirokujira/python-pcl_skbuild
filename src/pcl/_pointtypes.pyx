@@ -34,6 +34,8 @@ from pcl.pxd.point_types cimport Normal, PointXYZI, PointXYZRGB, PointXYZRGBA
 from pcl.pxd.point_cloud cimport PointCloud as cPointCloud
 from pcl.pxd.io.pcd_io cimport loadPCDFile, savePCDFile
 from pcl.pxd.io.ply_io cimport loadPLYFile, savePLYFile
+from pcl.pxd.compat.transform_args cimport (
+    isRigidTransform, transformCloud)
 
 
 cdef string _topath(path):
@@ -189,6 +191,25 @@ cdef class PointCloud_PointXYZI:
         with nogil:
             error = savePLYFile[PointXYZI](s, deref(c), binary)
         return error
+
+
+    def transform(self, matrix):
+        """Return this cloud moved by a 4x4 transform.
+
+        Takes what registration and recognition hand back, so a result
+        can be applied without a numpy round trip:
+
+            converged, matrix, _, _ = icp.icp(source, target)
+            aligned = source.transform(matrix)
+
+        Raises when the matrix is not a rigid motion — PCL would apply a
+        scaling or reflecting one silently.
+        """
+        cdef float buf[16]
+        _fill_transform(matrix, buf)
+        cdef PointCloud_PointXYZI result = PointCloud_PointXYZI()
+        transformCloud(deref(self.ptr()), deref(result.ptr()), buf)
+        return result
 
 
 cdef class PointCloud_PointXYZRGB:
@@ -391,6 +412,25 @@ cdef class PointCloud_PointXYZRGB:
         return error
 
 
+    def transform(self, matrix):
+        """Return this cloud moved by a 4x4 transform.
+
+        Takes what registration and recognition hand back, so a result
+        can be applied without a numpy round trip:
+
+            converged, matrix, _, _ = icp.icp(source, target)
+            aligned = source.transform(matrix)
+
+        Raises when the matrix is not a rigid motion — PCL would apply a
+        scaling or reflecting one silently.
+        """
+        cdef float buf[16]
+        _fill_transform(matrix, buf)
+        cdef PointCloud_PointXYZRGB result = PointCloud_PointXYZRGB()
+        transformCloud(deref(self.ptr()), deref(result.ptr()), buf)
+        return result
+
+
 cdef class PointCloud_PointXYZRGBA:
     """A cloud of pcl::PointXYZRGBA (x, y, z + 8-bit colour with alpha)."""
 
@@ -589,6 +629,25 @@ cdef class PointCloud_PointXYZRGBA:
         return error
 
 
+    def transform(self, matrix):
+        """Return this cloud moved by a 4x4 transform.
+
+        Takes what registration and recognition hand back, so a result
+        can be applied without a numpy round trip:
+
+            converged, matrix, _, _ = icp.icp(source, target)
+            aligned = source.transform(matrix)
+
+        Raises when the matrix is not a rigid motion — PCL would apply a
+        scaling or reflecting one silently.
+        """
+        cdef float buf[16]
+        _fill_transform(matrix, buf)
+        cdef PointCloud_PointXYZRGBA result = PointCloud_PointXYZRGBA()
+        transformCloud(deref(self.ptr()), deref(result.ptr()), buf)
+        return result
+
+
 cdef class PointCloud_Normal:
     """A cloud of pcl::Normal (normal_x, normal_y, normal_z, curvature).
 
@@ -698,3 +757,32 @@ cdef PointCloud_Normal wrap_normal_cloud(shared_ptr[cPointCloud[Normal]] ptr):
     cdef PointCloud_Normal pc = PointCloud_Normal()
     pc.thisptr_shared = ptr
     return pc
+
+
+cdef _fill_transform(matrix, float* buf):
+    """Validate a 4x4 transform and flatten it column-major.
+
+    Column-major is Eigen's own storage, and what the shim expects — so
+    a matrix that came out of `finalTransformation` or `recognize()`
+    goes straight back in without a reordering step.
+    """
+    import numpy as np
+
+    values = np.asarray(matrix, dtype=np.float32)
+    if values.shape != (4, 4):
+        raise ValueError(
+            "transform must be a (4, 4) matrix, got shape %r"
+            % (values.shape,))
+    if not np.isfinite(values).all():
+        raise ValueError("transform contains non-finite values")
+
+    flat = np.asfortranarray(values).reshape(-1, order="F")
+    cdef Py_ssize_t i
+    for i in range(16):
+        buf[i] = <float> flat[i]
+
+    if not isRigidTransform(buf, 1e-3):
+        raise ValueError(
+            "transform is not a rigid motion (its 3x3 block must be a "
+            "rotation and its last row (0, 0, 0, 1)); PCL would apply a "
+            "scaling or reflecting matrix silently")

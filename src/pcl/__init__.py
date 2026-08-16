@@ -163,6 +163,7 @@ __all__ = [
     "PCDGrabber", "HDLGrabber",
     "RangeImage", "CAMERA_FRAME", "LASER_FRAME",
     "GeometricConsistencyGrouping", "Hough3DGrouping", "match_descriptors",
+    "transform_cloud",
     "ParticleFilterTracker",
     "hog", "hog_descriptor_size",
     "RandomSampleConsensus", "SampleConsensusModel",
@@ -309,3 +310,22 @@ def _infer_format(path, format):
     if name.lower().endswith(".gz"):
         name = name[: -len(".gz")]
     return os.path.splitext(name)[1][1:].lower()
+
+
+def transform_cloud(cloud, matrix):
+    """Return *cloud* moved by a 4x4 rigid transform.
+
+    The free-function spelling of ``cloud.transform(matrix)``, for any
+    wrapped point type. The matrix is what registration and recognition
+    return, so a result applies directly:
+
+        converged, matrix, _, _ = icp.icp(source, target)
+        aligned = pcl.transform_cloud(source, matrix)
+    """
+    try:
+        method = cloud.transform
+    except AttributeError:
+        raise TypeError(
+            "transform_cloud() needs a point cloud, got %r"
+            % type(cloud).__name__) from None
+    return method(matrix)

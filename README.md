@@ -141,13 +141,21 @@ converged, transform, estimate, fitness = ndt.ndt(source, target)
 ```
 
 `transform` is a 4x4 float32 array in Fortran order (Eigen is
-column-major, so that is the layout PCL already has).
+column-major, so that is the layout PCL already has). Apply it without a
+numpy round trip — the same call takes what `recognize()` returns:
+
+```python
+aligned = source.transform(transform)      # or pcl.transform_cloud(source, m)
+```
+
+A matrix that is not a rigid motion is rejected: PCL would apply a
+scaling or reflecting one silently and hand back a distorted cloud.
 
 ### Wrapped so far
 
 | area | classes |
 |---|---|
-| core | `PointCloud`, `pcl.load` / `pcl.save` (PCD, PLY, `.gz`) |
+| core | `PointCloud`, `pcl.load` / `pcl.save` (PCD, PLY, `.gz`), `cloud.transform` / `pcl.transform_cloud` |
 | point types | `PointCloud_PointXYZI`, `PointCloud_PointXYZRGB`, `PointCloud_PointXYZRGBA`, `PointCloud_Normal` (+ `pcl.load_XYZI` / `load_XYZRGB` / `load_XYZRGBA`) |
 | filters | `VoxelGridFilter`, `ApproximateVoxelGrid`, `PassThroughFilter`, `StatisticalOutlierRemovalFilter`, `RadiusOutlierRemoval`, `ExtractIndices`, `CropBox`, `ProjectInliers`, `RandomSample`, `UniformSampling`, `FastBilateralFilter`, `CropHull` |
 | keypoints | `HarrisKeypoint3D`, NARF (via `RangeImage.narf_keypoints`) |
