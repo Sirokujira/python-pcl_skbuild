@@ -137,3 +137,13 @@ extra_cimports = [
     "from pcl.pxd.point_types cimport PointXYZ, PointXYZI, PointXYZRGB, PointXYZRGBA",
     "from pcl.pxd.point_cloud cimport PointCloud",
 ]
+
+[[headers]]
+path = "headers/pcl/compat/mesh_args.h"
+extern_from = "pcl/compat/mesh_args.h"
+output = "../src/pcl/pxd/compat/mesh_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+]

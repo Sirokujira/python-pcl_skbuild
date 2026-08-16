@@ -91,6 +91,24 @@ extract.set_negative(True)
 rest = extract.filter()             # everything else
 ```
 
+### Meshes
+
+Triangulation and the hulls produce index tuples into a cloud;
+`save_mesh` writes that pair out, and `load_mesh` reads it back:
+
+```python
+mesher = cloud.make_GreedyProjectionTriangulation()
+mesher.set_InputCloud(cloud, normals)
+mesher.set_SearchRadius(0.3)
+pcl.save_mesh(cloud, mesher.reconstruct(), "surface.ply")
+
+points, triangles = pcl.load_mesh("surface.ply")
+```
+
+PLY, OBJ and VTK can be written; PLY and OBJ read back. VTK is
+write-only here because PCL's VTK-format *reader* lives in
+`pcl/io/vtk_lib_io.h`, which needs the VTK libraries.
+
 ### Colour
 
 `to_array()` keeps python-pcl's `(n, 4)` layout, whose fourth column is
@@ -164,7 +182,7 @@ scaling or reflecting one silently and hand back a distorted cloud.
 | sample consensus | `RandomSampleConsensus` + `SampleConsensusModel{Plane,Line,Circle2D,Circle3D,Sphere,Stick}` |
 | search | `KdTreeFLANN`, `OctreePointCloudSearch`, `OctreePointCloudChangeDetector` |
 | features | `NormalEstimation`, `IntegralImageNormalEstimation`, `DifferenceOfNormalsEstimation`, `MomentOfInertiaEstimation`, `VFHEstimation`, `FPFHEstimation`, `SHOTEstimation` |
-| surface | `MovingLeastSquares`, `ConcaveHull`, `ConvexHull`, `GreedyProjectionTriangulation` |
+| surface | `MovingLeastSquares`, `ConcaveHull`, `ConvexHull`, `GreedyProjectionTriangulation`, `pcl.save_mesh` / `pcl.load_mesh` (PLY, OBJ, VTK) |
 | registration | `IterativeClosestPoint`, `IterativeClosestPointNonLinear`, `GeneralizedIterativeClosestPoint`, `NormalDistributionsTransform` |
 | segmentation | `Segmentation` (SAC), `SegmentationNormal`, `EuclideanClusterExtraction`, `ProgressiveMorphologicalFilter`, `MinCutSegmentation`, `ConditionalEuclideanClustering` |
 | recognition | `GeometricConsistencyGrouping`, `Hough3DGrouping`, `pcl.match_descriptors` (FLANN) |
