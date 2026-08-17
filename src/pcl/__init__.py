@@ -10,7 +10,44 @@ import gzip
 import os
 import os.path
 import shutil
+import sys
 import tempfile
+
+
+def _add_windows_dll_directories():
+    """Let the extension modules find PCL's DLLs on Windows.
+
+    Since Python 3.8 Windows ignores PATH when resolving an extension
+    module's dependent DLLs, so importing ``pcl._pointcloud`` fails with
+    "DLL load failed" even though ``pcl_common.dll`` is right there on
+    PATH. The sanctioned fix is ``os.add_dll_directory``, and someone
+    has to call it before the first import — that someone is here.
+
+    Directories come from ``PCL_DLL_DIRS`` (``os.pathsep``-separated)
+    when set, else are derived from ``PCL_ROOT`` — the same variable the
+    build already uses — covering both layouts in the wild:
+    ``%PCL_ROOT%\\bin`` (the PCL installer and vcpkg) and ``PCL_ROOT``
+    pointing at a conda ``Library`` directory, whose DLLs live in
+    ``Library\\bin`` alongside FLANN's and Boost's.
+    """
+    if sys.platform != "win32" or not hasattr(os, "add_dll_directory"):
+        return
+
+    candidates = []
+    explicit = os.environ.get("PCL_DLL_DIRS")
+    if explicit:
+        candidates.extend(explicit.split(os.pathsep))
+    else:
+        root = os.environ.get("PCL_ROOT")
+        if root:
+            candidates.append(os.path.join(root, "bin"))
+
+    for directory in candidates:
+        if os.path.isdir(directory):
+            os.add_dll_directory(directory)
+
+
+_add_windows_dll_directories()
 
 from ._pointcloud import PointCloud, PointCloudXYZ
 from ._pointtypes import (
