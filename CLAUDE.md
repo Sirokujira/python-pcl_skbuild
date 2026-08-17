@@ -63,7 +63,8 @@ python-pcl's packed-float column), `VoxelGridFilter`, `ApproximateVoxelGrid`,
 `MomentOfInertiaEstimation`, `MovingLeastSquares`, `ConcaveHull`,
 `ConvexHull`, `IterativeClosestPoint`,
 `IterativeClosestPointNonLinear`, `GeneralizedIterativeClosestPoint`,
-`NormalDistributionsTransform`, `Segmentation` (SAC),
+`NormalDistributionsTransform`, `SampleConsensusPrerejective`,
+`Segmentation` (SAC),
 `EuclideanClusterExtraction`, `GeometricConsistencyGrouping`,
 `Hough3DGrouping`, `ParticleFilterTracker`, `pcl.hog`, and the sensor
 side: `PCDGrabber`, `HDLGrabber`. Names follow

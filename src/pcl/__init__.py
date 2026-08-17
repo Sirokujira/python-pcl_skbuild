@@ -75,6 +75,7 @@ from ._registration import (
     IterativeClosestPoint,
     IterativeClosestPointNonLinear,
     NormalDistributionsTransform,
+    SampleConsensusPrerejective,
 )
 from ._surface import (
     ConcaveHull,
@@ -199,6 +200,7 @@ __all__ = [
     "GreedyProjectionTriangulation", "save_mesh", "load_mesh",
     "IterativeClosestPoint", "IterativeClosestPointNonLinear",
     "GeneralizedIterativeClosestPoint", "NormalDistributionsTransform",
+    "SampleConsensusPrerejective",
     "PCDGrabber", "HDLGrabber",
     "RangeImage", "CAMERA_FRAME", "LASER_FRAME",
     "GeometricConsistencyGrouping", "Hough3DGrouping", "match_descriptors",

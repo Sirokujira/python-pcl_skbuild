@@ -521,6 +521,11 @@ cdef class PointCloud:
         from pcl._registration import IterativeClosestPoint
         return IterativeClosestPoint()
 
+    def make_SampleConsensusPrerejective(self):
+        """Return a SampleConsensusPrerejective (global registration)."""
+        from pcl._registration import SampleConsensusPrerejective
+        return SampleConsensusPrerejective()
+
     def make_IterativeClosestPointNonLinear(self):
         """Return an IterativeClosestPointNonLinear."""
         from pcl._registration import IterativeClosestPointNonLinear
