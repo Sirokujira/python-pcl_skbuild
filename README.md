@@ -45,6 +45,23 @@ duplication this pipeline exists to avoid. For PCL 1.7/1.8 use
 pip install .
 ```
 
+### Windows
+
+CI builds Windows against conda-forge's prebuilt PCL — the same recipe
+works locally and avoids the hours-long vcpkg compile:
+
+```powershell
+micromamba create -n pcl -c conda-forge pcl eigen flann libboost-devel qhull
+$env:PCL_ROOT = "$env:MAMBA_ROOT_PREFIX\envs\pcl\Library"
+pip install .
+```
+
+Keep `PCL_ROOT` set when *running* too: Python 3.8+ ignores PATH when
+resolving an extension module's dependent DLLs, so `pcl/__init__.py`
+calls `os.add_dll_directory` on `%PCL_ROOT%\bin` (or each entry of
+`PCL_DLL_DIRS`) before the first extension import. A "DLL load failed"
+on `import pcl` means neither variable was set.
+
 ## Usage
 
 The API follows [python-pcl](https://github.com/sirokujira/python-pcl),

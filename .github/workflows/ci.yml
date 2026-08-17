@@ -87,8 +87,43 @@ jobs:
           pip install pytest
           pytest tests/test_pointcloud.py -v
 
-  # Windows build is not in the matrix yet: PCL via vcpkg takes hours of
-  # compile time on hosted runners. The pxd-pipeline job above covers the
-  # generator path on Windows; the extension build itself is exercised on
-  # Linux/macOS. (Local Windows builds work via `pip install .` with a
-  # PCL_ROOT install — see README.)
+  # The Windows build is its own job rather than a matrix entry: PCL via
+  # vcpkg takes hours of compile time on hosted runners, so it comes
+  # prebuilt from conda-forge instead — micromamba solves that in about a
+  # minute. PCL_ROOT points into the env's Library\ prefix, which is
+  # where conda-forge keeps headers, libs and PCLConfig.cmake; the same
+  # variable at test time lets pcl/__init__.py add Library\bin as a DLL
+  # directory (Python 3.8+ ignores PATH for extension dependencies).
+  build-windows:
+    name: build / windows-latest
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install PCL (prebuilt, conda-forge)
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-name: pcl
+          create-args: >-
+            -c conda-forge
+            pcl
+            eigen
+            flann
+            libboost-devel
+            qhull
+      - name: Build package
+        shell: pwsh
+        run: |
+          $pclRoot = "$env:MAMBA_ROOT_PREFIX\envs\pcl\Library"
+          "PCL_ROOT=$pclRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          $env:PCL_ROOT = $pclRoot
+          pip install -v .
+      - name: Run runtime tests
+        shell: pwsh
+        run: |
+          pip install pytest
+          pytest tests/test_pointcloud.py -v

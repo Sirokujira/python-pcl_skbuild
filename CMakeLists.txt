@@ -13,9 +13,17 @@ find_package(NumPy)
 
 # PCL_ROOT can point at a custom PCL install (mirrors the template's
 # EXTERNAL_MODULE_PATH handling).
+#
+# TO_CMAKE_PATH is load-bearing: on Windows the variable arrives with
+# backslashes, and a backslashed entry in CMAKE_MODULE_PATH blows up the
+# first try_compile that forwards the list into a scratch project —
+# "Invalid character escape '\U'" from C:\Users\... — deep inside
+# find_package(PCL)'s dependency probing rather than anywhere near the
+# actual mistake.
 if(DEFINED ENV{PCL_ROOT})
-    list(APPEND CMAKE_MODULE_PATH "$ENV{PCL_ROOT}/cmake")
-    list(APPEND CMAKE_PREFIX_PATH "$ENV{PCL_ROOT}")
+    file(TO_CMAKE_PATH "$ENV{PCL_ROOT}" _pcl_root)
+    list(APPEND CMAKE_MODULE_PATH "${_pcl_root}/cmake")
+    list(APPEND CMAKE_PREFIX_PATH "${_pcl_root}")
 endif()
 
 # https://scikit-build.readthedocs.io/en/latest/generators.html#macosx

@@ -84,7 +84,14 @@ the rules before touching either.
   for the current interpreter — build with `pip install .`, don't "fix"
   the import.
 - Windows builds produce `.pyd` via MSVC (see `setup.py` CMAKE_ARGS);
-  Linux/macOS produce `.so`. Same source, no per-platform code.
+  Linux/macOS produce `.so`. Same source, no per-platform code. CI
+  builds Windows against conda-forge's prebuilt PCL with
+  `PCL_ROOT=<env>\Library`.
+- Windows DLL loading: Python 3.8+ ignores PATH for an extension's
+  dependent DLLs, so `pcl/__init__.py` calls `os.add_dll_directory`
+  before the first extension import — directories from `PCL_DLL_DIRS`,
+  else `%PCL_ROOT%\bin`. "DLL load failed" on import means neither was
+  set.
 
 ## Adding PCL API
 
