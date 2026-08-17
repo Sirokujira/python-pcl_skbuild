@@ -186,6 +186,26 @@ aligned = source.transform(transform)      # or pcl.transform_cloud(source, m)
 A matrix that is not a rigid motion is rejected: PCL would apply a
 scaling or reflecting one silently and hand back a distorted cloud.
 
+All four of those *refine* a pose that is already roughly right. When
+there is no initial guess at all, align from FPFH descriptors first and
+hand the result to ICP:
+
+```python
+def describe(cloud):
+    normals = cloud.make_NormalEstimation(); normals.set_KSearch(15)
+    fpfh = cloud.make_FPFHEstimation()
+    fpfh.set_InputNormals(normals.compute_cloud())
+    fpfh.set_RadiusSearch(0.12)
+    return fpfh.compute()
+
+align = source.make_SampleConsensusPrerejective()
+align.set_MaxCorrespondenceDistance(0.05)      # cloud units; no default fits
+converged, transform, estimate, fitness = align.align(
+    source, describe(source), target, describe(target))
+
+converged, refined, _, _ = icp.icp(source.transform(transform), target)
+```
+
 ### Wrapped so far
 
 | area | classes |
@@ -200,7 +220,7 @@ scaling or reflecting one silently and hand back a distorted cloud.
 | search | `KdTreeFLANN`, `OctreePointCloudSearch`, `OctreePointCloudChangeDetector` |
 | features | `NormalEstimation`, `IntegralImageNormalEstimation`, `DifferenceOfNormalsEstimation`, `MomentOfInertiaEstimation`, `VFHEstimation`, `FPFHEstimation`, `SHOTEstimation` |
 | surface | `MovingLeastSquares`, `ConcaveHull`, `ConvexHull`, `GreedyProjectionTriangulation`, `pcl.save_mesh` / `pcl.load_mesh` (PLY, OBJ, VTK) |
-| registration | `IterativeClosestPoint`, `IterativeClosestPointNonLinear`, `GeneralizedIterativeClosestPoint`, `NormalDistributionsTransform` |
+| registration | `IterativeClosestPoint`, `IterativeClosestPointNonLinear`, `GeneralizedIterativeClosestPoint`, `NormalDistributionsTransform`, `SampleConsensusPrerejective` (global) |
 | segmentation | `Segmentation` (SAC), `SegmentationNormal`, `EuclideanClusterExtraction`, `ProgressiveMorphologicalFilter`, `MinCutSegmentation`, `ConditionalEuclideanClustering` |
 | recognition | `GeometricConsistencyGrouping`, `Hough3DGrouping`, `pcl.match_descriptors` (FLANN) |
 | tracking | `ParticleFilterTracker` |
