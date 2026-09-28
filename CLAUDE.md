@@ -14,6 +14,8 @@ them before editing.
 # regen pxd (requires: pip install git+https://github.com/sirokujira/cppast2autopxd)
 python pxdgen/generate.py
 python pxdgen/generate.py --check      # verify committed pxd not stale
+python pxdgen/generate.py --backend cppast   # same config through the C++ tool,
+                                             # to diff the two backends (no --check)
 
 # tests that run WITHOUT PCL installed (always run these)
 pytest tests/test_pxd_pipeline.py -v

@@ -11,6 +11,20 @@ src/pcl/*.pyx               hand-written wrappers
    -> cython --cplus -> C++ compile with the REAL PCL headers -> .so/.pyd
 ```
 
+## Two backends, one committed output
+
+- cppast2autopxd has two implementations. The committed pxd are the
+  **libclang** backend's output; `generate.py --backend cppast` writes the
+  C++ tool's output for the same config instead, so the two can be diffed.
+  It does not combine with `--check` — the backends differ cosmetically
+  (block-level vs per-function `nogil`, cimport order), so a byte
+  comparison is meaningless there.
+- Parity is gated by `tests/test_pxd_pipeline.py::test_cppast_backend_parity`:
+  every job through the cppast backend must declare the same API surface
+  per extern block, skip nothing, and compile under cython with its
+  siblings. It auto-skips where the `cppast_autopxd` binary is absent and
+  gates where it is present — the same shape as the real-PCL tests.
+
 ## Generated files are read-only
 
 - `src/pcl/pxd/**/*.pxd` are generator output; the settings deny editing
