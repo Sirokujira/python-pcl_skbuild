@@ -55,6 +55,8 @@ from ._pointtypes import (
     PointCloud_PointXYZI,
     PointCloud_PointXYZRGB,
     PointCloud_PointXYZRGBA,
+    PointCloud_PointNormal,
+    PointCloud_PointWithViewpoint,
 )
 from ._features import (
     AVERAGE_3D_GRADIENT,
@@ -181,6 +183,8 @@ __all__ = [
     "PointCloud_PointXYZI", "PointCloud_PointXYZRGB",
     "PointCloud_PointXYZRGBA",
     "load_XYZI", "load_XYZRGB", "load_XYZRGBA", "save_XYZRGBA",
+    "PointCloud_PointNormal", "PointCloud_PointWithViewpoint",
+    "load_PointNormal", "load_PointWithViewpoint",
     "VoxelGridFilter", "ApproximateVoxelGrid", "PassThroughFilter",
     "StatisticalOutlierRemovalFilter", "RadiusOutlierRemoval",
     "ExtractIndices", "CropBox", "CropHull", "ProjectInliers",
@@ -260,6 +264,16 @@ def load_XYZRGB(path, format=None):
 def load_XYZRGBA(path, format=None):
     """Load a :class:`PointCloud_PointXYZRGBA` from *path*."""
     return _load(PointCloud_PointXYZRGBA, path, format)
+
+
+def load_PointNormal(path, format=None):
+    """Load a :class:`PointCloud_PointNormal` from *path*."""
+    return _load(PointCloud_PointNormal, path, format)
+
+
+def load_PointWithViewpoint(path, format=None):
+    """Load a :class:`PointCloud_PointWithViewpoint` from *path*."""
+    return _load(PointCloud_PointWithViewpoint, path, format)
 
 
 def _load(cls, path, format):

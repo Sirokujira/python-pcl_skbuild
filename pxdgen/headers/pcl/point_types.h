@@ -131,6 +131,26 @@ struct PointNormal {
     };
 };
 
+// A point that remembers where it was seen from (vp_x, vp_y, vp_z).
+struct PointWithViewpoint {
+    union {
+        struct {
+            float x;
+            float y;
+            float z;
+        };
+        float data[4];
+    };
+    union {
+        struct {
+            float vp_x;
+            float vp_y;
+            float vp_z;
+        };
+        float data_c[4];
+    };
+};
+
 
 // A 308-bin Viewpoint Feature Histogram: one descriptor for a whole
 // cloud, which is why VFHEstimation's output cloud holds a single point.

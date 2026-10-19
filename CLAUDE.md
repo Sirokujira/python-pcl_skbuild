@@ -49,7 +49,9 @@ src/pcl/compat/*.h          C++ shims for what Cython cannot state
 transparent, and `cloud.transform(matrix)` to apply a registration or
 recognition result), `PointCloud_PointXYZI` / `_PointXYZRGB` / `_PointXYZRGBA`
 (with `to_rgb_array` / `from_rgb_array` uint8 colour views alongside
-python-pcl's packed-float column), `VoxelGridFilter`, `ApproximateVoxelGrid`,
+python-pcl's packed-float column), `PointCloud_PointNormal` (+
+`from_xyz_and_normals`, normals-aware `transform`),
+`PointCloud_PointWithViewpoint`, `VoxelGridFilter`, `ApproximateVoxelGrid`,
 `PassThroughFilter`, `StatisticalOutlierRemovalFilter`,
 `RadiusOutlierRemoval`, `ExtractIndices`, `CropBox`, `ProjectInliers`,
 `RandomSample`, `UniformSampling`, `ConditionAnd` / `ConditionalRemoval`,

@@ -25,6 +25,12 @@ void transformCloud(const pcl::PointCloud<pcl::PointXYZRGB>& in,
 void transformCloud(const pcl::PointCloud<pcl::PointXYZRGBA>& in,
                     pcl::PointCloud<pcl::PointXYZRGBA>& out,
                     const float* matrix16);
+// PointNormal goes through transformPointCloudWithNormals, so the
+// normals turn with the points; plain transformPointCloud would leave
+// them pointing the old way.
+void transformCloud(const pcl::PointCloud<pcl::PointNormal>& in,
+                    pcl::PointCloud<pcl::PointNormal>& out,
+                    const float* matrix16);
 
 bool isRigidTransform(const float* matrix16, float tolerance);
 

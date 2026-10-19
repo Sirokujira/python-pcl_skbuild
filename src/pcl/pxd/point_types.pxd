@@ -65,6 +65,16 @@ cdef extern from "pcl/point_types.h" namespace "pcl" nogil:
         float curvature
         float data_c[4]
 
+    cdef struct PointWithViewpoint:
+        float x
+        float y
+        float z
+        float data[4]
+        float vp_x
+        float vp_y
+        float vp_z
+        float data_c[4]
+
     cdef struct VFHSignature308:
         float histogram[308]
 

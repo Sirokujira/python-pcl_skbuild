@@ -5,7 +5,7 @@
 
 from libcpp cimport bool
 from pcl.pxd.point_cloud cimport PointCloud
-from pcl.pxd.point_types cimport PointXYZ, PointXYZI, PointXYZRGB, PointXYZRGBA
+from pcl.pxd.point_types cimport PointXYZ, PointXYZI, PointXYZRGB, PointXYZRGBA, PointNormal
 
 cdef extern from "pcl/compat/transform_args.h" namespace "pclcompat" nogil:
     void transformCloud(const PointCloud[PointXYZ]& in_, PointCloud[PointXYZ]& out, const float* matrix16) except +
@@ -15,5 +15,7 @@ cdef extern from "pcl/compat/transform_args.h" namespace "pclcompat" nogil:
     void transformCloud(const PointCloud[PointXYZRGB]& in_, PointCloud[PointXYZRGB]& out, const float* matrix16) except +
 
     void transformCloud(const PointCloud[PointXYZRGBA]& in_, PointCloud[PointXYZRGBA]& out, const float* matrix16) except +
+
+    void transformCloud(const PointCloud[PointNormal]& in_, PointCloud[PointNormal]& out, const float* matrix16) except +
 
     bool isRigidTransform(const float* matrix16, float tolerance) except +

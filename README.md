@@ -211,7 +211,7 @@ converged, refined, _, _ = icp.icp(source.transform(transform), target)
 | area | classes |
 |---|---|
 | core | `PointCloud`, `pcl.load` / `pcl.save` (PCD, PLY, `.gz`), `cloud.transform` / `pcl.transform_cloud` |
-| point types | `PointCloud_PointXYZI`, `PointCloud_PointXYZRGB`, `PointCloud_PointXYZRGBA`, `PointCloud_Normal` (+ `pcl.load_XYZI` / `load_XYZRGB` / `load_XYZRGBA`) |
+| point types | `PointCloud_PointXYZI`, `PointCloud_PointXYZRGB`, `PointCloud_PointXYZRGBA`, `PointCloud_Normal`, `PointCloud_PointNormal`, `PointCloud_PointWithViewpoint` (+ `pcl.load_XYZI` / `load_XYZRGB` / `load_XYZRGBA` / `load_PointNormal` / `load_PointWithViewpoint`) |
 | filters | `VoxelGridFilter`, `ApproximateVoxelGrid`, `PassThroughFilter`, `StatisticalOutlierRemovalFilter`, `RadiusOutlierRemoval`, `ExtractIndices`, `CropBox`, `ProjectInliers`, `RandomSample`, `UniformSampling`, `FastBilateralFilter`, `CropHull` |
 | keypoints | `HarrisKeypoint3D`, NARF (via `RangeImage.narf_keypoints`) |
 | range image | `RangeImage` (+ `pcl.CAMERA_FRAME` / `LASER_FRAME`) |
