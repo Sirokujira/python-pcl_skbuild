@@ -64,7 +64,10 @@ convolutions in `_filters_extra`, `OctreePointCloudCompression` (+ RGB),
 `SampleConsensusModel*` builders (incl. cylinder, cone, normal and axis
 models, registration, ellipse 3-D), `ExtractPolygonalPrismData`, `SegmentDifferences`,
 `ApproximateProgressiveMorphologicalFilter`, `SeededHueSegmentation`,
-`OrganizedMultiPlaneSegmentation`, `SupervoxelClustering` (+ LCCP),
+`OrganizedMultiPlaneSegmentation` (+ segment-and-refine),
+`SupervoxelClustering` (+ LCCP, CPC), `OrganizedConnectedComponentSegmentation`
+and its six comparators, `LabeledEuclideanClusterExtraction`, `GrabCut`,
+`UnaryClassifier`, `pcl.random_walker` (all in `_segmentation_extra`),
 `pcl.match_descriptors` (FLANN),
 `IntegralImageNormalEstimation`, `DifferenceOfNormalsEstimation`,
 `FPFHEstimation`, `SHOTEstimation`, `CVFHEstimation`, `ESFEstimation`,

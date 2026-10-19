@@ -255,6 +255,28 @@ pixel coordinate, and `NormalDistributionsTransform2D` stays at the
 initial pose (reporting convergence) on zero-thickness structure,
 whose near-singular cell Gaussians give no gradient.
 
+The segmentation batch, each measured before it was absorbed:
+`EuclideanClusterComparator::setExcludeLabels` keeps ONLY the labels in
+its set (the 1.11 rewrite from `vector<bool>` inverted the test; still
+so on master), so `segmentation_args.h` probes which way the installed
+PCL reads it -- two coincident points, one label, that label in the
+set -- and passes the set or its complement. `extractLabeledEuclideanClusters`
+writes `labeled_clusters[label]` without sizing the vector, a segfault
+in plain C++ (still on master); the shim sizes it. `PlaneCoefficientComparator`'s
+constructor stores its 2-degree default as an angle where `compare()`
+wants the cosine, so the shim always goes through the setter.
+`GrabCut::setBackgroundPointsIndices` treats its indices as the possible
+FOREGROUND, the opposite of its name; the wrapper calls it
+`set_ForegroundRegion`. `segmentAndRefine` traces contours from the
+last inlier, which `refine()` no longer keeps in raster order (a
+refined wall ended on the image corner and got an empty contour); the
+shim re-traces from the raster-last one. `pcl::Kmeans` divides by an
+empty cluster's size, so `UnaryClassifier` training can return a NaN
+centre that then poisons the chi-square search; the wrapper replaces
+it with a duplicate centre of the same set. `CrfSegmentation` is not
+wrapped: its unary potentials land in the wrong slots and its output
+labels were wrong in every C++ run.
+
 Not every quirk is worth absorbing, though. PCL's octree treats the FIRST
 point of a cloud specially: `voxelSearch` can miss it, and
 `getPointIndicesFromNewVoxels` reports index 0 as new even for an

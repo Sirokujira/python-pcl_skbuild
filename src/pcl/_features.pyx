@@ -1327,9 +1327,13 @@ cdef class IntegralImageNormalEstimation:
     """
 
     cdef cIntegralImageNormalEstimation[PointXYZ, Normal]* me
+    cdef unsigned int width
+    cdef unsigned int height
+    cdef bint computed
 
     def __cinit__(self, PointCloud pc=None):
         self.me = new cIntegralImageNormalEstimation[PointXYZ, Normal]()
+        self.computed = False
         if pc is not None:
             self.set_InputCloud(pc)
 
@@ -1344,6 +1348,9 @@ cdef class IntegralImageNormalEstimation:
                 "(height > 1); build one with "
                 "PointCloud.from_organized_array()")
         self.me.setInputCloud(pc.thisptr_shared)
+        self.width = pc.width
+        self.height = pc.height
+        self.computed = False
 
     def set_NormalEstimationMethod(self, int method):
         """One of `pcl.COVARIANCE_MATRIX`, `AVERAGE_3D_GRADIENT`,
@@ -1369,6 +1376,7 @@ cdef class IntegralImageNormalEstimation:
         cdef cPointCloud[Normal] out
         with nogil:
             self.me.compute(out)
+        self.computed = True
 
         cdef Py_ssize_t n = <Py_ssize_t> out.size()
         result = np.empty((n, 4), dtype=np.float32)
@@ -1390,7 +1398,25 @@ cdef class IntegralImageNormalEstimation:
         cdef cPointCloud[Normal]* out = holder.get()
         with nogil:
             self.me.compute(deref(out))
+        self.computed = True
         return wrap_normal_cloud(holder)
+
+    def get_DistanceMap(self):
+        """Per pixel, the distance in pixels to the nearest depth change
+        or invalid pixel, as a ``(height, width)`` float32 array -- what
+        `EdgeAwarePlaneComparator` takes. Filled by the last
+        `compute()` / `compute_cloud()`."""
+        import numpy as np
+        cdef float* data = self.me.getDistanceMap()
+        if not self.computed or data == NULL:
+            raise RuntimeError("call compute() or compute_cloud() first")
+        result = np.empty((self.height, self.width), dtype=np.float32)
+        cdef float[:, ::1] view = result
+        cdef Py_ssize_t r, c
+        for r in range(self.height):
+            for c in range(self.width):
+                view[r, c] = data[r * self.width + c]
+        return result
 
 
 cdef class DifferenceOfNormalsEstimation:

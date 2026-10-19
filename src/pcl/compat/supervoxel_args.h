@@ -1,7 +1,7 @@
 // C++ shim: SupervoxelClustering::extract fills a std::map of Supervoxel
 // objects and getSupervoxelAdjacency a std::multimap; LCCPSegmentation
-// consumes both. None of that has a pxd spelling, so the results stay
-// here in a SupervoxelSet and come out as flat vectors. See
+// and CPCSegmentation consume both. None of that has a pxd spelling, so
+// the results stay here in a SupervoxelSet and come out as flat vectors. See
 // pxdgen/headers/pcl/compat/supervoxel_args.h for the mirror.
 #pragma once
 
@@ -11,6 +11,7 @@
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+#include <pcl/segmentation/cpc_segmentation.h>
 #include <pcl/segmentation/lccp_segmentation.h>
 #include <pcl/segmentation/supervoxel_clustering.h>
 
@@ -71,6 +72,46 @@ inline void supervoxelPointLabels(
     }
 }
 
+template <typename Segmenter, typename PointT>
+inline void configureLccp(Segmenter& segmenter, const SupervoxelSet<PointT>& set,
+                          float concavity_tolerance, bool smoothness_check,
+                          float voxel_resolution, float seed_resolution,
+                          float smoothness_threshold, bool sanity_check,
+                          unsigned int k_factor, unsigned int min_segment_size) {
+    segmenter.setConcavityToleranceThreshold(concavity_tolerance);
+    segmenter.setSmoothnessCheck(smoothness_check, voxel_resolution,
+                                 seed_resolution, smoothness_threshold);
+    segmenter.setSanityCheck(sanity_check);
+    segmenter.setKFactor(k_factor);
+    segmenter.setMinSegmentSize(min_segment_size);
+    segmenter.setInputSupervoxels(set.clusters, set.adjacency);
+}
+
+/// After segment(): the segment label of every input point, and the
+/// supervoxel -> segment map as flat pairs.
+template <typename Segmenter, typename PointT>
+inline void collectSegments(Segmenter& segmenter,
+                            const pcl::SupervoxelClustering<PointT>& clustering,
+                            std::vector<unsigned int>& point_labels,
+                            std::vector<unsigned int>& supervoxel_to_segment) {
+    typename pcl::PointCloud<pcl::PointXYZL>::Ptr labeled =
+        clustering.getLabeledCloud();
+    segmenter.relabelCloud(*labeled);
+    point_labels.clear();
+    point_labels.reserve(labeled->size());
+    for (const auto& point : *labeled) {
+        point_labels.push_back(point.label);
+    }
+
+    std::map<std::uint32_t, std::uint32_t> mapping;
+    segmenter.getSupervoxelToSegmentMap(mapping);
+    supervoxel_to_segment.clear();
+    for (const auto& item : mapping) {
+        supervoxel_to_segment.push_back(item.first);
+        supervoxel_to_segment.push_back(item.second);
+    }
+}
+
 template <typename PointT>
 inline void lccpSegment(const SupervoxelSet<PointT>& set,
                         const pcl::SupervoxelClustering<PointT>& clustering,
@@ -81,31 +122,38 @@ inline void lccpSegment(const SupervoxelSet<PointT>& set,
                         std::vector<unsigned int>& point_labels,
                         std::vector<unsigned int>& supervoxel_to_segment) {
     pcl::LCCPSegmentation<PointT> lccp;
-    lccp.setConcavityToleranceThreshold(concavity_tolerance);
-    lccp.setSmoothnessCheck(smoothness_check, voxel_resolution,
-                            seed_resolution, smoothness_threshold);
-    lccp.setSanityCheck(sanity_check);
-    lccp.setKFactor(k_factor);
-    lccp.setMinSegmentSize(min_segment_size);
-    lccp.setInputSupervoxels(set.clusters, set.adjacency);
+    configureLccp(lccp, set, concavity_tolerance, smoothness_check,
+                  voxel_resolution, seed_resolution, smoothness_threshold,
+                  sanity_check, k_factor, min_segment_size);
     lccp.segment();
+    collectSegments(lccp, clustering, point_labels, supervoxel_to_segment);
+}
 
-    typename pcl::PointCloud<pcl::PointXYZL>::Ptr labeled =
-        clustering.getLabeledCloud();
-    lccp.relabelCloud(*labeled);
-    point_labels.clear();
-    point_labels.reserve(labeled->size());
-    for (const auto& point : *labeled) {
-        point_labels.push_back(point.label);
-    }
-
-    std::map<std::uint32_t, std::uint32_t> mapping;
-    lccp.getSupervoxelToSegmentMap(mapping);
-    supervoxel_to_segment.clear();
-    for (const auto& item : mapping) {
-        supervoxel_to_segment.push_back(item.first);
-        supervoxel_to_segment.push_back(item.second);
-    }
+/// CPC: LCCP's merge followed by cuts along planes fitted (RANSAC) to
+/// the convex/concave edge cloud, which splits segments LCCP leaves
+/// joined. Same outputs as lccpSegment.
+template <typename PointT>
+inline void cpcSegment(const SupervoxelSet<PointT>& set,
+                       const pcl::SupervoxelClustering<PointT>& clustering,
+                       float concavity_tolerance, bool smoothness_check,
+                       float voxel_resolution, float seed_resolution,
+                       float smoothness_threshold, bool sanity_check,
+                       unsigned int k_factor, unsigned int min_segment_size,
+                       unsigned int max_cuts, unsigned int cutting_min_segments,
+                       float cutting_min_score, bool locally_constrained,
+                       bool directed_cutting, bool clean_cutting,
+                       unsigned int ransac_iterations,
+                       std::vector<unsigned int>& point_labels,
+                       std::vector<unsigned int>& supervoxel_to_segment) {
+    pcl::CPCSegmentation<PointT> cpc;
+    configureLccp(cpc, set, concavity_tolerance, smoothness_check,
+                  voxel_resolution, seed_resolution, smoothness_threshold,
+                  sanity_check, k_factor, min_segment_size);
+    cpc.setCutting(max_cuts, cutting_min_segments, cutting_min_score,
+                   locally_constrained, directed_cutting, clean_cutting);
+    cpc.setRANSACIterations(ransac_iterations);
+    cpc.segment();
+    collectSegments(cpc, clustering, point_labels, supervoxel_to_segment);
 }
 
 }  // namespace pclcompat

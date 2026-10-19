@@ -273,3 +273,16 @@ extra_cimports = [
     "from pcl.pxd.point_types cimport PointXYZ, PointXYZRGBA, PointNormal, Normal",
     "from pcl.pxd.point_cloud cimport PointCloud",
 ]
+
+[[headers]]
+path = "headers/pcl/compat/segmentation_args.h"
+extern_from = "pcl/compat/segmentation_args.h"
+output = "../src/pcl/pxd/compat/segmentation_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ, PointXYZRGBA, Normal, Label",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.point_indices cimport PointIndices",
+    "from pcl.pxd.model_coefficients cimport ModelCoefficients",
+    "from pcl.pxd.segmentation.organized_multi_plane_segmentation cimport OrganizedMultiPlaneSegmentation",
+]

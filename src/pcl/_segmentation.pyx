@@ -60,11 +60,13 @@ from pcl.pxd.segmentation.supervoxel_clustering cimport (
     SupervoxelClustering as cSupervoxelClustering)
 from pcl.pxd.compat.supervoxel_args cimport (
     SupervoxelSet, supervoxelExtract, supervoxelSummary,
-    supervoxelPointLabels, lccpSegment)
+    supervoxelPointLabels, lccpSegment, cpcSegment)
 from pcl._pointtypes cimport PointCloud_PointXYZRGBA
 cimport pcl.pxd.sample_consensus.method_types as method_types
 cimport pcl.pxd.sample_consensus.model_types as model_types
 from pcl.pxd.compat.sac_models cimport SAC_MODEL_ELLIPSE3D
+from pcl.pxd.compat.segmentation_args cimport (
+    INVALID_LABEL, multiPlaneSegmentAndRefine)
 
 from pcl._pointcloud cimport PointCloud
 from pcl._pointtypes cimport (
@@ -424,6 +426,44 @@ cdef class MinCutSegmentation:
             [clusters[i].indices[j] for j in range(clusters[i].indices.size())]
             for i in range(clusters.size())
         ]
+
+
+cdef tuple _segments_out(vector[unsigned int]& point_labels,
+                         vector[unsigned int]& mapping):
+    """(point labels as (n,) uint32, supervoxel -> segment dict)."""
+    import numpy as np
+    cdef Py_ssize_t n = <Py_ssize_t> point_labels.size()
+    result = np.empty(n, dtype=np.uint32)
+    cdef unsigned int[::1] view = result
+    cdef Py_ssize_t i
+    for i in range(n):
+        view[i] = point_labels[i]
+    cdef dict segments = {}
+    for i in range(<Py_ssize_t> mapping.size() // 2):
+        segments[mapping[2 * i]] = mapping[2 * i + 1]
+    return result, segments
+
+
+cdef object _label_image(vector[unsigned int]& labels, unsigned int width,
+                         unsigned int height):
+    """(height, width) int64 labels, -1 for PCL's invalid label."""
+    import numpy as np
+    out = np.empty(labels.size(), dtype=np.int64)
+    cdef long long[::1] view = out
+    cdef size_t i
+    for i in range(labels.size()):
+        view[i] = -1 if labels[i] == INVALID_LABEL else labels[i]
+    return out.reshape(height, width)
+
+
+cdef object _float_array(vector[float]& values):
+    import numpy as np
+    out = np.empty(values.size(), dtype=np.float32)
+    cdef float[::1] view = out
+    cdef size_t i
+    for i in range(values.size()):
+        view[i] = values[i]
+    return out
 
 
 cdef list _clusters_to_lists(vector[PointIndices]& clusters):
@@ -1089,6 +1129,66 @@ cdef class OrganizedMultiPlaneSegmentation:
             planes.append(one)
         return planes, _clusters_to_lists(inliers)
 
+    def segment_and_refine(self, float refine_distance=0.01,
+                           bint depth_dependent=False):
+        """`segment()`, then grow each plane into neighbouring pixels
+        within `refine_distance` of it (pcl::PlaneRefinementComparator;
+        scaled by z^2 when `depth_dependent`), the step PCL calls
+        segmentAndRefine. Returns a dict:
+
+        ``coefficients`` / ``inliers``
+            as from `segment()`, after the growth;
+        ``labels``
+            ``(height, width)`` int64 component label of every pixel
+            (-1 where none), plane ``i`` being ``labels.flat[inliers[i][0]]``;
+        ``boundaries``
+            each plane's outer contour, as pixel indices (traced from
+            the plane's last pixel in raster order -- PCL starts from
+            its last grown pixel, which can lie inside the plane and give
+            an empty contour); the image border is not part of a contour;
+        ``centroids`` / ``covariances``
+            ``(k, 3)`` and ``(k, 3, 3)`` float32, from the unrefined planes.
+        """
+        if self._input is None:
+            raise RuntimeError("no input cloud: call set_InputCloud() first")
+        if self._input.height <= 1:
+            raise ValueError(
+                "OrganizedMultiPlaneSegmentation needs an organized cloud "
+                "(height > 1); this one is %d x %d"
+                % (self._input.width, self._input.height))
+        if not self.has_normals:
+            raise RuntimeError(
+                "set_InputNormals() is required: use "
+                "IntegralImageNormalEstimation.compute_cloud()")
+        cdef vector[ModelCoefficients] coefficients
+        cdef vector[PointIndices] inliers
+        cdef vector[unsigned int] labels
+        cdef vector[PointIndices] boundaries
+        cdef vector[float] centroids
+        cdef vector[float] covariances
+        with nogil:
+            multiPlaneSegmentAndRefine(
+                deref(self.me), refine_distance, depth_dependent,
+                coefficients, inliers, labels, boundaries, centroids,
+                covariances)
+        cdef list planes = []
+        cdef list one
+        cdef size_t i, j
+        for i in range(coefficients.size()):
+            one = []
+            for j in range(coefficients[i].values.size()):
+                one.append(coefficients[i].values[j])
+            planes.append(one)
+        return {
+            "coefficients": planes,
+            "inliers": _clusters_to_lists(inliers),
+            "labels": _label_image(labels, self._input.width,
+                                   self._input.height),
+            "boundaries": _clusters_to_lists(boundaries),
+            "centroids": _float_array(centroids).reshape(-1, 3),
+            "covariances": _float_array(covariances).reshape(-1, 3, 3),
+        }
+
 
 cdef class SupervoxelClustering:
     """Supervoxels (pcl::SupervoxelClustering) on a :class:`PointCloud_PointXYZRGBA`.
@@ -1270,6 +1370,35 @@ cdef class SupervoxelClustering:
             segments[mapping[2 * i]] = mapping[2 * i + 1]
         return result, segments
 
+    def cpc(self, float concavity_tolerance=10.0,
+            bint smoothness_check=True, float smoothness_threshold=0.1,
+            bint sanity_check=False, unsigned int k_factor=0,
+            unsigned int min_segment_size=0, unsigned int max_cuts=20,
+            unsigned int cutting_min_segments=0,
+            float cutting_min_score=0.16, bint locally_constrained=True,
+            bint directed_cutting=True, bint clean_cutting=False,
+            unsigned int ransac_iterations=10000):
+        """LCCP's merge, then cuts along planes fitted by RANSAC to the
+        convex / concave edges (pcl::CPCSegmentation), splitting objects
+        LCCP leaves joined. The first six arguments are `lccp()`'s; up
+        to `max_cuts` cuts are made, each scoring at least
+        `cutting_min_score` on segments of at least
+        `cutting_min_segments` supervoxels. Same return value as
+        `lccp()`; only available after `extract()`."""
+        if not self.extracted:
+            raise RuntimeError("call extract() before cpc()")
+        cdef vector[unsigned int] point_labels
+        cdef vector[unsigned int] mapping
+        with nogil:
+            cpcSegment[PointXYZRGBA](
+                deref(self.result), deref(self.me), concavity_tolerance,
+                smoothness_check, self.voxel_resolution,
+                self.seed_resolution, smoothness_threshold, sanity_check,
+                k_factor, min_segment_size, max_cuts, cutting_min_segments,
+                cutting_min_score, locally_constrained, directed_cutting,
+                clean_cutting, ransac_iterations, point_labels, mapping)
+        return _segments_out(point_labels, mapping)
+
 
 cdef class SupervoxelClusteringXYZ:
     """Supervoxels (pcl::SupervoxelClustering) on a plain :class:`PointCloud` (no colour term).
@@ -1450,6 +1579,35 @@ cdef class SupervoxelClusteringXYZ:
         for i in range(<Py_ssize_t> mapping.size() // 2):
             segments[mapping[2 * i]] = mapping[2 * i + 1]
         return result, segments
+
+    def cpc(self, float concavity_tolerance=10.0,
+            bint smoothness_check=True, float smoothness_threshold=0.1,
+            bint sanity_check=False, unsigned int k_factor=0,
+            unsigned int min_segment_size=0, unsigned int max_cuts=20,
+            unsigned int cutting_min_segments=0,
+            float cutting_min_score=0.16, bint locally_constrained=True,
+            bint directed_cutting=True, bint clean_cutting=False,
+            unsigned int ransac_iterations=10000):
+        """LCCP's merge, then cuts along planes fitted by RANSAC to the
+        convex / concave edges (pcl::CPCSegmentation), splitting objects
+        LCCP leaves joined. The first six arguments are `lccp()`'s; up
+        to `max_cuts` cuts are made, each scoring at least
+        `cutting_min_score` on segments of at least
+        `cutting_min_segments` supervoxels. Same return value as
+        `lccp()`; only available after `extract()`."""
+        if not self.extracted:
+            raise RuntimeError("call extract() before cpc()")
+        cdef vector[unsigned int] point_labels
+        cdef vector[unsigned int] mapping
+        with nogil:
+            cpcSegment[PointXYZ](
+                deref(self.result), deref(self.me), concavity_tolerance,
+                smoothness_check, self.voxel_resolution,
+                self.seed_resolution, smoothness_threshold, sanity_check,
+                k_factor, min_segment_size, max_cuts, cutting_min_segments,
+                cutting_min_score, locally_constrained, directed_cutting,
+                clean_cutting, ransac_iterations, point_labels, mapping)
+        return _segments_out(point_labels, mapping)
 
 
 cdef bint _call_condition(object predicate, const PointXYZ& a,

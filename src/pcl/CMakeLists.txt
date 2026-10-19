@@ -12,6 +12,7 @@ set(PCL_CYTHON_MODULES
     _filters_extra
     _kdtree
     _segmentation
+    _segmentation_extra
     _grabber
     _octree
     _features

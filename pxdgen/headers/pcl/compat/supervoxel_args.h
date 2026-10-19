@@ -1,6 +1,6 @@
 // Mirror header for src/pcl/compat/supervoxel_args.h: the map-and-multimap
 // results of SupervoxelClustering, kept on the C++ side in a SupervoxelSet
-// and read out as flat vectors, plus LCCP segmentation over them.
+// and read out as flat vectors, plus LCCP and CPC segmentation over them.
 #pragma once
 
 #include <vector>
@@ -46,5 +46,21 @@ void lccpSegment(const SupervoxelSet<PointT>& set,
                  unsigned int k_factor, unsigned int min_segment_size,
                  std::vector<unsigned int>& point_labels,
                  std::vector<unsigned int>& supervoxel_to_segment);
+
+// CPC: LCCP plus cuts along RANSAC planes through the segment edges.
+// Same outputs as lccpSegment.
+template <typename PointT>
+void cpcSegment(const SupervoxelSet<PointT>& set,
+                const pcl::SupervoxelClustering<PointT>& clustering,
+                float concavity_tolerance, bool smoothness_check,
+                float voxel_resolution, float seed_resolution,
+                float smoothness_threshold, bool sanity_check,
+                unsigned int k_factor, unsigned int min_segment_size,
+                unsigned int max_cuts, unsigned int cutting_min_segments,
+                float cutting_min_score, bool locally_constrained,
+                bool directed_cutting, bool clean_cutting,
+                unsigned int ransac_iterations,
+                std::vector<unsigned int>& point_labels,
+                std::vector<unsigned int>& supervoxel_to_segment);
 
 }  // namespace pclcompat
