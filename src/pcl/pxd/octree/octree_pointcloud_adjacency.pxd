@@ -13,11 +13,9 @@ cdef extern from "pcl/octree/octree_pointcloud_adjacency.h" namespace "pcl::octr
         OctreePointCloudAdjacency(double resolution) except +
         void setInputCloud(const shared_ptr[PointCloud[PointT]]& cloud) except +
         void addPointsFromInputCloud() except +
-        void defineBoundingBox(double min_x, double min_y, double min_z, double max_x, double max_y, double max_z) except +
         void deleteTree() except +
         double getResolution() except +
         unsigned int getTreeDepth() except +
         size_t getLeafCount() except +
         bool isVoxelOccupiedAtPoint(double point_x_arg, double point_y_arg, double point_z_arg) except +
         void deleteVoxelAtPoint(const PointT& point_arg) except +
-        bool testForOcclusion(const PointT& point_arg, const PointXYZ& camera_pos) except +

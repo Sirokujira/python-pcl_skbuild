@@ -45,3 +45,5 @@ cdef extern from "pcl/compat/octree_args.h" namespace "pclcompat" nogil:
     void leafIndices(OctreePointCloudSinglePoint[PointXYZ]& octree, vector[int]& flat, vector[int]& counts, vector[float]& centers) except +
 
     void adjacencyGraph(OctreePointCloudAdjacency[PointXYZ]& octree, vector[float]& centers, vector[int]& counts, vector[int]& edges) except +
+
+    bool adjacencyOccluded(const OctreePointCloudAdjacency[PointXYZ]& octree, const PointXYZ& point, const PointXYZ& camera) except +

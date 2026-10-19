@@ -85,4 +85,10 @@ void adjacencyGraph(
     std::vector<float>& centers, std::vector<int>& counts,
     std::vector<int>& edges);
 
+// testForOcclusion that stops at the octree's bounding box (PCL's own
+// wraps its keys outside it and reports false occlusions).
+bool adjacencyOccluded(
+    const pcl::octree::OctreePointCloudAdjacency<pcl::PointXYZ>& octree,
+    const pcl::PointXYZ& point, const pcl::PointXYZ& camera);
+
 }  // namespace pclcompat

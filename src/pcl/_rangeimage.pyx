@@ -34,6 +34,7 @@ from pcl.pxd.range_image.range_image cimport RangeImage as cRangeImage
 from pcl.pxd.compat.range_image_args cimport (
     RANGE_IMAGE_CAMERA_FRAME, RANGE_IMAGE_LASER_FRAME, makeRangeImage,
     makeRangeImagePlanar, makeRangeImagePlanarFromDepth,
+    bearingAngle, bearingAngleImage,
     makeRangeImageSpherical, narfDescriptors, narfKeypoints,
     rangeImageBorderTraits, rangeImageHeight, rangeImagePlanarIntrinsics,
     rangeImagePoints, rangeImageRanges, rangeImageSetUnseenToMaxRange,
@@ -393,3 +394,33 @@ cdef class NarfDescriptor:
             for j in range(42):
                 view[i, j] = flat[i * 42 + j]
         return result
+
+
+def bearing_angle_image(PointCloud pc not None):
+    """The bearing angle image of an ORGANIZED cloud
+    (pcl::BearingAngleImage): per pixel, the angle between the laser beam
+    and the step to its neighbour, as a ``(height, width)`` uint8 grey
+    level (0..255 for 0..180 degrees) -- an edge-friendly image of a
+    range scan for 2-D feature detectors."""
+    import numpy as np
+    if pc.height <= 1:
+        raise ValueError("bearing_angle_image needs an organized cloud")
+    cdef vector[unsigned char] grey
+    cdef unsigned int w = 0, h = 0
+    bearingAngleImage(deref(pc.ptr()), grey, w, h)
+    out = np.empty(grey.size(), dtype=np.uint8)
+    cdef unsigned char[::1] view = out
+    cdef size_t i
+    for i in range(grey.size()):
+        view[i] = grey[i]
+    return out.reshape(h, w)
+
+
+def bearing_angle(point1, point2):
+    """BearingAngleImage::getAngle: the angle in degrees, at `point1`,
+    between the ray from the origin and the step to `point2`."""
+    cdef PointXYZ a, b
+    a.x, a.y, a.z = point1
+    b.x, b.y, b.z = point2
+    return bearingAngle(a, b)
+

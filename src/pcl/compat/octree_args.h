@@ -20,6 +20,8 @@
 
 #include <vector>
 
+#include <algorithm>
+#include <cmath>
 #include <map>
 
 #include <pcl/octree/octree_pointcloud_adjacency.h>
@@ -180,6 +182,55 @@ inline void adjacencyGraph(AdjacencyOctree& octree, std::vector<float>& centers,
             }
         }
     }
+}
+
+/// OctreePointCloudAdjacency::testForOcclusion, walking from the point's
+/// voxel towards the camera, but stopping where the walk leaves the
+/// octree's bounding box. PCL's own walk keeps going and casts the
+/// negative offsets to unsigned keys, so outside the box the keys wrap
+/// and hit unrelated voxels: in plain C++ against 1.14, a lone point with
+/// a camera outside the box was "occluded" by nothing (same on master).
+/// Nothing outside the box can occlude, so stopping there is exact.
+inline bool adjacencyOccluded(const AdjacencyOctree& octree,
+                              const pcl::PointXYZ& point,
+                              const pcl::PointXYZ& camera) {
+    double lo[3], hi[3];
+    octree.getBoundingBox(lo[0], lo[1], lo[2], hi[0], hi[1], hi[2]);
+    const double res = octree.getResolution();
+    const double p[3] = {point.x, point.y, point.z};
+    long start[3];
+    Eigen::Vector3d centre;
+    for (int i = 0; i < 3; ++i) {
+        start[i] = static_cast<long>(std::floor((p[i] - lo[i]) / res));
+        centre[i] = lo[i] + (static_cast<double>(start[i]) + 0.5) * res;
+    }
+    Eigen::Vector3d direction =
+        Eigen::Vector3d(camera.x, camera.y, camera.z) - centre;
+    const double distance = direction.norm();
+    if (distance == 0.0) {
+        return false;
+    }
+    direction /= distance;
+    const std::size_t steps =
+        std::max<std::size_t>(1, static_cast<std::size_t>(distance / res));
+    Eigen::Vector3d q = centre;
+    for (std::size_t step = 0; step < steps; ++step) {
+        q += direction * res;
+        bool inside = true;
+        bool same = true;
+        for (int i = 0; i < 3; ++i) {
+            inside = inside && q[i] >= lo[i] && q[i] < hi[i];
+            same = same &&
+                   static_cast<long>(std::floor((q[i] - lo[i]) / res)) == start[i];
+        }
+        if (!inside) {
+            return false;
+        }
+        if (!same && octree.isVoxelOccupiedAtPoint(q[0], q[1], q[2])) {
+            return true;
+        }
+    }
+    return false;
 }
 
 }  // namespace pclcompat

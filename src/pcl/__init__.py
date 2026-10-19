@@ -101,6 +101,11 @@ from ._features import (
     VFHEstimation,
 )
 from ._octree import (
+    OctreePointCloudOccupancy,
+    OctreePointCloudPointVector,
+    OctreePointCloudSinglePoint,
+    OctreePointCloudAdjacency,
+    OrganizedPointCloudCompression,
     OctreePointCloudChangeDetector,
     OctreePointCloudSearch,
     OctreePointCloudVoxelCentroid,
@@ -238,6 +243,8 @@ from ._recognition import (
 )
 from ._tracking import ParticleFilterTracker, KLDAdaptiveParticleFilterTracker
 from ._rangeimage import (
+    bearing_angle,
+    bearing_angle_image,
     CAMERA_FRAME,
     LASER_FRAME,
     RangeImage,
@@ -449,6 +456,13 @@ from ._segmentation import (
 )
 
 __all__ = [
+    "OctreePointCloudOccupancy",
+    "OctreePointCloudPointVector",
+    "OctreePointCloudSinglePoint",
+    "OctreePointCloudAdjacency",
+    "OrganizedPointCloudCompression",
+    "bearing_angle",
+    "bearing_angle_image",
     "ImageGrabber",
     "debayer",
     "extract_image",

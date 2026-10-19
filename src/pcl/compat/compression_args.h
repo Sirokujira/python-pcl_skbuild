@@ -4,6 +4,8 @@
 // codec object itself is what the pxd declares.
 #pragma once
 
+#include <cstdint>
+#include <cstring>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -46,6 +48,11 @@ inline std::string compressOrganized(
     return buffer.str();
 }
 
+/// The decoder rebuilds the cloud with push_back after setting its width
+/// and height, and push_back (PCL 1.11+) resets a cloud to height 1, so
+/// every decoded cloud comes back unorganized (same on master). The
+/// original size sits right after the frame identifier -- two uint32s --
+/// and is put back here.
 template <typename PointT>
 inline bool decompressOrganized(const std::string& data,
                                 pcl::PointCloud<PointT>& out) {
@@ -56,6 +63,17 @@ inline bool decompressOrganized(const std::string& data,
         return false;
     }
     out = *cloud;
+    const std::string id = "<PCL-ORG-COMPRESSED>";
+    const std::size_t at = data.find(id);
+    if (at != std::string::npos && data.size() >= at + id.size() + 8) {
+        std::uint32_t width = 0, height = 0;
+        std::memcpy(&width, data.data() + at + id.size(), 4);
+        std::memcpy(&height, data.data() + at + id.size() + 4, 4);
+        if (static_cast<std::size_t>(width) * height == out.size()) {
+            out.width = width;
+            out.height = height;
+        }
+    }
     return true;
 }
 

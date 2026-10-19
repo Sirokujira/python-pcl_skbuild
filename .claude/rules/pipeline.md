@@ -289,6 +289,19 @@ PNG writing goes through VTK inside PCL and `png_io.h` is only installed
 when PCL had VTK, so the shim tests `__has_include` rather than the
 private `PCL_BUILT_WITH_VTK`.
 
+The octree / compression batch: `OctreePointCloudAdjacency::testForOcclusion`
+walks towards the camera casting `(p - min) / resolution` to unsigned
+keys, so once the walk leaves the bounding box -- whenever the camera
+is outside it, the usual case -- the keys wrap and hit unrelated voxels
+(plain C++: a point with nothing in front of it reported occluded; the
+same scene with the box stretched over the camera answers correctly).
+`octree_args.h` re-walks with the public calls and stops at the box.
+The same class resets its bounding box from the points on every
+`addPointsFromInputCloud`, so it gets no `define_bounding_box`.
+`OrganizedPointCloudCompression`'s decoder sets width / height and then
+fills the cloud with `push_back`, which resets the height to 1;
+`compression_args.h` restores the size from the stream header.
+
 Not every quirk is worth absorbing, though. PCL's octree treats the FIRST
 point of a cloud specially: `voxelSearch` can miss it, and
 `getPointIndicesFromNewVoxels` reports index 0 as new even for an
