@@ -94,8 +94,7 @@ public:
                std::size_t bin_size);
     void setGradientMagnitudeThreshold(float t);
     bool addTemplate(const std::shared_ptr<pcl::PointCloud<pcl::PointXYZRGBA>>& frame,
-                     const std::vector<unsigned char>& mask, std::size_t x,
-                     std::size_t y, std::size_t& id);
+                     std::size_t x, std::size_t y, std::size_t& id);
     std::size_t numberOfTemplates();
     void detect(const std::shared_ptr<pcl::PointCloud<pcl::PointXYZRGBA>>& frame,
                 float threshold, std::vector<int>& xs, std::vector<int>& ys,

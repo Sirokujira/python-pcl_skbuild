@@ -559,7 +559,9 @@ cdef class DOTMOD:
     Sizes and positions are pixels (PCL's own are pixels for the
     template and bins for detections; these are all pixels). The window
     plus half a bin must fit the frame, since PCL reads that far past it
-    unchecked.
+    unchecked. The modality is PCL's ColorGradientDOTModality copied with
+    pi fixed: PCL's uses 4 tan(1), and its header does not compile with
+    clang (see compat/recognition_extra.h).
     """
 
     cdef DotMatcher* me
@@ -586,20 +588,14 @@ cdef class DOTMOD:
         self.me.setGradientMagnitudeThreshold(threshold)
 
     def add_Template(self, PointCloud_PointXYZRGBA frame not None, size_t x,
-                     size_t y, mask=None):
-        """The template window with top-left pixel (x, y); `mask` (the
-        frame's shape) limits it to the object, default all of it."""
-        import numpy as np
+                     size_t y):
+        """The template window with top-left pixel (x, y). There is no
+        mask: PCL's DOT modality never reads one."""
         _check_frame(frame)
-        if mask is None:
-            mask = np.zeros((frame.height, frame.width), np.uint8)
-            mask[y:y + self.height, x:x + self.width] = 1
-        cdef vector[unsigned char] bytes_ = _mask_bytes(mask, frame.width,
-                                                        frame.height)
         cdef size_t tid = 0
         cdef cbool ok
         with nogil:
-            ok = self.me.addTemplate(frame.thisptr_shared, bytes_, x, y, tid)
+            ok = self.me.addTemplate(frame.thisptr_shared, x, y, tid)
         if not ok:
             raise ValueError(
                 "the %d x %d window at (%d, %d) plus half a bin does not fit "

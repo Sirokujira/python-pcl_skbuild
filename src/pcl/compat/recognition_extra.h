@@ -33,10 +33,19 @@
 // - DOTMOD measures its template size and anchor in PIXELS (the docs do
 //   not say) and reads up to half a bin past the template window with
 //   no bounds check; DotMatcher refuses windows that do not fit.
+// - ColorGradientDOTModality, its only modality, computes
+//   `constexpr float pi = std::tan(1.0f)*4;` -- 6.23 (atan was meant),
+//   so every gradient angle comes out scaled by 0.504 -- and std::tan
+//   is not constexpr, so clang rejects the header at its definition
+//   (GCC folds it as an extension; the Homebrew build failed on it).
+//   1.11 through master. ColourGradientDOT is that class copied with pi
+//   right and nothing else changed; it never reads the template mask,
+//   and neither did PCL's.
 #pragma once
 
 #include <Eigen/Core>
 
+#include <algorithm>
 #include <cmath>
 #include <list>
 #include <memory>
@@ -48,9 +57,11 @@
 #include <pcl/features/impl/fpfh.hpp>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
-#include <pcl/recognition/color_gradient_dot_modality.h>
 #include <pcl/recognition/crh_alignment.h>
+#include <pcl/recognition/dot_modality.h>
 #include <pcl/recognition/dotmod.h>
+#include <pcl/recognition/point_types.h>
+#include <pcl/recognition/quantized_map.h>
 #include <pcl/recognition/hv/occlusion_reasoning.h>
 #include <pcl/recognition/implicit_shape_model.h>
 #include <pcl/recognition/linemod/line_rgbd.h>
@@ -475,6 +486,210 @@ private:
 
 // --- DOTMOD --------------------------------------------------------------------------
 
+/// pcl::ColorGradientDOTModality<PointXYZRGBA> (color_gradient_dot_modality.h),
+/// copied with pi = 3.14159... instead of 4 tan(1); see the header
+/// comment for why it cannot be included.
+class ColourGradientDOT : public pcl::DOTModality {
+public:
+    explicit ColourGradientDOT(std::size_t bin_size) : bin_size_(bin_size) {}
+
+    void setGradientMagnitudeThreshold(float t) { gradient_magnitude_threshold_ = t; }
+    void setInputCloud(const std::shared_ptr<const RecColourCloud>& cloud) {
+        input_ = cloud;
+    }
+
+    void processInputData() {
+        computeMaxColorGradients();
+        computeDominantQuantizedGradients();
+    }
+
+    pcl::QuantizedMap& getDominantQuantizedMap() override { return dominant_; }
+
+    pcl::QuantizedMap computeInvariantQuantizedMap(const pcl::MaskMap&,
+                                                   const pcl::RegionXY& region) override {
+        const std::size_t input_width = input_->width;
+        const std::size_t input_height = input_->height;
+        const std::size_t sub_start_x = region.x / bin_size_;
+        const std::size_t sub_start_y = region.y / bin_size_;
+        const std::size_t sub_width = region.width / bin_size_;
+        const std::size_t sub_height = region.height / bin_size_;
+
+        pcl::QuantizedMap map;
+        map.resize(sub_width, sub_height);
+        constexpr std::size_t num_gradient_bins = 7;
+        constexpr std::size_t max_num_of_gradients = 7;
+        const float divisor = 180.0f / (num_gradient_bins - 1.0f);
+        float local_max_gradient = 0.0f;
+        unsigned char* peak_pointer = map.getData();
+
+        for (std::size_t row_bin_index = 0; row_bin_index < sub_height; ++row_bin_index) {
+            for (std::size_t col_bin_index = 0; col_bin_index < sub_width; ++col_bin_index) {
+                std::vector<std::size_t> x_coordinates;
+                std::vector<std::size_t> y_coordinates;
+                std::vector<float> values;
+                const int half = static_cast<int>(bin_size_) / 2;
+                for (int row_pixel_index = -half; row_pixel_index <= half;
+                     row_pixel_index += half) {
+                    const std::size_t y_position =
+                        row_pixel_index + (sub_start_y + row_bin_index) * bin_size_;
+                    if (y_position >= input_height) {
+                        continue;
+                    }
+                    for (int col_pixel_index = -half; col_pixel_index <= half;
+                         col_pixel_index += half) {
+                        const std::size_t x_position =
+                            col_pixel_index + (sub_start_x + col_bin_index) * bin_size_;
+                        std::size_t counter = 0;
+                        if (x_position >= input_width) {
+                            continue;
+                        }
+                        local_max_gradient = 0.0f;
+                        for (std::size_t r = 0; r < bin_size_; ++r) {
+                            for (std::size_t c = 0; c < bin_size_; ++c) {
+                                local_max_gradient = std::max(
+                                    local_max_gradient,
+                                    color_gradients_(c + x_position, r + y_position).magnitude);
+                            }
+                        }
+                        // the strongest gradients first, each taken once
+                        while (true) {
+                            float max_gradient = 0.0f;
+                            std::size_t max_x = 0;
+                            std::size_t max_y = 0;
+                            for (std::size_t r = 0; r < bin_size_; ++r) {
+                                for (std::size_t c = 0; c < bin_size_; ++c) {
+                                    const float magnitude =
+                                        color_gradients_(c + x_position, r + y_position)
+                                            .magnitude;
+                                    if (magnitude > max_gradient) {
+                                        max_gradient = magnitude;
+                                        max_x = c;
+                                        max_y = r;
+                                    }
+                                }
+                            }
+                            if (local_max_gradient < gradient_magnitude_threshold_ ||
+                                counter >= max_num_of_gradients) {
+                                break;
+                            }
+                            ++counter;
+                            const auto angle = static_cast<std::size_t>(
+                                180 +
+                                color_gradients_(max_x + x_position, max_y + y_position).angle +
+                                0.5f);
+                            const auto bin_index = static_cast<std::size_t>(
+                                (angle >= 180 ? angle - 180 : angle) / divisor);
+                            *peak_pointer |= 1 << bin_index;
+                            x_coordinates.push_back(max_x + x_position);
+                            y_coordinates.push_back(max_y + y_position);
+                            values.push_back(max_gradient);
+                            color_gradients_(max_x + x_position, max_y + y_position).magnitude =
+                                -1.0f;
+                        }
+                        for (std::size_t i = 0; i < values.size(); ++i) {
+                            color_gradients_(x_coordinates[i], y_coordinates[i]).magnitude =
+                                values[i];
+                        }
+                    }
+                }
+                if (*peak_pointer == 0) {
+                    *peak_pointer |= 1 << 7;
+                }
+                ++peak_pointer;
+            }
+        }
+        return map;
+    }
+
+private:
+    void computeMaxColorGradients() {
+        const int width = input_->width;
+        const int height = input_->height;
+        color_gradients_.resize(width * height);
+        color_gradients_.width = width;
+        color_gradients_.height = height;
+        const float pi = 3.14159265358979323846f;
+        for (int row = 0; row < height - 2; ++row) {
+            for (int col = 0; col < width - 2; ++col) {
+                const auto& p0 = (*input_)[row * width + col];
+                const auto& pc = (*input_)[row * width + col + 2];
+                const auto& pr = (*input_)[(row + 2) * width + col];
+                const float r_dx = static_cast<float>(pc.r) - p0.r;
+                const float g_dx = static_cast<float>(pc.g) - p0.g;
+                const float b_dx = static_cast<float>(pc.b) - p0.b;
+                const float r_dy = static_cast<float>(pr.r) - p0.r;
+                const float g_dy = static_cast<float>(pr.g) - p0.g;
+                const float b_dy = static_cast<float>(pr.b) - p0.b;
+                const float sqr_mag_r = r_dx * r_dx + r_dy * r_dy;
+                const float sqr_mag_g = g_dx * g_dx + g_dy * g_dy;
+                const float sqr_mag_b = b_dx * b_dx + b_dy * b_dy;
+                pcl::GradientXY gradient;
+                gradient.x = static_cast<float>(col);
+                gradient.y = static_cast<float>(row);
+                if (sqr_mag_r > sqr_mag_g && sqr_mag_r > sqr_mag_b) {
+                    gradient.magnitude = std::sqrt(sqr_mag_r);
+                    gradient.angle = std::atan2(r_dy, r_dx) * 180.0f / pi;
+                } else if (sqr_mag_g > sqr_mag_b) {
+                    gradient.magnitude = std::sqrt(sqr_mag_g);
+                    gradient.angle = std::atan2(g_dy, g_dx) * 180.0f / pi;
+                } else {
+                    gradient.magnitude = std::sqrt(sqr_mag_b);
+                    gradient.angle = std::atan2(b_dy, b_dx) * 180.0f / pi;
+                }
+                color_gradients_(col + 1, row + 1) = gradient;
+            }
+        }
+    }
+
+    void computeDominantQuantizedGradients() {
+        const std::size_t output_width = input_->width / bin_size_;
+        const std::size_t output_height = input_->height / bin_size_;
+        dominant_.resize(output_width, output_height);
+        constexpr std::size_t num_gradient_bins = 7;
+        const float divisor = 180.0f / (num_gradient_bins - 1.0f);
+        unsigned char* peak_pointer = dominant_.getData();
+        std::fill_n(peak_pointer, output_width * output_height, 0);
+        for (std::size_t row_bin = 0; row_bin < output_height; ++row_bin) {
+            for (std::size_t col_bin = 0; col_bin < output_width; ++col_bin) {
+                const std::size_t x_position = col_bin * bin_size_;
+                const std::size_t y_position = row_bin * bin_size_;
+                float max_gradient = 0.0f;
+                std::size_t max_x = 0;
+                std::size_t max_y = 0;
+                for (std::size_t r = 0; r < bin_size_; ++r) {
+                    for (std::size_t c = 0; c < bin_size_; ++c) {
+                        const float magnitude =
+                            color_gradients_(c + x_position, r + y_position).magnitude;
+                        if (magnitude > max_gradient) {
+                            max_gradient = magnitude;
+                            max_x = c;
+                            max_y = r;
+                        }
+                    }
+                }
+                if (max_gradient >= gradient_magnitude_threshold_) {
+                    const auto angle = static_cast<std::size_t>(
+                        180 + color_gradients_(max_x + x_position, max_y + y_position).angle +
+                        0.5f);
+                    const auto bin_index = static_cast<std::size_t>(
+                        (angle >= 180 ? angle - 180 : angle) / divisor);
+                    *peak_pointer |= 1 << bin_index;
+                }
+                if (*peak_pointer == 0) {
+                    *peak_pointer |= 1 << 7;
+                }
+                ++peak_pointer;
+            }
+        }
+    }
+
+    std::shared_ptr<const RecColourCloud> input_;
+    std::size_t bin_size_;
+    float gradient_magnitude_threshold_ = 80.0f;
+    pcl::PointCloud<pcl::GradientXY> color_gradients_;
+    pcl::QuantizedMap dominant_;
+};
+
 /// pcl::DOTMOD on the colour-gradient DOT modality. Sizes, anchors and
 /// detections are in pixels.
 class DotMatcher {
@@ -491,11 +706,10 @@ public:
         modality_.setGradientMagnitudeThreshold(t);
     }
 
-    /// A template whose window's top-left pixel is (x, y); `mask` as in
-    /// TemplateMatcher. False when the window plus half a bin does not
-    /// fit the frame (DOTMOD would read past it).
-    bool addTemplate(const std::shared_ptr<RecColourCloud>& frame,
-                     const std::vector<unsigned char>& mask, std::size_t x,
+    /// A template of the window whose top-left pixel is (x, y). False
+    /// when the window plus half a bin does not fit the frame (DOTMOD
+    /// would read past it).
+    bool addTemplate(const std::shared_ptr<RecColourCloud>& frame, std::size_t x,
                      std::size_t y, std::size_t& id) {
         if (x + width_ + bin_ / 2 > frame->width ||
             y + height_ + bin_ / 2 > frame->height) {
@@ -504,11 +718,6 @@ public:
         modality_.setInputCloud(frame);
         modality_.processInputData();
         pcl::MaskMap map(frame->width, frame->height);
-        for (std::size_t v = 0; v < frame->height; ++v) {
-            for (std::size_t u = 0; u < frame->width; ++u) {
-                map(u, v) = mask[v * frame->width + u] != 0 ? 1 : 0;
-            }
-        }
         pcl::RegionXY region;
         region.x = static_cast<int>(x);
         region.y = static_cast<int>(y);
@@ -550,7 +759,7 @@ public:
 
 private:
     pcl::DOTMOD dot_;
-    pcl::ColorGradientDOTModality<pcl::PointXYZRGBA> modality_;
+    ColourGradientDOT modality_;
     std::size_t width_;
     std::size_t height_;
     std::size_t bin_;

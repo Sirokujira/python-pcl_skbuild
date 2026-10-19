@@ -337,6 +337,15 @@ cleans and tilts the normals, and passes diameter / 10.
 whatever cloud it is handed, so the shim hands it the masked points.
 DOTMOD's template size and anchor are pixels (undocumented) and it reads
 half a bin past the window; the wrapper refuses windows that do not fit.
+Its only modality, `ColorGradientDOTModality`, sets `constexpr float pi
+= std::tan(1.0f)*4` -- 6.23, halving every gradient angle -- and clang
+rejects that line where the template is defined, so the header cannot be
+included at all on macOS (GCC folds `std::tan` as an extension; found by
+the Homebrew build). `recognition_extra.h` carries the class copied with
+pi corrected (`ColourGradientDOT`); an explicit specialisation of the
+member would not help, the error is at definition. Before trusting a
+header-only PCL class, compile it with clang as well as GCC
+(`clang++ -fsyntax-only`, no OpenMP needed for that).
 ObjRecRANSAC prints progress on every call: `OBJ_REC_RANSAC_VERBOSE` is
 defined in its header, so it is compiled into pcl_recognition.
 

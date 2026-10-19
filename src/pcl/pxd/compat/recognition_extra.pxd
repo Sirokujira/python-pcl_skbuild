@@ -54,6 +54,6 @@ cdef extern from "pcl/compat/recognition_extra.h" namespace "pclcompat" nogil:
     cdef cppclass DotMatcher:
         DotMatcher(size_t template_width, size_t template_height, size_t bin_size) except +
         void setGradientMagnitudeThreshold(float t) except +
-        bool addTemplate(const shared_ptr[PointCloud[PointXYZRGBA]]& frame, const vector[unsigned char]& mask, size_t x, size_t y, size_t& id) except +
+        bool addTemplate(const shared_ptr[PointCloud[PointXYZRGBA]]& frame, size_t x, size_t y, size_t& id) except +
         size_t numberOfTemplates() except +
         void detect(const shared_ptr[PointCloud[PointXYZRGBA]]& frame, float threshold, vector[int]& xs, vector[int]& ys, vector[int]& template_ids, vector[float]& scores) except +
