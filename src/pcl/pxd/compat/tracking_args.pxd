@@ -3,18 +3,39 @@
 
 # distutils: language = c++
 
+from libcpp cimport bool
 from libcpp.memory cimport shared_ptr
 from libcpp.vector cimport vector
 from pcl.pxd.point_cloud cimport PointCloud
-from pcl.pxd.point_types cimport PointXYZ
+from pcl.pxd.point_types cimport PointXYZ, PointXYZRGBA, PointNormal
 
 cdef extern from "pcl/compat/tracking_args.h" namespace "pclcompat" nogil:
-    cdef cppclass ParticleTracker:
-        ParticleTracker(int particle_num, double step_noise, double resolution, double maximum_distance, int threads) except +
-        void setReferenceCloud(const shared_ptr[PointCloud[PointXYZ]]& reference) except +
-        void setInputCloud(const shared_ptr[PointCloud[PointXYZ]]& cloud) except +
+    cdef cppclass ParticleTrackerT[PointT]:
+        ParticleTrackerT(int particle_num, double step_noise, double resolution, double maximum_distance, int threads) except +
+        ParticleTrackerT(int particle_num, double step_noise, double resolution, double maximum_distance, int threads, int max_particle_num, float bin_size, double epsilon, double delta) except +
+        void setExactCoherence(bool exact) except +
+        void setReferenceCloud(const shared_ptr[PointCloud[PointT]]& reference) except +
+        void setInputCloud(const shared_ptr[PointCloud[PointT]]& cloud) except +
         void compute() except +
         void result(float* out7) except +
         void resultTransform(float* out16) except +
-        void alignedReference(vector[PointXYZ]& out) except +
+        void alignedReferenceCloud(PointCloud[PointT]& out) except +
         int particleNum() except +
+
+    void addHSVColorCoherence(ParticleTrackerT[PointXYZRGBA]& tracker, double h, double s, double v, double weight) except +
+
+    void addNormalCoherence(ParticleTrackerT[PointNormal]& tracker, double weight) except +
+
+    cdef cppclass KLTTracker:
+        KLTTracker(int levels, int window_width, int window_height) except +
+        void setInputCloud(const shared_ptr[PointCloud[PointXYZRGBA]]& cloud) except +
+        void setPointsToTrack(const vector[float]& uv) except +
+        void setNumberOfKeypoints(size_t n) except +
+        void setAccuracy(float accuracy) except +
+        void setEpsilon(float epsilon) except +
+        void setMaxIterationsNumber(unsigned int n) except +
+        void setNumberOfThreads(unsigned int n) except +
+        void compute() except +
+        bool initialized() except +
+        void trackedPoints(vector[float]& uv, vector[int]& status) except +
+        void result(float* out16) except +

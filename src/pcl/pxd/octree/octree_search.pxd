@@ -18,6 +18,8 @@ cdef extern from "pcl/octree/octree_search.h" namespace "pcl::octree" nogil:
         void deleteTree() except +
         double getResolution() except +
         unsigned int getTreeDepth() except +
+        bool isVoxelOccupiedAtPoint(double point_x_arg, double point_y_arg, double point_z_arg) except +
+        void deleteVoxelAtPoint(const PointT& point_arg) except +
         bool voxelSearch(const PointT& point, vector[int]& point_idx_data) except +
         int nearestKSearch(const PointT& p_q, int k, vector[int]& k_indices, vector[float]& k_sqr_distances) except +
         int radiusSearch(const PointT& p_q, double radius, vector[int]& k_indices, vector[float]& k_sqr_distances) except +

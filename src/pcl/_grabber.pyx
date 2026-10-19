@@ -36,7 +36,8 @@ from pcl.pxd.point_types cimport PointXYZ
 from pcl.pxd.point_cloud cimport PointCloud as cPointCloud
 from pcl.pxd.io.pcd_grabber cimport PCDGrabber as cPCDGrabber
 from pcl.pxd.io.hdl_grabber cimport HDLGrabber as cHDLGrabber
-from pcl.pxd.compat.grabber_callback cimport CloudCallback, CloudCallbackFn
+from pcl.pxd.compat.grabber_callback cimport (
+    CloudCallback, CloudCallbackFn, newVLPGrabber)
 
 from pcl._pointcloud cimport PointCloud, wrap_cloud
 
@@ -47,9 +48,37 @@ cdef string _tobytes(value):
     return <string> value
 
 
-def _expand(path):
-    """A directory becomes its sorted .pcd files; anything else passes
-    through as the sequence it already is."""
+def _is_tar(path):
+    import tarfile
+    return (isinstance(path, (str, bytes)) and os.path.isfile(path)
+            and tarfile.is_tarfile(path))
+
+
+def _untar(path, directory):
+    """The .pcd files in a tar archive, in archive order, copied into
+    *directory* under numbered names (a member's own name never becomes
+    a path)."""
+    import shutil
+    import tarfile
+    entries = []
+    with tarfile.open(path) as archive:
+        for member in archive:
+            if not (member.isfile() and member.name.lower().endswith(".pcd")):
+                continue
+            target = os.path.join(directory, "%06d.pcd" % len(entries))
+            with archive.extractfile(member) as source, \
+                    open(target, "wb") as out:
+                shutil.copyfileobj(source, out)
+            entries.append(target)
+    if not entries:
+        raise ValueError("no .pcd files in %r" % path)
+    return entries
+
+
+def _expand(path, unpack_to):
+    """A directory becomes its sorted .pcd files, a tar archive the .pcd
+    files in it (unpacked by `unpack_to()`, which returns a directory);
+    anything else passes through as the sequence it already is."""
     if isinstance(path, (str, bytes)) and os.path.isdir(path):
         entries = sorted(
             os.path.join(path, name)
@@ -59,7 +88,15 @@ def _expand(path):
         if not entries:
             raise ValueError("no .pcd files in %r" % path)
         return entries
-    return list(path)
+    if isinstance(path, (str, bytes)):
+        path = [path]
+    entries = []
+    for item in path:
+        if _is_tar(item):
+            entries.extend(_untar(item, unpack_to()))
+        else:
+            entries.append(item)
+    return entries
 
 
 cdef void _deliver(shared_ptr[cPointCloud[PointXYZ]] cloud,
@@ -95,6 +132,13 @@ cdef class PCDGrabber:
     with zero frames after printing a read error, which is a silent
     no-op to anyone who passed a folder.
 
+    A tar archive of .pcd files (alone or in the sequence) is unpacked
+    here too, into a temporary directory the grabber deletes with
+    itself. PCL reads tar archives natively, but since 1.14 accepts a
+    PCD header with zero points, and its probe reads the archive itself
+    as one: three clouds in a tar came back as a single empty frame
+    (plain C++, 1.14 and master).
+
     ``frames_per_second`` must be positive. PCL's other mode --
     ``frames_per_second=0``, where :meth:`trigger` publishes one cloud on
     demand -- **aborts the process** on PCL 1.14.0: its manual-trigger
@@ -111,6 +155,9 @@ cdef class PCDGrabber:
     # shim only has a borrowed void*.
     cdef object handler
     cdef float fps
+    # tempfile.TemporaryDirectory holding unpacked tar members; removed
+    # when the grabber goes (after __dealloc__ has freed the C++ side).
+    cdef object unpacked
 
     def __cinit__(self, path, float frames_per_second=0.0, bint repeat=False):
         cdef vector[string] files
@@ -118,18 +165,26 @@ cdef class PCDGrabber:
         self.registration = NULL
         self.handler = None
         self.fps = frames_per_second
+        self.unpacked = None
 
-        if isinstance(path, (str, bytes)) and not os.path.isdir(path):
+        if (isinstance(path, (str, bytes)) and not os.path.isdir(path)
+                and not _is_tar(path)):
             self.me = new cPCDGrabber[PointXYZ](
                 _tobytes(path), frames_per_second, repeat)
         else:
-            for item in _expand(path):
+            for item in _expand(path, self._unpack_directory):
                 files.push_back(_tobytes(item))
             if files.empty():
                 raise ValueError("no .pcd files given")
             self.me = new cPCDGrabber[PointXYZ](
                 files, frames_per_second, repeat)
         self.registration = new CloudCallback()
+
+    def _unpack_directory(self):
+        import tempfile
+        if self.unpacked is None:
+            self.unpacked = tempfile.TemporaryDirectory(prefix="pcl-pcd-")
+        return self.unpacked.name
 
     cdef _reject_trigger_mode(self, str method):
         raise RuntimeError(
@@ -230,7 +285,7 @@ cdef class PCDGrabber:
 
 
 cdef class HDLGrabber:
-    """Velodyne HDL / VLP LiDAR (pcl::HDLGrabber), replaying a .pcap.
+    """Velodyne HDL LiDAR (pcl::HDLGrabber), replaying a .pcap.
 
     Only the file-backed constructor is wrapped. The live-network one
     takes a ``boost::asio::ip::address``, which neither a mirror header
@@ -242,11 +297,15 @@ cdef class HDLGrabber:
     cdef CloudCallback* registration
     cdef object handler
 
-    def __cinit__(self, corrections_file="", pcap_file=""):
-        self.me = new cHDLGrabber(
-            _tobytes(corrections_file), _tobytes(pcap_file))
+    def __cinit__(self, *args, **kwargs):
+        # Built in __init__, so VLPGrabber can construct its own kind.
+        self.me = NULL
         self.registration = new CloudCallback()
         self.handler = None
+
+    def __init__(self, corrections_file="", pcap_file=""):
+        self.me = new cHDLGrabber(
+            _tobytes(corrections_file), _tobytes(pcap_file))
 
     def __dealloc__(self):
         if self.registration is not NULL:
@@ -322,3 +381,14 @@ cdef class HDLGrabber:
     RegisterCallback = register_callback
     Start = start
     Stop = stop
+
+
+cdef class VLPGrabber(HDLGrabber):
+    """Velodyne VLP-16 (Puck) LiDAR (pcl::VLPGrabber), replaying a .pcap;
+    the same callback, start / stop and thresholds as
+    :class:`HDLGrabber`, with the VLP-16's built-in laser corrections and
+    dual-return packets understood."""
+
+    def __init__(self, pcap_file=""):
+        self.me = newVLPGrabber(_tobytes(pcap_file))
+

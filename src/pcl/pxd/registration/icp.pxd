@@ -25,3 +25,25 @@ cdef extern from "pcl/registration/icp.h" namespace "pcl" nogil:
         double getFitnessScore() except +
         void setUseReciprocalCorrespondences(bool use_reciprocal_correspondence) except +
         bool getUseReciprocalCorrespondences() except +
+
+    cdef cppclass IterativeClosestPointWithNormals[PointSource, PointTarget]:
+        IterativeClosestPointWithNormals() except +
+        void setInputSource(const shared_ptr[PointCloud[PointSource]]& cloud) except +
+        void setInputTarget(const shared_ptr[PointCloud[PointTarget]]& cloud) except +
+        void setMaximumIterations(int nr_iterations) except +
+        int getMaximumIterations() except +
+        void setMaxCorrespondenceDistance(double distance_threshold) except +
+        double getMaxCorrespondenceDistance() except +
+        void setTransformationEpsilon(double epsilon) except +
+        double getTransformationEpsilon() except +
+        void setEuclideanFitnessEpsilon(double epsilon) except +
+        double getEuclideanFitnessEpsilon() except +
+        void align(PointCloud[PointSource]& output) except +
+        bool hasConverged() except +
+        double getFitnessScore() except +
+        void setUseReciprocalCorrespondences(bool use_reciprocal_correspondence) except +
+        bool getUseReciprocalCorrespondences() except +
+        void setUseSymmetricObjective(bool use_symmetric_objective) except +
+        bool getUseSymmetricObjective() except +
+        void setEnforceSameDirectionNormals(bool enforce_same_direction_normals) except +
+        bool getEnforceSameDirectionNormals() except +

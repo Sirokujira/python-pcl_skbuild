@@ -8,7 +8,8 @@
 from libcpp.memory cimport shared_ptr
 
 from pcl.pxd.point_types cimport (
-    Normal, PointXYZI, PointXYZRGB, PointXYZRGBA)
+    Normal, PointNormal, PointWithViewpoint, PointXYZI, PointXYZRGB,
+    PointXYZRGBA)
 from pcl.pxd.point_cloud cimport PointCloud as cPointCloud
 
 
@@ -32,4 +33,20 @@ cdef class PointCloud_Normal:
     cdef cPointCloud[Normal]* ptr(self) except NULL
 
 
+cdef class PointCloud_PointNormal:
+    cdef shared_ptr[cPointCloud[PointNormal]] thisptr_shared
+    cdef cPointCloud[PointNormal]* ptr(self) except NULL
+
+
+cdef class PointCloud_PointWithViewpoint:
+    cdef shared_ptr[cPointCloud[PointWithViewpoint]] thisptr_shared
+    cdef cPointCloud[PointWithViewpoint]* ptr(self) except NULL
+
+
 cdef PointCloud_Normal wrap_normal_cloud(shared_ptr[cPointCloud[Normal]] ptr)
+cdef PointCloud_PointNormal wrap_pointnormal_cloud(
+    shared_ptr[cPointCloud[PointNormal]] ptr)
+cdef PointCloud_PointXYZRGBA wrap_xyzrgba_cloud(
+    shared_ptr[cPointCloud[PointXYZRGBA]] ptr)
+cdef PointCloud_PointXYZRGB wrap_xyzrgb_cloud(
+    shared_ptr[cPointCloud[PointXYZRGB]] ptr)

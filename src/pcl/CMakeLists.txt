@@ -9,11 +9,15 @@
 set(PCL_CYTHON_MODULES
     _pointcloud
     _filters
+    _filters_extra
     _kdtree
     _segmentation
+    _segmentation_extra
     _grabber
+    _io
     _octree
     _features
+    _features_extra
     _surface
     _registration
     _pointtypes
@@ -21,13 +25,75 @@ set(PCL_CYTHON_MODULES
     _sac
     _rangeimage
     _recognition
+    _recognition_extra
+    _stereo
+    _image2d
+    _common
+    _ml
     _tracking
     _people
 )
 
+# MSVC caps an object file at 2^16 sections unless told otherwise; the
+# larger generated modules (_registration) pass that.
+if(MSVC)
+    set(PCL_CYTHON_COMPILE_OPTIONS /bigobj)
+endif()
+
+# VTK's imported VTK::kissfft target exports kiss_fft_scalar=double to
+# everything that links it, which PCL's VTK-linked targets pass on to
+# us. PCL's own kiss_fft (in pcl_common) is built with float, so header
+# code that calls it -- CRHAlignment -- would hand it double pairs.
+# Options come after definitions on the command line, so this wins.
+if(MSVC)
+    list(APPEND PCL_CYTHON_COMPILE_OPTIONS /Ukiss_fft_scalar)
+else()
+    list(APPEND PCL_CYTHON_COMPILE_OPTIONS -Ukiss_fft_scalar)
+endif()
+
 foreach(module ${PCL_CYTHON_MODULES})
     add_cython_target(${module} CXX PY3)
     add_library(${module} MODULE ${${module}})
+    target_compile_options(${module} PRIVATE ${PCL_CYTHON_COMPILE_OPTIONS})
+    target_link_libraries(${module} ${PCL_LIBRARIES})
+    python_extension_module(${module})
+    install(TARGETS ${module} LIBRARY DESTINATION src/pcl)
+endforeach()
+
+# Optional modules: only where the PCL install has them (top-level
+# CMakeLists.txt decides).
+if(PCL_HAVE_OUTOFCORE)
+    add_cython_target(_outofcore CXX PY3)
+    add_library(_outofcore MODULE ${_outofcore})
+    target_compile_options(_outofcore PRIVATE ${PCL_CYTHON_COMPILE_OPTIONS})
+    target_link_libraries(_outofcore ${PCL_LIBRARIES} ${PCL_OUTOFCORE_LIBRARY})
+    python_extension_module(_outofcore)
+    install(TARGETS _outofcore LIBRARY DESTINATION src/pcl)
+endif()
+if(PCL_HAVE_VTK_MESH)
+    add_cython_target(_vtk_mesh CXX PY3)
+    add_library(_vtk_mesh MODULE ${_vtk_mesh})
+    target_compile_options(_vtk_mesh PRIVATE ${PCL_CYTHON_COMPILE_OPTIONS})
+    target_link_libraries(_vtk_mesh ${PCL_LIBRARIES} VTK::FiltersModeling
+                          VTK::FiltersCore VTK::CommonExecutionModel)
+    python_extension_module(_vtk_mesh)
+    install(TARGETS _vtk_mesh LIBRARY DESTINATION src/pcl)
+endif()
+
+# Modules compiled WITHOUT OpenMP: header-only PCL code whose OpenMP
+# pragmas do not compile on current compilers -- see
+# _keypoints_serial.pyx. The PCL_WITHOUT_OPENMP property switches off the
+# OpenMP compile options the top-level CMakeLists.txt made conditional;
+# the PCL libraries keep their own OpenMP runtime.
+set(PCL_CYTHON_SERIAL_MODULES
+    _keypoints_serial
+)
+
+foreach(module ${PCL_CYTHON_SERIAL_MODULES})
+    add_cython_target(${module} CXX PY3)
+    add_library(${module} MODULE ${${module}})
+    set_target_properties(${module} PROPERTIES PCL_WITHOUT_OPENMP ON)
+    target_compile_options(${module} PRIVATE ${PCL_CYTHON_COMPILE_OPTIONS})
     target_link_libraries(${module} ${PCL_LIBRARIES})
     python_extension_module(${module})
     install(TARGETS ${module} LIBRARY DESTINATION src/pcl)

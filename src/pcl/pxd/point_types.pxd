@@ -65,8 +65,74 @@ cdef extern from "pcl/point_types.h" namespace "pcl" nogil:
         float curvature
         float data_c[4]
 
+    cdef struct PointWithViewpoint:
+        float x
+        float y
+        float z
+        float data[4]
+        float vp_x
+        float vp_y
+        float vp_z
+        float data_c[4]
+
+    cdef struct PrincipalCurvatures:
+        float principal_curvature_x
+        float principal_curvature_y
+        float principal_curvature_z
+        float principal_curvature[3]
+        float pc1
+        float pc2
+
+    cdef struct PFHSignature125:
+        float histogram[125]
+
+    cdef struct PrincipalRadiiRSD:
+        float r_min
+        float r_max
+
+    cdef struct GASDSignature512:
+        float histogram[512]
+
+    cdef struct GASDSignature984:
+        float histogram[984]
+
+    cdef struct GRSDSignature21:
+        float histogram[21]
+
+    cdef struct MomentInvariants:
+        float j1
+        float j2
+        float j3
+
+    cdef struct PointWithScale:
+        float x
+        float y
+        float z
+        float data[4]
+        float scale
+        float angle
+        float response
+        int octave
+        float data_c[4]
+
+    cdef struct Label:
+        uint32_t label
+
+    cdef struct PointXYZL:
+        float x
+        float y
+        float z
+        float data[4]
+        uint32_t label
+
     cdef struct VFHSignature308:
         float histogram[308]
+
+    cdef struct Boundary:
+        uint8_t boundary_point
+
+    cdef struct ESFSignature640:
+        float histogram[640]
 
     cdef struct FPFHSignature33:
         float histogram[33]
@@ -74,3 +140,68 @@ cdef extern from "pcl/point_types.h" namespace "pcl" nogil:
     cdef struct SHOT352:
         float descriptor[352]
         float rf[9]
+
+    cdef struct SHOT1344:
+        float descriptor[1344]
+        float rf[9]
+
+    cdef struct PFHRGBSignature250:
+        float histogram[250]
+
+    cdef struct ShapeContext1980:
+        float descriptor[1980]
+        float rf[9]
+
+    cdef struct UniqueShapeContext1960:
+        float descriptor[1960]
+        float rf[9]
+
+    cdef struct PPFSignature:
+        float f1
+        float f2
+        float f3
+        float f4
+        float alpha_m
+
+    cdef struct PPFRGBSignature:
+        float f1
+        float f2
+        float f3
+        float f4
+        float r_ratio
+        float g_ratio
+        float b_ratio
+        float alpha_m
+
+    cdef struct CPPFSignature:
+        float f1
+        float f2
+        float f3
+        float f4
+        float f5
+        float f6
+        float f7
+        float f8
+        float f9
+        float f10
+        float alpha_m
+
+    cdef struct ReferenceFrame:
+        float rf[9]
+
+    cdef struct IntensityGradient:
+        float gradient_x
+        float gradient_y
+        float gradient_z
+
+    cdef struct GFPFHSignature16:
+        float histogram[16]
+
+    cdef struct PointUV:
+        float u
+        float v
+
+    cdef struct BRISKSignature512:
+        float scale
+        float orientation
+        unsigned char descriptor[64]

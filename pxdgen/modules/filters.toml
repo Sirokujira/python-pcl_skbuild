@@ -78,13 +78,6 @@ namespaces = ["pcl"]
 extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
 
 [[headers]]
-path = "headers/pcl/filters/conditional_removal.h"
-extern_from = "pcl/filters/conditional_removal.h"
-output = "../src/pcl/pxd/filters/conditional_removal.pxd"
-namespaces = ["pcl"]
-extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
-
-[[headers]]
 path = "headers/pcl/filters/fast_bilateral.h"
 extern_from = "pcl/filters/fast_bilateral.h"
 output = "../src/pcl/pxd/filters/fast_bilateral.pxd"
@@ -100,3 +93,87 @@ extra_cimports = [
     "from pcl.pxd.point_cloud cimport PointCloud",
     "from pcl.pxd.vertices cimport Vertices",
 ]
+
+[[headers]]
+path = "headers/pcl/filters/shadowpoints.h"
+extern_from = "pcl/filters/shadowpoints.h"
+output = "../src/pcl/pxd/filters/shadowpoints.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/filters/normal_space.h"
+extern_from = "pcl/filters/normal_space.h"
+output = "../src/pcl/pxd/filters/normal_space.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/filters/sampling_surface_normal.h"
+extern_from = "pcl/filters/sampling_surface_normal.h"
+output = "../src/pcl/pxd/filters/sampling_surface_normal.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/filters/grid_minimum.h"
+extern_from = "pcl/filters/grid_minimum.h"
+output = "../src/pcl/pxd/filters/grid_minimum.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/filters/local_maximum.h"
+extern_from = "pcl/filters/local_maximum.h"
+output = "../src/pcl/pxd/filters/local_maximum.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/filters/frustum_culling.h"
+extern_from = "pcl/filters/frustum_culling.h"
+output = "../src/pcl/pxd/filters/frustum_culling.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/filters/median_filter.h"
+extern_from = "pcl/filters/median_filter.h"
+output = "../src/pcl/pxd/filters/median_filter.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/filters/bilateral.h"
+extern_from = "pcl/filters/bilateral.h"
+output = "../src/pcl/pxd/filters/bilateral.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/filters/model_outlier_removal.h"
+extern_from = "pcl/filters/model_outlier_removal.h"
+output = "../src/pcl/pxd/filters/model_outlier_removal.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud", "from pcl.pxd.model_coefficients cimport ModelCoefficients", "from pcl.pxd.point_types cimport Normal", "from pcl.pxd.sample_consensus.model_types cimport SacModel"]
+
+[[headers]]
+path = "headers/pcl/filters/filter.h"
+extern_from = "pcl/filters/filter.h"
+output = "../src/pcl/pxd/filters/filter.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/filters/covariance_sampling.h"
+extern_from = "pcl/filters/covariance_sampling.h"
+output = "../src/pcl/pxd/filters/covariance_sampling.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/filters/fast_bilateral_omp.h"
+extern_from = "pcl/filters/fast_bilateral_omp.h"
+output = "../src/pcl/pxd/filters/fast_bilateral_omp.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]

@@ -33,6 +33,10 @@ public:
     double getResolution() const;
     unsigned int getTreeDepth() const;
 
+    bool isVoxelOccupiedAtPoint(double point_x_arg, double point_y_arg,
+                                double point_z_arg) const;
+    void deleteVoxelAtPoint(const PointT& point_arg);
+
     bool voxelSearch(const PointT& point, std::vector<int>& point_idx_data);
 
     int nearestKSearch(const PointT& p_q, int k,

@@ -28,3 +28,17 @@ extern_from = "pcl/registration/ndt.h"
 output = "../src/pcl/pxd/registration/ndt.pxd"
 namespaces = ["pcl"]
 extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/registration/ia_fpcs.h"
+extern_from = "pcl/registration/ia_fpcs.h"
+output = "../src/pcl/pxd/registration/ia_fpcs.pxd"
+namespaces = ["pcl::registration"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/registration/ia_kfpcs.h"
+extern_from = "pcl/registration/ia_kfpcs.h"
+output = "../src/pcl/pxd/registration/ia_kfpcs.pxd"
+namespaces = ["pcl::registration"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]

@@ -11,6 +11,7 @@ namespaces = ["pclcompat"]
 extra_cimports = [
     "from pcl.pxd.point_types cimport PointXYZ, Normal",
     "from pcl.pxd.filters.crop_box cimport CropBox",
+    "from pcl.pxd.filters.frustum_culling cimport FrustumCulling",
     "from pcl.pxd.segmentation.sac_segmentation cimport SACSegmentation",
     "from pcl.pxd.segmentation.sac_segmentation_normals cimport SACSegmentationFromNormals",
 ]
@@ -21,6 +22,10 @@ extern_from = "pcl/compat/eigen_results.h"
 output = "../src/pcl/pxd/compat/eigen_results.pxd"
 namespaces = ["pclcompat"]
 extra_cimports = [
+    "from pcl.pxd.point_types cimport PointNormal",
+    "from pcl.pxd.registration.icp cimport IterativeClosestPointWithNormals",
+    "from pcl.pxd.registration.ia_fpcs cimport FPCSInitialAlignment",
+    "from pcl.pxd.registration.ia_kfpcs cimport KFPCSInitialAlignment",
     "from pcl.pxd.point_types cimport PointXYZ",
     "from pcl.pxd.registration.icp cimport IterativeClosestPoint",
     "from pcl.pxd.registration.icp_nl cimport IterativeClosestPointNonLinear",
@@ -48,8 +53,14 @@ extern_from = "pcl/compat/keypoint_args.h"
 output = "../src/pcl/pxd/compat/keypoint_args.pxd"
 namespaces = ["pclcompat"]
 extra_cimports = [
-    "from pcl.pxd.point_types cimport PointXYZ, PointXYZI",
+    "from pcl.pxd.point_types cimport PointXYZ, PointXYZI, PointXYZRGBA, PointUV, Normal",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.keypoints.agast_2d cimport AgastKeypoint2D",
     "from pcl.pxd.keypoints.harris_3d cimport HarrisKeypoint3D",
+    "from pcl.pxd.keypoints.harris_2d cimport HarrisKeypoint2D",
+    "from pcl.pxd.keypoints.trajkovic_2d cimport TrajkovicKeypoint2D",
+    "from pcl.pxd.keypoints.trajkovic_3d cimport TrajkovicKeypoint3D",
+    "from pcl.pxd.keypoints.smoothed_surfaces_keypoint cimport SmoothedSurfacesKeypoint",
 ]
 
 [[headers]]
@@ -58,8 +69,8 @@ extern_from = "pcl/compat/condition_args.h"
 output = "../src/pcl/pxd/compat/condition_args.pxd"
 namespaces = ["pclcompat"]
 extra_cimports = [
-    "from pcl.pxd.point_types cimport PointXYZ",
-    "from pcl.pxd.filters.conditional_removal cimport ConditionAnd, ConditionalRemoval",
+    "from pcl.pxd.point_types cimport PointXYZ, PointXYZRGB, PointXYZRGBA",
+    "from pcl.pxd.point_cloud cimport PointCloud",
 ]
 
 [[headers]]
@@ -68,10 +79,10 @@ extern_from = "pcl/compat/sac_models.h"
 output = "../src/pcl/pxd/compat/sac_models.pxd"
 namespaces = ["pclcompat"]
 extra_cimports = [
-    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.point_types cimport PointXYZ, Normal",
     "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.sample_consensus.sac cimport SampleConsensus",
     "from pcl.pxd.sample_consensus.sac_model cimport SampleConsensusModel",
-    "from pcl.pxd.sample_consensus.ransac cimport RandomSampleConsensus",
 ]
 
 [[headers]]
@@ -107,12 +118,74 @@ extra_cimports = [
 ]
 
 [[headers]]
+path = "headers/pcl/compat/recognition_extra.h"
+extern_from = "pcl/compat/recognition_extra.h"
+output = "../src/pcl/pxd/compat/recognition_extra.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ, PointXYZRGBA, Normal",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+]
+
+[[headers]]
+path = "headers/pcl/compat/stereo_args.h"
+extern_from = "pcl/compat/stereo_args.h"
+output = "../src/pcl/pxd/compat/stereo_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ, PointXYZI, PointXYZRGB",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+]
+
+[[headers]]
+path = "headers/pcl/compat/image2d_args.h"
+extern_from = "pcl/compat/image2d_args.h"
+output = "../src/pcl/pxd/compat/image2d_args.pxd"
+namespaces = ["pclcompat"]
+
+[[headers]]
+path = "headers/pcl/compat/common_args.h"
+extern_from = "pcl/compat/common_args.h"
+output = "../src/pcl/pxd/compat/common_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+]
+
+[[headers]]
+path = "headers/pcl/compat/ml_args.h"
+extern_from = "pcl/compat/ml_args.h"
+output = "../src/pcl/pxd/compat/ml_args.pxd"
+namespaces = ["pclcompat"]
+
+[[headers]]
+path = "headers/pcl/compat/outofcore_args.h"
+extern_from = "pcl/compat/outofcore_args.h"
+output = "../src/pcl/pxd/compat/outofcore_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+]
+
+[[headers]]
+path = "headers/pcl/compat/texture_args.h"
+extern_from = "pcl/compat/texture_args.h"
+output = "../src/pcl/pxd/compat/texture_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+]
+
+[[headers]]
 path = "headers/pcl/compat/tracking_args.h"
 extern_from = "pcl/compat/tracking_args.h"
 output = "../src/pcl/pxd/compat/tracking_args.pxd"
 namespaces = ["pclcompat"]
 extra_cimports = [
-    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.point_types cimport PointXYZ, PointXYZRGBA, PointNormal",
     "from pcl.pxd.point_cloud cimport PointCloud",
 ]
 
@@ -134,7 +207,7 @@ extern_from = "pcl/compat/transform_args.h"
 output = "../src/pcl/pxd/compat/transform_args.pxd"
 namespaces = ["pclcompat"]
 extra_cimports = [
-    "from pcl.pxd.point_types cimport PointXYZ, PointXYZI, PointXYZRGB, PointXYZRGBA",
+    "from pcl.pxd.point_types cimport PointXYZ, PointXYZI, PointXYZRGB, PointXYZRGBA, PointNormal",
     "from pcl.pxd.point_cloud cimport PointCloud",
 ]
 
@@ -142,6 +215,161 @@ extra_cimports = [
 path = "headers/pcl/compat/mesh_args.h"
 extern_from = "pcl/compat/mesh_args.h"
 output = "../src/pcl/pxd/compat/mesh_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+]
+
+[[headers]]
+path = "headers/pcl/compat/global_alignment_args.h"
+extern_from = "pcl/compat/global_alignment_args.h"
+output = "../src/pcl/pxd/compat/global_alignment_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+]
+
+[[headers]]
+path = "headers/pcl/compat/compression_args.h"
+extern_from = "pcl/compat/compression_args.h"
+output = "../src/pcl/pxd/compat/compression_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.compression.octree_pointcloud_compression cimport OctreePointCloudCompression",
+    "from pcl.pxd.point_types cimport PointXYZ, PointXYZRGBA",
+]
+
+[[headers]]
+path = "headers/pcl/compat/feature_types.h"
+extern_from = "pcl/compat/feature_types.h"
+output = "../src/pcl/pxd/compat/feature_types.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.point_types cimport PointXYZ, PointXYZRGB, Normal, FPFHSignature33",
+    "from pcl.pxd.features.crh cimport CRHEstimation",
+    "from pcl.pxd.vertices cimport Vertices",
+]
+
+[[headers]]
+path = "headers/pcl/compat/supervoxel_args.h"
+extern_from = "pcl/compat/supervoxel_args.h"
+output = "../src/pcl/pxd/compat/supervoxel_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.segmentation.supervoxel_clustering cimport SupervoxelClustering",
+]
+
+[[headers]]
+path = "headers/pcl/compat/registration_args.h"
+extern_from = "pcl/compat/registration_args.h"
+output = "../src/pcl/pxd/compat/registration_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.point_types cimport PointXYZ, Normal",
+]
+
+[[headers]]
+path = "headers/pcl/compat/surface_args.h"
+extern_from = "pcl/compat/surface_args.h"
+output = "../src/pcl/pxd/compat/surface_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ, PointXYZRGBA",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.surface.organized_fast_mesh cimport OrganizedFastMesh",
+    "from pcl.pxd.surface.bilateral_upsampling cimport BilateralUpsampling",
+]
+
+[[headers]]
+path = "headers/pcl/compat/octree_args.h"
+extern_from = "pcl/compat/octree_args.h"
+output = "../src/pcl/pxd/compat/octree_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.octree.octree_search cimport OctreePointCloudSearch",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.octree.octree_pointcloud_density cimport OctreePointCloudDensity",
+    "from pcl.pxd.octree.octree_pointcloud_occupancy cimport OctreePointCloudOccupancy",
+    "from pcl.pxd.octree.octree_pointcloud_pointvector cimport OctreePointCloudPointVector",
+    "from pcl.pxd.octree.octree_pointcloud_singlepoint cimport OctreePointCloudSinglePoint",
+    "from pcl.pxd.octree.octree_pointcloud_adjacency cimport OctreePointCloudAdjacency",
+]
+
+[[headers]]
+path = "headers/pcl/compat/search_args.h"
+extern_from = "pcl/compat/search_args.h"
+output = "../src/pcl/pxd/compat/search_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.search.organized cimport OrganizedNeighbor",
+    "from pcl.pxd.search.flann_search cimport FlannSearch",
+]
+
+[[headers]]
+path = "headers/pcl/compat/hypotheses_args.h"
+extern_from = "pcl/compat/hypotheses_args.h"
+output = "../src/pcl/pxd/compat/hypotheses_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+]
+
+[[headers]]
+path = "headers/pcl/compat/filter_args.h"
+extern_from = "pcl/compat/filter_args.h"
+output = "../src/pcl/pxd/compat/filter_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ, PointXYZRGB, Normal",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+]
+
+[[headers]]
+path = "headers/pcl/compat/registration_extra.h"
+extern_from = "pcl/compat/registration_extra.h"
+output = "../src/pcl/pxd/compat/registration_extra.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ, PointXYZRGBA, PointNormal, Normal",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+]
+
+[[headers]]
+path = "headers/pcl/compat/segmentation_args.h"
+extern_from = "pcl/compat/segmentation_args.h"
+output = "../src/pcl/pxd/compat/segmentation_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ, PointXYZRGBA, Normal, Label",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.point_indices cimport PointIndices",
+    "from pcl.pxd.model_coefficients cimport ModelCoefficients",
+    "from pcl.pxd.segmentation.organized_multi_plane_segmentation cimport OrganizedMultiPlaneSegmentation",
+]
+
+[[headers]]
+path = "headers/pcl/compat/io_args.h"
+extern_from = "pcl/compat/io_args.h"
+output = "../src/pcl/pxd/compat/io_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ, PointXYZRGB, PointXYZRGBA, PointXYZI, Normal",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+]
+
+[[headers]]
+path = "headers/pcl/compat/vtk_mesh_args.h"
+extern_from = "pcl/compat/vtk_mesh_args.h"
+output = "../src/pcl/pxd/compat/vtk_mesh_args.pxd"
 namespaces = ["pclcompat"]
 extra_cimports = [
     "from pcl.pxd.point_types cimport PointXYZ",

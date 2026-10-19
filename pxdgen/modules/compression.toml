@@ -1,0 +1,17 @@
+# pcl/compression — octree point cloud compression (part of PCL's io
+# component). Only [[headers]] entries belong here; see pxdgen/pcl_headers.toml.
+
+[[headers]]
+path = "headers/pcl/compression/compression_profiles.h"
+extern_from = "pcl/compression/compression_profiles.h"
+output = "../src/pcl/pxd/compression/compression_profiles.pxd"
+namespaces = ["pcl::io"]
+
+[[headers]]
+path = "headers/pcl/compression/octree_pointcloud_compression.h"
+extern_from = "pcl/compression/octree_pointcloud_compression.h"
+output = "../src/pcl/pxd/compression/octree_pointcloud_compression.pxd"
+namespaces = ["pcl::io"]
+extra_cimports = [
+    "from pcl.pxd.compression.compression_profiles cimport compression_Profiles_e",
+]

@@ -3,10 +3,12 @@
 
 # distutils: language = c++
 
+from libcpp cimport bool
 from libcpp.memory cimport shared_ptr
 from libcpp.string cimport string
-from pcl.pxd.filters.conditional_removal cimport ConditionAnd, ConditionalRemoval
-from pcl.pxd.point_types cimport PointXYZ
+from libcpp.vector cimport vector
+from pcl.pxd.point_cloud cimport PointCloud
+from pcl.pxd.point_types cimport PointXYZ, PointXYZRGB, PointXYZRGBA
 
 cdef extern from "pcl/compat/condition_args.h" namespace "pclcompat" nogil:
     const int COMPARE_GT
@@ -19,8 +21,20 @@ cdef extern from "pcl/compat/condition_args.h" namespace "pclcompat" nogil:
 
     const int COMPARE_EQ
 
-    shared_ptr[ConditionAnd[PointXYZ]] makeConditionAnd() except +
+    const int CONDITION_AND
 
-    void addFieldComparison(ConditionAnd[PointXYZ]& condition, const string& field_name, int op, double value) except +
+    const int CONDITION_OR
 
-    void setCondition(ConditionalRemoval[PointXYZ]& filter, shared_ptr[ConditionAnd[PointXYZ]] condition) except +
+    const int COMPARISON_FIELD
+
+    const int COMPARISON_TF_QUADRATIC
+
+    const int COMPARISON_PACKED_RGB
+
+    const int COMPARISON_PACKED_HSI
+
+    void conditionalRemoval(const shared_ptr[PointCloud[PointXYZ]]& cloud, const vector[int]& kinds, const vector[int]& ints, const vector[double]& numbers, const vector[string]& names, bool keep_organized, float user_value, PointCloud[PointXYZ]& out) except +
+
+    void conditionalRemoval(const shared_ptr[PointCloud[PointXYZRGB]]& cloud, const vector[int]& kinds, const vector[int]& ints, const vector[double]& numbers, const vector[string]& names, bool keep_organized, float user_value, PointCloud[PointXYZRGB]& out) except +
+
+    void conditionalRemoval(const shared_ptr[PointCloud[PointXYZRGBA]]& cloud, const vector[int]& kinds, const vector[int]& ints, const vector[double]& numbers, const vector[string]& names, bool keep_organized, float user_value, PointCloud[PointXYZRGBA]& out) except +

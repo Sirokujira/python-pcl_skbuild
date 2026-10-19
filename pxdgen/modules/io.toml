@@ -32,3 +32,32 @@ path = "headers/pcl/io/hdl_grabber.h"
 extern_from = "pcl/io/hdl_grabber.h"
 output = "../src/pcl/pxd/io/hdl_grabber.pxd"
 namespaces = ["pcl"]
+
+[[headers]]
+path = "headers/pcl/io/obj_io.h"
+extern_from = "pcl/io/obj_io.h"
+output = "../src/pcl/pxd/io/obj_io.pxd"
+namespaces = ["pcl::io"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/io/lzf.h"
+extern_from = "pcl/io/lzf.h"
+output = "../src/pcl/pxd/io/lzf.pxd"
+namespaces = ["pcl"]
+
+[[headers]]
+path = "headers/pcl/io/debayer.h"
+extern_from = "pcl/io/debayer.h"
+output = "../src/pcl/pxd/io/debayer.pxd"
+namespaces = ["pcl::io"]
+
+[[headers]]
+path = "headers/pcl/io/ifs_io.h"
+extern_from = "pcl/io/ifs_io.h"
+output = "../src/pcl/pxd/io/ifs_io.pxd"
+namespaces = ["pcl::io"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.point_types cimport PointXYZ",
+]

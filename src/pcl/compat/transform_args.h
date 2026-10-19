@@ -64,6 +64,15 @@ inline void transformCloud(const pcl::PointCloud<pcl::PointXYZRGBA>& in,
     transformWith(in, out, matrix16);
 }
 
+// A PointNormal carries a direction as well as a position: rotate both.
+// pcl::transformPointCloud would move the points and leave every normal
+// pointing the old way.
+inline void transformCloud(const pcl::PointCloud<pcl::PointNormal>& in,
+                           pcl::PointCloud<pcl::PointNormal>& out,
+                           const float* matrix16) {
+    pcl::transformPointCloudWithNormals(in, out, asMatrix(matrix16));
+}
+
 /// True when the upper-left 3x3 is a rotation (orthonormal, det +1) and
 /// the bottom row is (0, 0, 0, 1) — i.e. the matrix is a rigid motion.
 ///

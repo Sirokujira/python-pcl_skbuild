@@ -6,6 +6,7 @@ hand-written. The API follows sirokujira/python-pcl.
 """
 
 import contextlib
+import functools
 import gzip
 import os
 import os.path
@@ -49,14 +50,44 @@ def _add_windows_dll_directories():
 
 _add_windows_dll_directories()
 
-from ._pointcloud import PointCloud, PointCloudXYZ
+from ._pointcloud import (
+    PointCloud,
+    PointCloudXYZ,
+    L_ALWAYS,
+    L_DEBUG,
+    L_ERROR,
+    L_INFO,
+    L_VERBOSE,
+    L_WARN,
+    get_verbosity_level,
+    set_verbosity_level,
+)
 from ._pointtypes import (
     PointCloud_Normal,
     PointCloud_PointXYZI,
     PointCloud_PointXYZRGB,
     PointCloud_PointXYZRGBA,
+    PointCloud_PointNormal,
+    PointCloud_PointWithViewpoint,
 )
 from ._features import (
+    CRHEstimation,
+    GASDColorEstimation,
+    GASDEstimation,
+    GRSDEstimation,
+    INTERP_NONE,
+    INTERP_QUADRILINEAR,
+    INTERP_TRILINEAR,
+    MomentInvariantsEstimation,
+    NormalEstimationOMP,
+    OURCVFHEstimation,
+    PFHEstimation,
+    PrincipalCurvaturesEstimation,
+    RSDEstimation,
+    SpinImageEstimation,
+    BoundaryEstimation,
+    CVFHEstimation,
+    ESFEstimation,
     AVERAGE_3D_GRADIENT,
     AVERAGE_DEPTH_CHANGE,
     COVARIANCE_MATRIX,
@@ -69,14 +100,67 @@ from ._features import (
     NormalEstimation,
     VFHEstimation,
 )
-from ._octree import OctreePointCloudChangeDetector, OctreePointCloudSearch
+from ._octree import (
+    OctreePointCloudOccupancy,
+    OctreePointCloudPointVector,
+    OctreePointCloudSinglePoint,
+    OctreePointCloudAdjacency,
+    OrganizedPointCloudCompression,
+    OctreePointCloudChangeDetector,
+    OctreePointCloudSearch,
+    OctreePointCloudVoxelCentroid,
+    OctreePointCloudDensity,
+    OctreePointCloudCompression,
+    OctreePointCloudCompressionRGB,
+    LOW_RES_ONLINE_COMPRESSION_WITHOUT_COLOR,
+    LOW_RES_ONLINE_COMPRESSION_WITH_COLOR,
+    MED_RES_ONLINE_COMPRESSION_WITHOUT_COLOR,
+    MED_RES_ONLINE_COMPRESSION_WITH_COLOR,
+    HIGH_RES_ONLINE_COMPRESSION_WITHOUT_COLOR,
+    HIGH_RES_ONLINE_COMPRESSION_WITH_COLOR,
+    LOW_RES_OFFLINE_COMPRESSION_WITHOUT_COLOR,
+    LOW_RES_OFFLINE_COMPRESSION_WITH_COLOR,
+    MED_RES_OFFLINE_COMPRESSION_WITHOUT_COLOR,
+    MED_RES_OFFLINE_COMPRESSION_WITH_COLOR,
+    HIGH_RES_OFFLINE_COMPRESSION_WITHOUT_COLOR,
+    HIGH_RES_OFFLINE_COMPRESSION_WITH_COLOR,
+    MANUAL_CONFIGURATION,
+)
 from ._registration import (
+    FPCSInitialAlignment,
+    IterativeClosestPointWithNormals,
+    KFPCSInitialAlignment,
+    SampleConsensusInitialAlignment,
+    estimate_correspondences,
+    estimate_transformation,
+    reject_by_distance,
+    reject_median_distance,
+    reject_one_to_one,
+    reject_sample_consensus,
+    reject_surface_normal,
+    reject_trimmed,
+    validate_transformation,
     GeneralizedIterativeClosestPoint,
     IterativeClosestPoint,
     IterativeClosestPointNonLinear,
     NormalDistributionsTransform,
+    SampleConsensusPrerejective,
 )
 from ._surface import (
+    texture_mesh_with_cameras,
+    OrganizedFastMesh,
+    GridProjection,
+    BilateralUpsampling,
+    SurfelSmoothing,
+    EarClipping,
+    SimplificationRemoveUnusedVertices,
+    TRIANGLE_RIGHT_CUT,
+    TRIANGLE_LEFT_CUT,
+    TRIANGLE_ADAPTIVE_CUT,
+    QUAD_MESH,
+    Poisson,
+    MarchingCubesHoppe,
+    MarchingCubesRBF,
     ConcaveHull,
     ConvexHull,
     GreedyProjectionTriangulation,
@@ -85,6 +169,15 @@ from ._surface import (
     save_mesh,
 )
 from ._filters import (
+    BilateralFilter,
+    FrustumCulling,
+    GridMinimum,
+    LocalMaximum,
+    MedianFilter,
+    ModelOutlierRemoval,
+    NormalSpaceSampling,
+    SamplingSurfaceNormal,
+    ShadowPoints,
     ApproximateVoxelGrid,
     CompareOp_EQ,
     CompareOp_GE,
@@ -92,6 +185,7 @@ from ._filters import (
     CompareOp_LE,
     CompareOp_LT,
     ConditionAnd,
+    ConditionOr,
     ConditionalRemoval,
     CropBox,
     CropHull,
@@ -106,6 +200,9 @@ from ._filters import (
     VoxelGridFilter,
 )
 from ._keypoints import (
+    ISSKeypoint3D,
+    SIFTKeypoint,
+    SUSANKeypoint,
     CURVATURE,
     HARRIS,
     LOWE,
@@ -113,20 +210,130 @@ from ._keypoints import (
     TOMASI,
     HarrisKeypoint3D,
 )
-from ._grabber import HDLGrabber, PCDGrabber
+from ._grabber import HDLGrabber, PCDGrabber, VLPGrabber
+from . import _io
+from ._io import (
+    IMAGE_COLORS_MONO,
+    IMAGE_COLORS_RGB_GLASBEY,
+    IMAGE_COLORS_RGB_RANDOM,
+    IMAGE_SCALING_FIXED_FACTOR,
+    IMAGE_SCALING_FULL_RANGE,
+    IMAGE_SCALING_NO,
+    ImageGrabber,
+    debayer,
+    extract_image,
+    have_png,
+    label_image,
+    load_ascii,
+    lzf_compress,
+    lzf_decompress,
+    read_pclzf,
+    read_pclzf_depth,
+    read_pclzf_image,
+    save_png,
+    write_pclzf_bayer8,
+    write_pclzf_depth,
+    write_pclzf_parameters,
+    write_pclzf_rgb,
+    write_pclzf_yuv422,
+)
 from ._people import hog, hog_descriptor_size
 from ._recognition import (
+    GreedyVerification,
+    PapazovHV,
     GeometricConsistencyGrouping,
     Hough3DGrouping,
     match_descriptors,
 )
-from ._tracking import ParticleFilterTracker
+from ._recognition_extra import (
+    CRHAlignment,
+    DOTMOD,
+    ImplicitShapeModelEstimation,
+    LineRGBD,
+    ObjRecRANSAC,
+    TrimmedICP,
+    get_occluded_cloud,
+    occlusion_filter,
+)
+from ._stereo import (
+    AdaptiveCostSOStereoMatching,
+    BlockBasedStereoMatching,
+    digital_elevation_map,
+    disparity_to_cloud,
+)
+from ._image2d import (
+    image_binary_operation,
+    image_canny,
+    image_convolve,
+    image_edges,
+    image_kernel,
+    image_log,
+    image_morphology,
+    structuring_element,
+)
+from ._common import (
+    PCA,
+    estimate_projection_matrix,
+    histogram_distance,
+    line_line_intersection,
+    plane_plane_intersection,
+    poses_from_matches,
+    three_planes_intersection,
+    transformation_from_correspondences,
+)
+from ._ml import SVM, DenseCrf, kmeans
+try:
+    # built only where PCL has outofcore (it needs VTK); see CMakeLists.txt
+    from ._outofcore import OutofcoreOctree
+except ImportError:
+    pass
+try:
+    # built only where PCL has VTK; see CMakeLists.txt
+    from ._vtk_mesh import (MeshQuadricDecimationVTK,
+                            MeshSmoothingLaplacianVTK,
+                            MeshSmoothingWindowedSincVTK, MeshSubdivisionVTK,
+                            load_polygon_file, save_polygon_file)
+except ImportError:
+    pass
+from ._tracking import (ParticleFilterTracker, KLDAdaptiveParticleFilterTracker,
+                        PyramidalKLTTracker)
 from ._rangeimage import (
+    bearing_angle,
+    bearing_angle_image,
     CAMERA_FRAME,
     LASER_FRAME,
     RangeImage,
+    RangeImagePlanar,
+    RangeImageSpherical,
+    RangeImageBorderExtractor,
+    NarfDescriptor,
+    BORDER_TRAIT__OBSTACLE_BORDER,
+    BORDER_TRAIT__SHADOW_BORDER,
+    BORDER_TRAIT__VEIL_POINT,
+    BORDER_TRAIT__SHADOW_BORDER_TOP,
+    BORDER_TRAIT__SHADOW_BORDER_RIGHT,
+    BORDER_TRAIT__SHADOW_BORDER_BOTTOM,
+    BORDER_TRAIT__SHADOW_BORDER_LEFT,
+    BORDER_TRAIT__OBSTACLE_BORDER_TOP,
+    BORDER_TRAIT__OBSTACLE_BORDER_RIGHT,
+    BORDER_TRAIT__OBSTACLE_BORDER_BOTTOM,
+    BORDER_TRAIT__OBSTACLE_BORDER_LEFT,
+    BORDER_TRAIT__VEIL_POINT_TOP,
+    BORDER_TRAIT__VEIL_POINT_RIGHT,
+    BORDER_TRAIT__VEIL_POINT_BOTTOM,
+    BORDER_TRAIT__VEIL_POINT_LEFT,
 )
 from ._sac import (
+    SampleConsensus,
+    SampleConsensusModelCone,
+    SampleConsensusModelCylinder,
+    SampleConsensusModelNormalParallelPlane,
+    SampleConsensusModelNormalPlane,
+    SampleConsensusModelNormalSphere,
+    SampleConsensusModelParallelLine,
+    SampleConsensusModelParallelPlane,
+    SampleConsensusModelPerpendicularPlane,
+    SampleConsensusModelRegistration,
     RandomSampleConsensus,
     SampleConsensusModel,
     SampleConsensusModelCircle2D,
@@ -135,12 +342,143 @@ from ._sac import (
     SampleConsensusModelPlane,
     SampleConsensusModelSphere,
     SampleConsensusModelStick,
+    SampleConsensusModelEllipse3D,
 )
-from ._kdtree import KdTreeFLANN
+from ._kdtree import (
+    BruteForceSearch,
+    FlannSearch,
+    FLANN_INDEX_KDTREE_MULTI,
+    FLANN_INDEX_KDTREE_SINGLE,
+    FLANN_INDEX_KMEANS,
+    KdTreeFLANN,
+    OrganizedNeighbor,
+)
+from ._registration import (
+    estimate_transformation_point_to_plane,
+    estimate_correspondences_normal_shooting,
+    estimate_correspondences_back_projection,
+    estimate_correspondences_organized_projection,
+    reject_var_trimmed,
+    reject_poly,
+    reject_organized_boundary,
+    compare_pyramid_feature_histograms,
+    GeneralizedIterativeClosestPoint6D,
+    NormalDistributionsTransform2D,
+    JointIterativeClosestPoint,
+    PPFRegistration,
+    IncrementalRegistration,
+    MetaRegistration,
+    LUM,
+    ELCH,
+)
+from ._keypoints_serial import HarrisKeypoint6D
+from ._keypoints import (
+    HarrisKeypoint2D,
+    TrajkovicKeypoint2D,
+    TrajkovicKeypoint3D,
+    AgastKeypoint2D,
+    BriskKeypoint2D,
+    BRISK2DEstimation,
+    SmoothedSurfacesKeypoint,
+    FOUR_CORNERS,
+    EIGHT_CORNERS,
+)
+from ._filters_extra import (
+    FarthestPointSampling,
+    CovarianceSampling,
+    FastBilateralFilterOMP,
+    NormalRefinement,
+    VoxelGridLabel,
+    VoxelGridCovariance,
+    VoxelGridOcclusionEstimation,
+    PlaneClipper3D,
+    BoxClipper3D,
+    Convolution3D,
+    Convolution,
+    apply_morphological_operator,
+    BORDERS_POLICY_IGNORE,
+    BORDERS_POLICY_MIRROR,
+    BORDERS_POLICY_DUPLICATE,
+    MORPH_OPEN,
+    MORPH_CLOSE,
+    MORPH_DILATE,
+    MORPH_ERODE,
+)
+from ._features_extra import (
+    FPFHEstimationOMP,
+    SHOTEstimationOMP,
+    ShapeContext3DEstimation,
+    UniqueShapeContext,
+    PPFEstimation,
+    SHOTLocalReferenceFrameEstimation,
+    SHOTLocalReferenceFrameEstimationOMP,
+    BOARDLocalReferenceFrameEstimation,
+    FLARELocalReferenceFrameEstimation,
+    LinearLeastSquaresNormalEstimation,
+    OrganizedEdgeBase,
+    OrganizedEdgeFromNormals,
+    StatisticalMultiscaleInterestRegionExtraction,
+    SHOTColorEstimation,
+    SHOTColorEstimationOMP,
+    PFHRGBEstimation,
+    PPFRGBEstimation,
+    CPPFEstimation,
+    OrganizedEdgeFromRGB,
+    OrganizedEdgeFromRGBNormals,
+    IntensityGradientEstimation,
+    IntensitySpinEstimation,
+    RIFTEstimation,
+    ROPSEstimation,
+    GFPFHEstimation,
+    MultiscaleFeaturePersistence,
+    EDGELABEL_NAN_BOUNDARY,
+    EDGELABEL_OCCLUDING,
+    EDGELABEL_OCCLUDED,
+    EDGELABEL_HIGH_CURVATURE,
+    EDGELABEL_RGB_CANNY,
+    NORM_L1,
+    NORM_L2_SQR,
+    NORM_L2,
+    NORM_LINF,
+    NORM_JM,
+    NORM_B,
+    NORM_SUBLINEAR,
+    NORM_CS,
+    NORM_DIV,
+    NORM_PF,
+    NORM_K,
+    NORM_KL,
+    NORM_HIK,
+    compute_approximate_normals,
+    compute_pair_features,
+)
+from ._segmentation_extra import (
+    OrganizedConnectedComponentSegmentation,
+    EuclideanClusterComparator,
+    PlaneCoefficientComparator,
+    EuclideanPlaneCoefficientComparator,
+    EdgeAwarePlaneComparator,
+    GroundPlaneComparator,
+    RGBPlaneCoefficientComparator,
+    LabeledEuclideanClusterExtraction,
+    GrabCut,
+    UnaryClassifier,
+    comparator_reads_exclude_set_as_exclusion,
+    random_walker,
+)
 from ._segmentation import (
+    SupervoxelClustering,
+    SupervoxelClusteringXYZ,
+    ApproximateProgressiveMorphologicalFilter,
+    ExtractPolygonalPrismData,
+    OrganizedMultiPlaneSegmentation,
+    SeededHueSegmentation,
+    SegmentDifferences,
     ConditionalEuclideanClustering,
     EuclideanClusterExtraction,
     MinCutSegmentation,
+    RegionGrowing,
+    RegionGrowingRGB,
     ProgressiveMorphologicalFilter,
     Segmentation,
     SegmentationNormal,
@@ -173,16 +511,47 @@ from ._segmentation import (
 )
 
 __all__ = [
+    "OctreePointCloudOccupancy",
+    "OctreePointCloudPointVector",
+    "OctreePointCloudSinglePoint",
+    "OctreePointCloudAdjacency",
+    "OrganizedPointCloudCompression",
+    "bearing_angle",
+    "bearing_angle_image",
+    "ImageGrabber",
+    "debayer",
+    "extract_image",
+    "have_png",
+    "label_image",
+    "load_ascii",
+    "lzf_compress",
+    "lzf_decompress",
+    "read_pclzf",
+    "read_pclzf_depth",
+    "save_png",
+    "write_pclzf_depth",
+    "write_pclzf_parameters",
+    "write_pclzf_rgb",
+    "IMAGE_COLORS_MONO",
+    "IMAGE_COLORS_RGB_GLASBEY",
+    "IMAGE_COLORS_RGB_RANDOM",
+    "IMAGE_SCALING_FIXED_FACTOR",
+    "IMAGE_SCALING_FULL_RANGE",
+    "IMAGE_SCALING_NO",
     "PointCloud", "PointCloudXYZ", "load", "save",
+    "L_ALWAYS", "L_ERROR", "L_WARN", "L_INFO", "L_DEBUG", "L_VERBOSE",
+    "get_verbosity_level", "set_verbosity_level",
     "PointCloud_Normal",
     "PointCloud_PointXYZI", "PointCloud_PointXYZRGB",
     "PointCloud_PointXYZRGBA",
     "load_XYZI", "load_XYZRGB", "load_XYZRGBA", "save_XYZRGBA",
+    "PointCloud_PointNormal", "PointCloud_PointWithViewpoint",
+    "load_PointNormal", "load_PointWithViewpoint",
     "VoxelGridFilter", "ApproximateVoxelGrid", "PassThroughFilter",
     "StatisticalOutlierRemovalFilter", "RadiusOutlierRemoval",
     "ExtractIndices", "CropBox", "CropHull", "ProjectInliers",
     "RandomSample",
-    "UniformSampling", "ConditionAnd", "ConditionalRemoval",
+    "UniformSampling", "ConditionOr", "ConditionAnd", "ConditionalRemoval",
     "FastBilateralFilter",
     "CompareOp_GT", "CompareOp_GE", "CompareOp_LT", "CompareOp_LE",
     "CompareOp_EQ",
@@ -199,7 +568,8 @@ __all__ = [
     "GreedyProjectionTriangulation", "save_mesh", "load_mesh",
     "IterativeClosestPoint", "IterativeClosestPointNonLinear",
     "GeneralizedIterativeClosestPoint", "NormalDistributionsTransform",
-    "PCDGrabber", "HDLGrabber",
+    "SampleConsensusPrerejective",
+    "PCDGrabber", "HDLGrabber", "VLPGrabber",
     "RangeImage", "CAMERA_FRAME", "LASER_FRAME",
     "GeometricConsistencyGrouping", "Hough3DGrouping", "match_descriptors",
     "transform_cloud",
@@ -211,6 +581,132 @@ __all__ = [
     "SampleConsensusModelSphere", "SampleConsensusModelStick",
     "Segmentation", "SegmentationNormal", "EuclideanClusterExtraction",
     "ProgressiveMorphologicalFilter", "MinCutSegmentation",
+    "RegionGrowing", "RegionGrowingRGB",
+    "BoundaryEstimation", "ESFEstimation", "CVFHEstimation", "Poisson",
+    "MarchingCubesHoppe", "MarchingCubesRBF",
+    "ShadowPoints", "NormalSpaceSampling", "SamplingSurfaceNormal",
+    "GridMinimum", "LocalMaximum", "FrustumCulling", "MedianFilter",
+    "BilateralFilter", "ModelOutlierRemoval",
+    "OctreePointCloudCompression", "OctreePointCloudCompressionRGB",
+    "PrincipalCurvaturesEstimation", "NormalEstimationOMP", "PFHEstimation",
+    "RSDEstimation", "SpinImageEstimation", "GASDEstimation",
+    "GASDColorEstimation", "GRSDEstimation", "OURCVFHEstimation",
+    "CRHEstimation", "MomentInvariantsEstimation",
+    "INTERP_NONE", "INTERP_TRILINEAR", "INTERP_QUADRILINEAR",
+    "ISSKeypoint3D", "SIFTKeypoint", "SUSANKeypoint",
+    "ExtractPolygonalPrismData", "SegmentDifferences",
+    "ApproximateProgressiveMorphologicalFilter", "SeededHueSegmentation",
+    "OrganizedMultiPlaneSegmentation", "SampleConsensus",
+    "SupervoxelClustering", "SupervoxelClusteringXYZ",
+    "OrganizedConnectedComponentSegmentation",
+    "EuclideanClusterComparator",
+    "PlaneCoefficientComparator",
+    "EuclideanPlaneCoefficientComparator",
+    "EdgeAwarePlaneComparator",
+    "GroundPlaneComparator",
+    "RGBPlaneCoefficientComparator",
+    "LabeledEuclideanClusterExtraction",
+    "GrabCut",
+    "UnaryClassifier",
+    "comparator_reads_exclude_set_as_exclusion",
+    "random_walker",
+    "IterativeClosestPointWithNormals", "SampleConsensusInitialAlignment",
+    "FPCSInitialAlignment", "KFPCSInitialAlignment",
+    "estimate_correspondences", "reject_one_to_one", "reject_by_distance",
+    "reject_median_distance", "reject_trimmed", "reject_sample_consensus",
+    "reject_surface_normal", "estimate_transformation",
+    "validate_transformation",
+    "OrganizedFastMesh", "GridProjection", "BilateralUpsampling",
+    "SurfelSmoothing", "EarClipping", "SimplificationRemoveUnusedVertices",
+    "TRIANGLE_RIGHT_CUT", "TRIANGLE_LEFT_CUT", "TRIANGLE_ADAPTIVE_CUT",
+    "QUAD_MESH",
+    "OctreePointCloudVoxelCentroid", "OctreePointCloudDensity",
+    "OrganizedNeighbor", "BruteForceSearch", "FlannSearch",
+    "FLANN_INDEX_KDTREE_SINGLE", "FLANN_INDEX_KDTREE_MULTI", "FLANN_INDEX_KMEANS",
+    "RangeImagePlanar", "RangeImageSpherical", "RangeImageBorderExtractor",
+    "NarfDescriptor",
+    "BORDER_TRAIT__OBSTACLE_BORDER", "BORDER_TRAIT__SHADOW_BORDER",
+    "BORDER_TRAIT__VEIL_POINT", "BORDER_TRAIT__SHADOW_BORDER_TOP",
+    "BORDER_TRAIT__SHADOW_BORDER_RIGHT", "BORDER_TRAIT__SHADOW_BORDER_BOTTOM",
+    "BORDER_TRAIT__SHADOW_BORDER_LEFT", "BORDER_TRAIT__OBSTACLE_BORDER_TOP",
+    "BORDER_TRAIT__OBSTACLE_BORDER_RIGHT",
+    "BORDER_TRAIT__OBSTACLE_BORDER_BOTTOM",
+    "BORDER_TRAIT__OBSTACLE_BORDER_LEFT", "BORDER_TRAIT__VEIL_POINT_TOP",
+    "BORDER_TRAIT__VEIL_POINT_RIGHT", "BORDER_TRAIT__VEIL_POINT_BOTTOM",
+    "BORDER_TRAIT__VEIL_POINT_LEFT",
+    "GreedyVerification", "PapazovHV",
+    "CRHAlignment", "DOTMOD", "ImplicitShapeModelEstimation", "LineRGBD",
+    "ObjRecRANSAC", "TrimmedICP", "get_occluded_cloud", "occlusion_filter",
+    "AdaptiveCostSOStereoMatching", "BlockBasedStereoMatching",
+    "digital_elevation_map", "disparity_to_cloud",
+    "image_binary_operation", "image_canny", "image_convolve", "image_edges",
+    "image_kernel", "image_log", "image_morphology", "structuring_element",
+    "PCA", "estimate_projection_matrix", "histogram_distance",
+    "line_line_intersection", "plane_plane_intersection",
+    "poses_from_matches", "three_planes_intersection",
+    "transformation_from_correspondences",
+    "SVM", "DenseCrf", "kmeans", "texture_mesh_with_cameras",
+    "read_pclzf_image", "write_pclzf_bayer8", "write_pclzf_yuv422",
+    "KLDAdaptiveParticleFilterTracker",
+    "PyramidalKLTTracker",
+    "estimate_transformation_point_to_plane",
+    "estimate_correspondences_normal_shooting",
+    "estimate_correspondences_back_projection",
+    "estimate_correspondences_organized_projection", "reject_var_trimmed",
+    "reject_poly", "reject_organized_boundary",
+    "compare_pyramid_feature_histograms",
+    "GeneralizedIterativeClosestPoint6D", "NormalDistributionsTransform2D",
+    "JointIterativeClosestPoint", "PPFRegistration",
+    "IncrementalRegistration", "MetaRegistration", "LUM", "ELCH",
+    "SampleConsensusModelEllipse3D",
+    "HarrisKeypoint6D", "HarrisKeypoint2D", "TrajkovicKeypoint2D",
+    "TrajkovicKeypoint3D", "AgastKeypoint2D", "BriskKeypoint2D",
+    "BRISK2DEstimation", "SmoothedSurfacesKeypoint", "FOUR_CORNERS",
+    "EIGHT_CORNERS", "FarthestPointSampling", "CovarianceSampling",
+    "FastBilateralFilterOMP", "NormalRefinement", "VoxelGridLabel",
+    "VoxelGridCovariance", "VoxelGridOcclusionEstimation", "PlaneClipper3D",
+    "BoxClipper3D", "Convolution3D", "Convolution",
+    "apply_morphological_operator", "BORDERS_POLICY_IGNORE",
+    "BORDERS_POLICY_MIRROR", "BORDERS_POLICY_DUPLICATE", "MORPH_OPEN",
+    "MORPH_CLOSE", "MORPH_DILATE", "MORPH_ERODE",
+    "FPFHEstimationOMP", "SHOTEstimationOMP", "ShapeContext3DEstimation",
+    "UniqueShapeContext", "PPFEstimation",
+    "SHOTLocalReferenceFrameEstimation",
+    "SHOTLocalReferenceFrameEstimationOMP",
+    "BOARDLocalReferenceFrameEstimation",
+    "FLARELocalReferenceFrameEstimation",
+    "LinearLeastSquaresNormalEstimation", "OrganizedEdgeBase",
+    "OrganizedEdgeFromNormals",
+    "StatisticalMultiscaleInterestRegionExtraction", "SHOTColorEstimation",
+    "SHOTColorEstimationOMP", "PFHRGBEstimation", "PPFRGBEstimation",
+    "CPPFEstimation", "OrganizedEdgeFromRGB", "OrganizedEdgeFromRGBNormals",
+    "IntensityGradientEstimation", "IntensitySpinEstimation",
+    "RIFTEstimation", "ROPSEstimation", "GFPFHEstimation",
+    "MultiscaleFeaturePersistence", "EDGELABEL_NAN_BOUNDARY",
+    "EDGELABEL_OCCLUDING", "EDGELABEL_OCCLUDED", "EDGELABEL_HIGH_CURVATURE",
+    "EDGELABEL_RGB_CANNY", "NORM_L1", "NORM_L2_SQR", "NORM_L2", "NORM_LINF",
+    "NORM_JM", "NORM_B", "NORM_SUBLINEAR", "NORM_CS", "NORM_DIV", "NORM_PF",
+    "NORM_K", "NORM_KL", "NORM_HIK", "compute_approximate_normals",
+    "compute_pair_features",
+    "SampleConsensusModelCylinder", "SampleConsensusModelCone",
+    "SampleConsensusModelNormalPlane", "SampleConsensusModelNormalSphere",
+    "SampleConsensusModelParallelPlane",
+    "SampleConsensusModelPerpendicularPlane",
+    "SampleConsensusModelNormalParallelPlane",
+    "SampleConsensusModelParallelLine", "SampleConsensusModelRegistration",
+    "LOW_RES_ONLINE_COMPRESSION_WITHOUT_COLOR",
+    "LOW_RES_ONLINE_COMPRESSION_WITH_COLOR",
+    "MED_RES_ONLINE_COMPRESSION_WITHOUT_COLOR",
+    "MED_RES_ONLINE_COMPRESSION_WITH_COLOR",
+    "HIGH_RES_ONLINE_COMPRESSION_WITHOUT_COLOR",
+    "HIGH_RES_ONLINE_COMPRESSION_WITH_COLOR",
+    "LOW_RES_OFFLINE_COMPRESSION_WITHOUT_COLOR",
+    "LOW_RES_OFFLINE_COMPRESSION_WITH_COLOR",
+    "MED_RES_OFFLINE_COMPRESSION_WITHOUT_COLOR",
+    "MED_RES_OFFLINE_COMPRESSION_WITH_COLOR",
+    "HIGH_RES_OFFLINE_COMPRESSION_WITHOUT_COLOR",
+    "HIGH_RES_OFFLINE_COMPRESSION_WITH_COLOR",
+    "MANUAL_CONFIGURATION",
     "ConditionalEuclideanClustering",
     "SAC_RANSAC", "SAC_LMEDS", "SAC_MSAC", "SAC_RRANSAC", "SAC_RMSAC",
     "SAC_MLESAC", "SAC_PROSAC",
@@ -223,16 +719,31 @@ __all__ = [
     "SACMODEL_REGISTRATION_2D", "SACMODEL_NORMAL_PARALLEL_PLANE",
     "SACMODEL_ELLIPSE3D",
 ]
+if "OutofcoreOctree" in globals():
+    __all__.append("OutofcoreOctree")
+for _name in ("MeshSmoothingLaplacianVTK", "MeshSmoothingWindowedSincVTK",
+              "MeshSubdivisionVTK", "MeshQuadricDecimationVTK",
+              "load_polygon_file", "save_polygon_file"):
+    if _name in globals():
+        __all__.append(_name)
+del _name
 
 __version__ = "0.1.0"
 
 
-_LOADERS = {"pcd": "_from_pcd_file", "ply": "_from_ply_file"}
+_LOADERS = {"pcd": "_from_pcd_file", "ply": "_from_ply_file",
+            "obj": "_from_obj_file"}
 _SAVERS = {"pcd": "_to_pcd_file", "ply": "_to_ply_file"}
+# Formats that hold x, y, z only: read into / written from a PointCloud
+# by a function in pcl._io.
+_XYZ_LOADERS = {"ifs": _io._read_ifs, "txt": _io._read_ascii,
+                "xyz": _io._read_ascii}
+_XYZ_SAVERS = {"ifs": _io._write_ifs}
 
 
 def load(path, format=None):
-    """Load a point cloud from *path* (.pcd or .ply; ``format`` overrides
+    """Load a point cloud from *path* (.pcd, .ply, the vertices of an
+    .obj or an .ifs, or x y z text in .txt / .xyz; ``format`` overrides
     the extension). Returns a :class:`PointCloud`.
 
     A ``.gz`` suffix is decompressed transparently — PCL's readers take a
@@ -257,38 +768,62 @@ def load_XYZRGBA(path, format=None):
     return _load(PointCloud_PointXYZRGBA, path, format)
 
 
+def load_PointNormal(path, format=None):
+    """Load a :class:`PointCloud_PointNormal` from *path*."""
+    return _load(PointCloud_PointNormal, path, format)
+
+
+def load_PointWithViewpoint(path, format=None):
+    """Load a :class:`PointCloud_PointWithViewpoint` from *path*."""
+    return _load(PointCloud_PointWithViewpoint, path, format)
+
+
 def _load(cls, path, format):
     fmt = _infer_format(path, format)
-    if fmt not in _LOADERS:
+    if fmt in _XYZ_LOADERS:
+        if cls is not PointCloud:
+            raise ValueError("%s files hold x, y, z only: load them with "
+                             "pcl.load" % fmt)
+        cloud = PointCloud()
+        reader = functools.partial(_XYZ_LOADERS[fmt], cloud)
+    elif fmt in _LOADERS:
+        cloud = cls()
+        reader = getattr(cloud, _LOADERS[fmt])
+    else:
         raise ValueError(
             "unsupported format %r (wrapped: %s)"
-            % (fmt, ", ".join(sorted(_LOADERS)))
+            % (fmt, ", ".join(sorted(set(_LOADERS) | set(_XYZ_LOADERS))))
         )
 
-    cloud = cls()
     if _is_gzipped(path, format):
         with _decompressed(path, fmt) as plain:
-            error = getattr(cloud, _LOADERS[fmt])(plain)
+            error = reader(plain)
     else:
-        error = getattr(cloud, _LOADERS[fmt])(path)
+        error = reader(path)
     if error:
         raise IOError("error while loading %s (code %d)" % (path, error))
     return cloud
 
 
 def save(cloud, path, format=None, binary=False):
-    """Save a cloud of any wrapped point type to *path* (.pcd or .ply;
-    ``format`` overrides the extension).
+    """Save a cloud of any wrapped point type to *path* (.pcd or .ply, or
+    .ifs for a :class:`PointCloud`; ``format`` overrides the extension).
 
     A ``.gz`` suffix compresses, mirroring :func:`load`.
     """
     fmt = _infer_format(path, format)
-    if fmt not in _SAVERS:
+    if fmt in _XYZ_SAVERS:
+        if not isinstance(cloud, PointCloud):
+            raise ValueError("%s files hold x, y, z only: save a PointCloud"
+                             % fmt)
+        writer = functools.partial(_XYZ_SAVERS[fmt], cloud)
+    elif fmt in _SAVERS:
+        writer = getattr(cloud, _SAVERS[fmt])
+    else:
         raise ValueError(
             "unsupported format %r (wrapped: %s)"
-            % (fmt, ", ".join(sorted(_SAVERS)))
+            % (fmt, ", ".join(sorted(set(_SAVERS) | set(_XYZ_SAVERS))))
         )
-    writer = getattr(cloud, _SAVERS[fmt])
     if _is_gzipped(path, format):
         error = _save_gzipped(writer, path, fmt, binary)
     else:

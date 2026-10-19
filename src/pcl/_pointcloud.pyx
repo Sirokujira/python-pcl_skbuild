@@ -20,12 +20,18 @@ from cython.operator cimport dereference as deref
 from libcpp cimport bool as cbool
 from libcpp.memory cimport shared_ptr
 from libcpp.string cimport string
+from libcpp.vector cimport vector
 
 from pcl.pxd.point_types cimport PointXYZ
 from pcl.pxd.point_cloud cimport PointCloud as cPointCloud
 from pcl.pxd.io.pcd_io cimport loadPCDFile, savePCDFile
 from pcl.pxd.io.ply_io cimport loadPLYFile, savePLYFile
+from pcl.pxd.io.obj_io cimport loadOBJFile
+from pcl.pxd.filters.filter cimport removeNaNFromPointCloud
 from pcl.pxd.compat.transform_args cimport isRigidTransform, transformCloud
+from pcl.pxd.console.print cimport (
+    VERBOSITY_LEVEL, getVerbosityLevel, setVerbosityLevel)
+cimport pcl.pxd.console.print as console
 
 
 cdef string _topath(path):
@@ -315,6 +321,42 @@ cdef class PointCloud:
             error = loadPLYFile[PointXYZ](s, deref(c))
         return error
 
+    def _from_obj_file(self, path):
+        """Fill this cloud from the vertices of an .obj file; returns
+        PCL's error code."""
+        cdef string s = _topath(path)
+        cdef cPointCloud[PointXYZ]* c = self.ptr()
+        cdef int error
+        with nogil:
+            error = loadOBJFile[PointXYZ](s, deref(c))
+        return error
+
+    def remove_nan(self):
+        """Return ``(cloud, indices)``: a copy without the NaN points and
+        the original index of every point kept
+        (pcl::removeNaNFromPointCloud).
+
+        PCL skips the check entirely for a cloud flagged `is_dense`, the
+        flag `from_array` sets, so the flag is cleared for the duration
+        of the call; the copy comes back flagged dense, as PCL leaves it.
+        """
+        cdef PointCloud result = PointCloud()
+        cdef vector[int] kept
+        cdef cPointCloud[PointXYZ]* src = self.ptr()
+        cdef cPointCloud[PointXYZ]* dst = result.ptr()
+        cdef bint was_dense = src.is_dense
+        src.is_dense = False
+        try:
+            with nogil:
+                removeNaNFromPointCloud[PointXYZ](deref(src), deref(dst), kept)
+        finally:
+            src.is_dense = was_dense
+        cdef list indices = []
+        cdef size_t i
+        for i in range(kept.size()):
+            indices.append(kept[i])
+        return result, indices
+
     def _to_ply_file(self, path, cbool binary=False):
         """Write this cloud to a .ply file; returns PCL's error code."""
         cdef string s = _topath(path)
@@ -441,6 +483,113 @@ cdef class PointCloud:
         from pcl._octree import OctreePointCloudChangeDetector
         return OctreePointCloudChangeDetector(resolution, self)
 
+    def make_octreeVoxelCentroid(self, double resolution):
+        """Return an OctreePointCloudVoxelCentroid built over this cloud."""
+        from pcl._octree import OctreePointCloudVoxelCentroid
+        return OctreePointCloudVoxelCentroid(resolution, self)
+
+    def make_octreeDensity(self, double resolution):
+        """Return an OctreePointCloudDensity built over this cloud."""
+        from pcl._octree import OctreePointCloudDensity
+        return OctreePointCloudDensity(resolution, self)
+
+    def make_FPFHEstimationOMP(self):
+        """Return a FPFHEstimationOMP with this cloud as input."""
+        from pcl._features_extra import FPFHEstimationOMP
+        return FPFHEstimationOMP(self)
+
+    def make_SHOTEstimationOMP(self):
+        """Return a SHOTEstimationOMP with this cloud as input."""
+        from pcl._features_extra import SHOTEstimationOMP
+        return SHOTEstimationOMP(self)
+
+    def make_ShapeContext3DEstimation(self):
+        """Return a ShapeContext3DEstimation with this cloud as input."""
+        from pcl._features_extra import ShapeContext3DEstimation
+        return ShapeContext3DEstimation(self)
+
+    def make_UniqueShapeContext(self):
+        """Return a UniqueShapeContext with this cloud as input."""
+        from pcl._features_extra import UniqueShapeContext
+        return UniqueShapeContext(self)
+
+    def make_PPFEstimation(self):
+        """Return a PPFEstimation with this cloud as input."""
+        from pcl._features_extra import PPFEstimation
+        return PPFEstimation(self)
+
+    def make_SHOTLocalReferenceFrameEstimation(self):
+        """Return a SHOTLocalReferenceFrameEstimation with this cloud as input."""
+        from pcl._features_extra import SHOTLocalReferenceFrameEstimation
+        return SHOTLocalReferenceFrameEstimation(self)
+
+    def make_SHOTLocalReferenceFrameEstimationOMP(self):
+        """Return a SHOTLocalReferenceFrameEstimationOMP with this cloud as input."""
+        from pcl._features_extra import SHOTLocalReferenceFrameEstimationOMP
+        return SHOTLocalReferenceFrameEstimationOMP(self)
+
+    def make_BOARDLocalReferenceFrameEstimation(self):
+        """Return a BOARDLocalReferenceFrameEstimation with this cloud as input."""
+        from pcl._features_extra import BOARDLocalReferenceFrameEstimation
+        return BOARDLocalReferenceFrameEstimation(self)
+
+    def make_FLARELocalReferenceFrameEstimation(self):
+        """Return a FLARELocalReferenceFrameEstimation with this cloud as input."""
+        from pcl._features_extra import FLARELocalReferenceFrameEstimation
+        return FLARELocalReferenceFrameEstimation(self)
+
+    def make_LinearLeastSquaresNormalEstimation(self):
+        """Return a LinearLeastSquaresNormalEstimation with this cloud as input."""
+        from pcl._features_extra import LinearLeastSquaresNormalEstimation
+        return LinearLeastSquaresNormalEstimation(self)
+
+    def make_OrganizedEdgeBase(self):
+        """Return a OrganizedEdgeBase with this cloud as input."""
+        from pcl._features_extra import OrganizedEdgeBase
+        return OrganizedEdgeBase(self)
+
+    def make_OrganizedEdgeFromNormals(self):
+        """Return a OrganizedEdgeFromNormals with this cloud as input."""
+        from pcl._features_extra import OrganizedEdgeFromNormals
+        return OrganizedEdgeFromNormals(self)
+
+    def make_StatisticalMultiscaleInterestRegionExtraction(self):
+        """Return a StatisticalMultiscaleInterestRegionExtraction with this cloud as input."""
+        from pcl._features_extra import StatisticalMultiscaleInterestRegionExtraction
+        return StatisticalMultiscaleInterestRegionExtraction(self)
+
+    def make_ROPSEstimation(self, triangles):
+        """Return a ROPSEstimation over this cloud and the mesh
+        *triangles* (index triples into it)."""
+        from pcl._features_extra import ROPSEstimation
+        return ROPSEstimation(self, triangles)
+
+    def make_MultiscaleFeaturePersistence(self, normals):
+        """Return a MultiscaleFeaturePersistence (over FPFH) for this
+        cloud and its normals."""
+        from pcl._features_extra import MultiscaleFeaturePersistence
+        return MultiscaleFeaturePersistence(self, normals)
+
+    def make_FarthestPointSampling(self):
+        """Return a FarthestPointSampling with this cloud as input."""
+        from pcl._filters_extra import FarthestPointSampling
+        return FarthestPointSampling(self)
+
+    def make_CovarianceSampling(self):
+        """Return a CovarianceSampling with this cloud as input."""
+        from pcl._filters_extra import CovarianceSampling
+        return CovarianceSampling(self)
+
+    def make_FastBilateralFilterOMP(self):
+        """Return a FastBilateralFilterOMP with this cloud as input."""
+        from pcl._filters_extra import FastBilateralFilterOMP
+        return FastBilateralFilterOMP(self)
+
+    def make_TrajkovicKeypoint3D(self):
+        """Return a TrajkovicKeypoint3D with this cloud as input."""
+        from pcl._keypoints import TrajkovicKeypoint3D
+        return TrajkovicKeypoint3D(self)
+
     def make_VFHEstimation(self):
         """Return a VFHEstimation with this cloud as input."""
         from pcl._features import VFHEstimation
@@ -475,6 +624,175 @@ cdef class PointCloud:
         """Return a MinCutSegmentation with this cloud as input."""
         from pcl._segmentation import MinCutSegmentation
         return MinCutSegmentation(self)
+
+    def make_RegionGrowing(self):
+        """Return a RegionGrowing with this cloud as input."""
+        from pcl._segmentation import RegionGrowing
+        return RegionGrowing(self)
+
+    def make_BoundaryEstimation(self):
+        """Return a BoundaryEstimation with this cloud as input."""
+        from pcl._features import BoundaryEstimation
+        return BoundaryEstimation(self)
+
+    def make_ESFEstimation(self):
+        """Return an ESFEstimation with this cloud as input."""
+        from pcl._features import ESFEstimation
+        return ESFEstimation(self)
+
+    def make_CVFHEstimation(self):
+        """Return a CVFHEstimation with this cloud as input."""
+        from pcl._features import CVFHEstimation
+        return CVFHEstimation(self)
+
+    def make_Poisson(self):
+        """Return a Poisson reconstructor; feed it with
+        `set_InputCloud(cloud, normals)`."""
+        from pcl._surface import Poisson
+        return Poisson(self)
+
+    def make_MarchingCubesHoppe(self):
+        """Return a MarchingCubesHoppe reconstructor; feed it with
+        `set_InputCloud(cloud, normals)`."""
+        from pcl._surface import MarchingCubesHoppe
+        return MarchingCubesHoppe(self)
+
+    def make_MarchingCubesRBF(self):
+        """Return a MarchingCubesRBF reconstructor; feed it with
+        `set_InputCloud(cloud, normals)`."""
+        from pcl._surface import MarchingCubesRBF
+        return MarchingCubesRBF(self)
+
+    def make_ShadowPoints(self):
+        """Return a ShadowPoints filter with this cloud as input."""
+        from pcl._filters import ShadowPoints
+        return ShadowPoints(self)
+
+    def make_NormalSpaceSampling(self):
+        """Return a NormalSpaceSampling filter with this cloud as input."""
+        from pcl._filters import NormalSpaceSampling
+        return NormalSpaceSampling(self)
+
+    def make_GridMinimum(self, float resolution):
+        """Return a GridMinimum filter with this cloud as input."""
+        from pcl._filters import GridMinimum
+        return GridMinimum(resolution, self)
+
+    def make_LocalMaximum(self):
+        """Return a LocalMaximum filter with this cloud as input."""
+        from pcl._filters import LocalMaximum
+        return LocalMaximum(self)
+
+    def make_FrustumCulling(self):
+        """Return a FrustumCulling filter with this cloud as input."""
+        from pcl._filters import FrustumCulling
+        return FrustumCulling(self)
+
+    def make_MedianFilter(self):
+        """Return a MedianFilter with this (organized) cloud as input."""
+        from pcl._filters import MedianFilter
+        return MedianFilter(self)
+
+    def make_ModelOutlierRemoval(self):
+        """Return a ModelOutlierRemoval filter with this cloud as input."""
+        from pcl._filters import ModelOutlierRemoval
+        return ModelOutlierRemoval(self)
+
+    def make_ExtractPolygonalPrismData(self):
+        """Return a ExtractPolygonalPrismData with this cloud as input."""
+        from pcl._segmentation import ExtractPolygonalPrismData
+        return ExtractPolygonalPrismData(self)
+
+    def make_SegmentDifferences(self):
+        """Return a SegmentDifferences with this cloud as input."""
+        from pcl._segmentation import SegmentDifferences
+        return SegmentDifferences(self)
+
+    def make_ApproximateProgressiveMorphologicalFilter(self):
+        """Return a ApproximateProgressiveMorphologicalFilter with this cloud as input."""
+        from pcl._segmentation import ApproximateProgressiveMorphologicalFilter
+        return ApproximateProgressiveMorphologicalFilter(self)
+
+    def make_OrganizedMultiPlaneSegmentation(self):
+        """Return a OrganizedMultiPlaneSegmentation with this cloud as input."""
+        from pcl._segmentation import OrganizedMultiPlaneSegmentation
+        return OrganizedMultiPlaneSegmentation(self)
+
+    def make_SupervoxelClustering(self, float voxel_resolution,
+                                  float seed_resolution):
+        """Return a SupervoxelClusteringXYZ with this cloud as input."""
+        from pcl._segmentation import SupervoxelClusteringXYZ
+        return SupervoxelClusteringXYZ(voxel_resolution, seed_resolution, self)
+
+    def make_SampleConsensusInitialAlignment(self):
+        """Return a SampleConsensusInitialAlignment (SAC-IA)."""
+        from pcl._registration import SampleConsensusInitialAlignment
+        return SampleConsensusInitialAlignment()
+
+    def make_FPCSInitialAlignment(self):
+        """Return an FPCSInitialAlignment."""
+        from pcl._registration import FPCSInitialAlignment
+        return FPCSInitialAlignment()
+
+    def make_KFPCSInitialAlignment(self):
+        """Return a KFPCSInitialAlignment."""
+        from pcl._registration import KFPCSInitialAlignment
+        return KFPCSInitialAlignment()
+
+    def make_PrincipalCurvaturesEstimation(self):
+        """Return a PrincipalCurvaturesEstimation with this cloud as input."""
+        from pcl._features import PrincipalCurvaturesEstimation
+        return PrincipalCurvaturesEstimation(self)
+
+    def make_NormalEstimationOMP(self):
+        """Return a NormalEstimationOMP with this cloud as input."""
+        from pcl._features import NormalEstimationOMP
+        return NormalEstimationOMP(self)
+
+    def make_PFHEstimation(self):
+        """Return a PFHEstimation with this cloud as input."""
+        from pcl._features import PFHEstimation
+        return PFHEstimation(self)
+
+    def make_RSDEstimation(self):
+        """Return a RSDEstimation with this cloud as input."""
+        from pcl._features import RSDEstimation
+        return RSDEstimation(self)
+
+    def make_SpinImageEstimation(self):
+        """Return a SpinImageEstimation with this cloud as input."""
+        from pcl._features import SpinImageEstimation
+        return SpinImageEstimation(self)
+
+    def make_GASDEstimation(self):
+        """Return a GASDEstimation with this cloud as input."""
+        from pcl._features import GASDEstimation
+        return GASDEstimation(self)
+
+    def make_GRSDEstimation(self):
+        """Return a GRSDEstimation with this cloud as input."""
+        from pcl._features import GRSDEstimation
+        return GRSDEstimation(self)
+
+    def make_OURCVFHEstimation(self):
+        """Return a OURCVFHEstimation with this cloud as input."""
+        from pcl._features import OURCVFHEstimation
+        return OURCVFHEstimation(self)
+
+    def make_CRHEstimation(self):
+        """Return a CRHEstimation with this cloud as input."""
+        from pcl._features import CRHEstimation
+        return CRHEstimation(self)
+
+    def make_MomentInvariantsEstimation(self):
+        """Return a MomentInvariantsEstimation with this cloud as input."""
+        from pcl._features import MomentInvariantsEstimation
+        return MomentInvariantsEstimation(self)
+
+    def make_ISSKeypoint3D(self):
+        """Return a ISSKeypoint3D with this cloud as input."""
+        from pcl._keypoints import ISSKeypoint3D
+        return ISSKeypoint3D(self)
 
     def make_NormalEstimation(self):
         """Return a NormalEstimation with this cloud as input."""
@@ -521,6 +839,11 @@ cdef class PointCloud:
         from pcl._registration import IterativeClosestPoint
         return IterativeClosestPoint()
 
+    def make_SampleConsensusPrerejective(self):
+        """Return a SampleConsensusPrerejective (global registration)."""
+        from pcl._registration import SampleConsensusPrerejective
+        return SampleConsensusPrerejective()
+
     def make_IterativeClosestPointNonLinear(self):
         """Return an IterativeClosestPointNonLinear."""
         from pcl._registration import IterativeClosestPointNonLinear
@@ -551,3 +874,33 @@ cdef PointCloud wrap_cloud(shared_ptr[cPointCloud[PointXYZ]] ptr):
 
 # Backwards-compatible name from the first iteration of this package.
 PointCloudXYZ = PointCloud
+
+
+# --- PCL's own log output --------------------------------------------------
+
+# pcl::console::VERBOSITY_LEVEL: PCL_ERROR / PCL_WARN / PCL_INFO /
+# PCL_DEBUG messages print when their level is at or below the current one.
+L_ALWAYS = console.L_ALWAYS
+L_ERROR = console.L_ERROR
+L_WARN = console.L_WARN
+L_INFO = console.L_INFO
+L_DEBUG = console.L_DEBUG
+L_VERBOSE = console.L_VERBOSE
+
+
+def set_verbosity_level(int level):
+    """How much PCL writes to stderr/stdout
+    (pcl::console::setVerbosityLevel): one of ``pcl.L_ALWAYS``,
+    ``L_ERROR``, ``L_WARN``, ``L_INFO`` (PCL's default), ``L_DEBUG``,
+    ``L_VERBOSE``. ``pcl.set_verbosity_level(pcl.L_WARN)`` silences the
+    progress lines GrabCut, CPC and others print with PCL_INFO. Global
+    to the process, as in PCL."""
+    if not console.L_ALWAYS <= level <= console.L_VERBOSE:
+        raise ValueError("level must be one of pcl.L_ALWAYS .. pcl.L_VERBOSE")
+    setVerbosityLevel(<VERBOSITY_LEVEL> level)
+
+
+def get_verbosity_level():
+    """The current pcl::console verbosity level."""
+    return <int> getVerbosityLevel()
+

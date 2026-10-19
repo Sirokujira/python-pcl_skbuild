@@ -3,6 +3,7 @@
 
 # distutils: language = c++
 
+from libcpp cimport bool
 from libcpp.memory cimport shared_ptr
 from pcl.pxd.point_cloud cimport PointCloud
 
@@ -16,3 +17,11 @@ cdef extern from "pcl/features/shot.h" namespace "pcl" nogil:
         void compute(PointCloud[PointOutT]& output) except +
         void setLRFRadius(float radius) except +
         float getLRFRadius() except +
+
+    cdef cppclass SHOTColorEstimation[PointInT, PointNT, PointOutT]:
+        SHOTColorEstimation(bool describe_shape, bool describe_color) except +
+        void setInputCloud(const shared_ptr[PointCloud[PointInT]]& cloud) except +
+        void setInputNormals(const shared_ptr[PointCloud[PointNT]]& normals) except +
+        void setRadiusSearch(double radius) except +
+        void compute(PointCloud[PointOutT]& output) except +
+        void setLRFRadius(float radius) except +

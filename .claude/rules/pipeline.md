@@ -11,6 +11,20 @@ src/pcl/*.pyx               hand-written wrappers
    -> cython --cplus -> C++ compile with the REAL PCL headers -> .so/.pyd
 ```
 
+## Two backends, one committed output
+
+- cppast2autopxd has two implementations. The committed pxd are the
+  **libclang** backend's output; `generate.py --backend cppast` writes the
+  C++ tool's output for the same config instead, so the two can be diffed.
+  It does not combine with `--check` — the backends differ cosmetically
+  (block-level vs per-function `nogil`, cimport order), so a byte
+  comparison is meaningless there.
+- Parity is gated by `tests/test_pxd_pipeline.py::test_cppast_backend_parity`:
+  every job through the cppast backend must declare the same API surface
+  per extern block, skip nothing, and compile under cython with its
+  siblings. It auto-skips where the `cppast_autopxd` binary is absent and
+  gates where it is present — the same shape as the real-PCL tests.
+
 ## Generated files are read-only
 
 - `src/pcl/pxd/**/*.pxd` are generator output; the settings deny editing
@@ -84,6 +98,26 @@ Never use Cython `IF` / `DEF` for version branching (deprecated in Cython
 3.0), and never duplicate a pxd or pyx per version — that is the
 maintenance trap this pipeline exists to avoid.
 
+CI only builds 1.14, so the floor is checked by audit: every PCL header
+an `extern_from` or a shim `#include` names was looked up at the
+`pcl-1.11.0` tag. Two are newer, both 1.13: `farthest_point_sampling.h`
+and `sac_model_ellipse3d.h`. Both sit behind rung 4 —
+`pclcompat::FarthestPointSampler` (`filter()` throws before 1.13) and
+`SAC_MODEL_ELLIPSE3D` (-1 before 1.13) — and both shims were compiled
+with `PCL_VERSION` forced to 1.12 to prove the fallback builds. Re-run
+the audit when a batch adds headers; it checks headers, not every
+symbol in them. The recognition / stereo batch added twelve (CRH
+alignment, trimmed ICP, ObjRecRANSAC, occlusion reasoning, ISM,
+LineRGBD, DOTMOD and its modality, the three stereo headers, FPFH's
+impl): all at 1.11 with the signatures the shims call. So were the
+extras' three (`agast_2d.h`, `texture_mapping.h`, the `.pclzf`
+YUV / Bayer reader-writers in `lzf_image_io.h`). And the VTK mesh
+batch's six (the four `vtk_smoothing/` classes, `vtk_lib_io.h`'s
+`load` / `savePolygonFile`, `poses_from_matches.h`). The KLT status
+getter was renamed in 1.12 (`getPointsToTrackStatus` returning
+PointIndices before); `tracking_args.h` branches on the version and
+both branches were compiled.
+
 ## C++ shims (src/pcl/compat/)
 
 Shims are the rung-4 escape hatch, and not only for version differences —
@@ -142,12 +176,259 @@ wrapper tracks `ParticleFilterOMPTracker` instead. Verified in plain C++
 against 1.14: the base reports (0,0,0) for a moving object, the OMP one
 follows it.
 
+`RandomizedRandomSampleConsensus` (`SAC_RRANSAC`) is a fourth, and a
+hang rather than a crash: its loop runs while `iterations_ < k` with `k`
+initialised to the largest double and only lowered once a candidate
+passes the pre-test, and the pre-test rejects a candidate as soon as ONE
+point of a random 10% subset is an outlier — so with any real outlier
+fraction no candidate ever passes and `max_iterations` is never
+consulted (read in `impl/rransac.hpp`; a plane with 20% outliers ran
+for ten minutes before being killed). `SampleConsensus` and
+`Segmentation.set_method_type` refuse the constant with that reason.
+
+Hypothesis verification has a quieter version of the same trap:
+`PapazovHV` iterates `complete_models_`, which `addModels()` only fills
+when occlusion reasoning is on, so called the obvious way it returns an
+EMPTY mask (measured in plain C++ against 1.14; GreedyVerification reads
+the visible models and is fine). `hypotheses_args.h` always passes the
+models as both. `GlobalHypothesesVerification` is past absorbing: its
+`addModel` keeps only the points whose normals are NOT finite (an
+inverted check, still on master), so it keeps every hypothesis — proven
+by patching that one line in a local copy, which makes it reject the
+wrong one. It is listed under "Not wrapped" in the README.
+
+`EarClipping` mis-triangulates most concave polygons (L, U and C shapes,
+both windings, jittered or not) while getting every convex one right.
+`surface_args.h` clips polygon by polygon and checks that the triangles
+tile the polygon, and the wrapper raises on a failure instead of
+returning triangles outside it. Same for the octree's ray casting:
+`max_voxel_count` is compared against each subtree's own count, so the
+result overshoots (3 voxels for a maximum of 2); the list is nearest
+first, so `octree_args.h` truncates it to what the limit means.
+
+Several more absorbed in the second surface/search batch, each a silent
+wrong answer otherwise: `BilateralUpsampling` never initialises its
+camera matrix (the wrapper always sets one, Kinect VGA by default);
+`SurfelSmoothing::computeSmoothedCloud` returns nothing at all when the
+normals are missing or mis-sized (the wrapper checks first);
+`NarfDescriptor`'s `support_size` defaults to -1 (the wrapper requires a
+positive one); `OrganizedNeighbor::setInputCloud` returns false for a
+non-projective cloud and then answers queries anyway (the wrapper
+raises).
+
+The remaining features added their own: `IntensitySpinEstimation` and
+`RIFTEstimation` have a fixed-size output type but settable bin counts,
+and a product above 20 / 32 writes past every histogram, so the
+wrappers take the bins only as a pair whose product fits; `ROPSEstimation`
+fixes its rotations at 3 for the same reason. `SHOTColorEstimation`
+packs whichever halves are enabled at the front of its 1344 values, so
+the wrapper returns exactly that width. `NormalBasedSignatureEstimation`
+is not wrapped at all: it divides by zero in its DFT and returns only
+NaN (0 of 18,000 values finite in plain C++; same on master). And the
+`PPFRGBEstimation` impl calls a function its header never includes,
+which `compat/ppfrgb.h` supplies.
+
+The second keypoint/filter batch: `HarrisKeypoint2D` runs the 3-D
+`Keypoint::initCompute`, which logs "init failed" and returns nothing
+unless a neighbour-search radius or k is set -- a parameter the 2-D
+detector never uses -- so the wrapper sets k = 1. `BRISK2DEstimation`
+erases border keypoints from the cloud it is given; the wrapper returns
+the survivors with the descriptors so the rows still line up.
+`HarrisKeypoint6D` is header-only and its OpenMP loops say
+`default(none)` without listing what they read, which GCC 9+ rejects
+(same on master); it lives in `_keypoints_serial`, built with the
+`PCL_WITHOUT_OPENMP` target property (top-level CMakeLists.txt) so the
+pragmas are ignored. `convolution_3d.h` uses `pcl::search::KdTree`
+without including it; `filter_args.h` includes it first.
+
+Compile-time, too: `OctreePointCloudVoxelCentroid::getVoxelCentroidAtPoint`
+in 1.14 calls a dependent-base member without `this->`, which two-phase
+lookup rejects, and PCL never instantiates the header-only class itself
+so nothing upstream notices. `octree_args.h` subclasses it and does the
+lookup correctly; the broken member is never instantiated.
+
+The registration batch: `PyramidFeatureHistogram` is a DENSE array --
+every level allocates the product of its per-dimension bin counts, so
+FPFH's 33 dimensions need 2^33 counters at two bins an axis (a
+`vector::_M_fill_insert` length error in practice) -- and `at()`
+indexes it with no bounds check, so a value outside the input range
+writes past the end. `compare_pyramid_feature_histograms` takes 1..16
+dimensions, caps the level-0 total and refuses out-of-range values.
+`CorrespondenceRejectorFeatures` does not compile in 1.14 (it calls a
+`getClassName()` its container lacks), the 2-D SAC registration pair
+needs a point type with x, y, z AND u, v that PCL does not define, and
+`SACMODEL_TORUS` / `PARALLEL_LINES` are enum values with no class: all
+four are listed in the README and refused where a constant reaches us.
+Two merely surprising ones are documented in the docstrings instead:
+`CorrespondenceEstimationOrganizedProjection` truncates the projected
+pixel coordinate, and `NormalDistributionsTransform2D` stays at the
+initial pose (reporting convergence) on zero-thickness structure,
+whose near-singular cell Gaussians give no gradient.
+
+The segmentation batch, each measured before it was absorbed:
+`EuclideanClusterComparator::setExcludeLabels` keeps ONLY the labels in
+its set (the 1.11 rewrite from `vector<bool>` inverted the test; still
+so on master), so `segmentation_args.h` probes which way the installed
+PCL reads it -- two coincident points, one label, that label in the
+set -- and passes the set or its complement. `extractLabeledEuclideanClusters`
+writes `labeled_clusters[label]` without sizing the vector, a segfault
+in plain C++ (still on master); the shim sizes it. `PlaneCoefficientComparator`'s
+constructor stores its 2-degree default as an angle where `compare()`
+wants the cosine, so the shim always goes through the setter.
+`GrabCut::setBackgroundPointsIndices` treats its indices as the possible
+FOREGROUND, the opposite of its name; the wrapper calls it
+`set_ForegroundRegion`. `segmentAndRefine` traces contours from the
+last inlier, which `refine()` no longer keeps in raster order (a
+refined wall ended on the image corner and got an empty contour); the
+shim re-traces from the raster-last one. `pcl::Kmeans` divides by an
+empty cluster's size, so `UnaryClassifier` training can return a NaN
+centre that then poisons the chi-square search; the wrapper replaces
+it with a duplicate centre of the same set. `CrfSegmentation` is not
+wrapped: its unary potentials land in the wrong slots and its output
+labels were wrong in every C++ run.
+
+The io batch: `saveIFSFile<PointXYZ>` writes `PCLPointCloud2::data`
+verbatim, PointXYZ's padding float included, while the reader takes 12
+bytes per vertex -- every point after the first comes back shifted
+(plain C++; same on master); `io_args.h` writes a packed blob through
+`IFSWriter` instead. `ImageGrabberBase::getCloudPCLZF` bounds-checks
+with `>` instead of `>=`; the shim checks first. And `ImageGrabber`
+projects each indexed frame with that frame's XML but never updates the
+intrinsics `getCameraIntrinsics` reports -- documented, not absorbed.
+PNG writing goes through VTK inside PCL and `png_io.h` is only installed
+when PCL had VTK, so the shim tests `__has_include` rather than the
+private `PCL_BUILT_WITH_VTK`.
+
+The octree / compression batch: `OctreePointCloudAdjacency::testForOcclusion`
+walks towards the camera casting `(p - min) / resolution` to unsigned
+keys, so once the walk leaves the bounding box -- whenever the camera
+is outside it, the usual case -- the keys wrap and hit unrelated voxels
+(plain C++: a point with nothing in front of it reported occluded; the
+same scene with the box stretched over the camera answers correctly).
+`octree_args.h` re-walks with the public calls and stops at the box.
+The same class resets its bounding box from the points on every
+`addPointsFromInputCloud`, so it gets no `define_bounding_box`.
+`OrganizedPointCloudCompression`'s decoder sets width / height and then
+fills the cloud with `push_back`, which resets the height to 1;
+`compression_args.h` restores the size from the stream header.
+
+The tracking batch: the OMP particle trackers set `changed_` only on
+their no-normals path, so `setUseNormal(true)` -- which normal coherence
+needs -- brings back the base class's dropped updates (plain C++: a box
+moved 8 cm reads 0.0000; 1.11 through master). `WeighingNormals` in
+`tracking_args.h` sets the flag after `weight()`. `PyramidalKLTTracker`
+had three faults, all in its two virtual stages (1.11 through master):
+level 0's gradients are padded twice and so read with the wrong stride,
+the Scharr gradients keep their 32x gain so every Lucas-Kanade step is
+1/32 long, and `track()` places windows at unpadded coordinates in
+padded images, `track_width * 2^level` pixels off. Stock PCL reports
+0.5-0.9 px for a 2 px shift; `CorrectedKLT` overrides `computePyramids`
+and `track` (PCL's code with those three fixed, plus a NaN guard on the
+3-D pairs) and is exact on whole-pixel shifts. `pyramidal_klt.h` also
+uses `InterpolationType` without including `pcl/common/io.h`; the shim
+includes it first.
+
+The recognition batch: `ImplicitShapeModelEstimation` casts its feature
+estimator to `FeatureFromNormals` and calls through the result unchecked
+(a spin-image estimator segfaults), its `alignYCoordWithNormal` divides
+by zero for a normal exactly along x or z (NaN votes reach the
+mean-shift kd-tree), it uses NaN normals as given, and `calculateSigmas`
+takes the largest dot product of two points as the object's size;
+`recognition_extra.h` fixes the estimator (FPFH into all 153 bins),
+cleans and tilts the normals, and passes diameter / 10.
+`implicit_shape_model.h` also includes an Eigen-internal header before
+`<Eigen/Core>`. `LineRGBD::createAndAddTemplate` takes its 3-D box from
+whatever cloud it is handed, so the shim hands it the masked points.
+DOTMOD's template size and anchor are pixels (undocumented) and it reads
+half a bin past the window; the wrapper refuses windows that do not fit.
+Its only modality, `ColorGradientDOTModality`, sets `constexpr float pi
+= std::tan(1.0f)*4` -- 6.23, halving every gradient angle -- and clang
+rejects that line where the template is defined, so the header cannot be
+included at all on macOS (GCC folds `std::tan` as an extension; found by
+the Homebrew build). `recognition_extra.h` carries the class copied with
+pi corrected (`ColourGradientDOT`); an explicit specialisation of the
+member would not help, the error is at definition. Before trusting a
+header-only PCL class, compile it with clang as well as GCC
+(`clang++ -fsyntax-only`, no OpenMP needed for that).
+ObjRecRANSAC prints progress on every call: `OBJ_REC_RANSAC_VERBOSE` is
+defined in its header, so it is compiled into pcl_recognition.
+
+The stereo batch: `DigitalElevationMapBuilder` can round a disparity
+just under the maximum into one histogram past the end;
+`stereo_args.h` drops those with the same float arithmetic first.
+
+The 2d / common / ml / outofcore batch: `pcl::Edge` declares six
+`computeDerivative*` members it never defines (a link error; the
+`DERIVATIVE_*` kernels give the same), and `detectEdgeLoG` only compiles
+with PointXYZI output. `Morphology`'s gray erosion / dilation use -1 as
+"nothing seen yet", so a pixel of exactly -1 is mishandled;
+`image2d_args.h` shifts negative images to non-negative and back (both
+operations commute with that). The LoG kernel is divided by its own sum,
+which tends to 0 as the kernel outgrows sigma -- documented, not
+absorbed. `SVMTrain::trainClassifier` calls `exit(1)` when libsvm
+rejects the parameters; `ml_args.h` runs `svm_check_parameter` first and
+raises instead, and frees the libsvm problem rows PCL leaks (ASan).
+`DenseCrf::mapInference` writes into a vector it never sizes.
+`estimateProjectionMatrix`'s `indices` defaults to `{}`, and the
+ConstCloudIterator it builds from that visits no point, so called as
+documented it returns P = [1 0 0 ...] with residual 0; `common_args.h`
+passes every index. In
+outofcore a freshly built tree answers every query with nothing (reads
+see only the node files, not the write buffers; 0 of 5,030 points), and
+`OutofcoreOctreeBase::flushToDisk` calls a node method that does not
+exist, so it has never compiled; `outofcore_args.h` closes and reopens
+the tree after each change, which flushes through the destructor.
+outofcore is optional at build time: PCL builds it only with VTK, and
+asking `find_package(PCL)` for it would make VTK REQUIRED, so the
+top-level CMakeLists.txt looks for the library and the VTK targets
+itself.
+
+The extras: `AgastKeypoint2D` builds its detector on the first
+`compute()` -- from that image's size and threshold -- and keeps it, so
+a later frame of another size is read with the first one's row length
+and `setThreshold` after the first call does nothing (plain C++ against
+1.14: a 120-wide frame after a 40-wide one, 0 corners where a fresh
+detector finds 4; threshold 150 on a contrast of 100 still finds 4; same
+code at 1.11). `keypoint_args.h` hands it a fresh detector of the chosen
+kind on every call. `TextureMapping` logs each camera at INFO and treats
+a principal point or focal length of exactly 0 as unset (`> 0` tests) --
+documented, not absorbed.
+
+The VTK mesh batch (`_vtk_mesh`, optional like outofcore: built where
+PCL installed `vtk_smoothing/` and `vtk_lib_io.h`, which it does only
+with VTK): `MeshSubdivisionVTK` and `MeshSmoothingWindowedSincVTK` hand
+`vtk...::New()` to a `vtkSmartPointer`, which takes a second reference,
+so every call leaks the filter and its output (ASan, 900-point grid:
+214 KB and 68 KB per call; 1.11 through master). `VTKUtils::vtk2mesh`
+dereferences the output's points unchecked, and VTK's Loop subdivision
+fails -- null points -- on any mesh with a vertex no face uses: a
+segfault in plain C++. `vtk_mesh_args.h` overrides both
+`performProcessing`s (VTK's `vtkSmartPointer<T>::New()`, a null check);
+Laplacian smoothing and decimation are PCL's own. `loadPolygonFile`
+returns 0 points rather than an error for a missing file. In io,
+`PCDGrabber` reads .tar archives of PCDs natively, but since 1.14
+`PCDReader::readHeader` accepts a header with zero points (1.11-1.13
+refused it), and the grabber's probe reads the archive itself as one
+such PCD: three clouds in a tar came back as one empty frame (plain
+C++, 1.14 and master). `_grabber.pyx` unpacks archives into a temporary
+directory instead. And `PosesFromMatches` documents `max_no_of_results
+= -1` as "all" only for its single-match estimator; the pair and
+triple ones stop once `added >= max_results`, so -1 returned the first
+hypothesis alone -- `common_args.h` passes INT_MAX.
+
 Not every quirk is worth absorbing, though. PCL's octree treats the FIRST
 point of a cloud specially: `voxelSearch` can miss it, and
 `getPointIndicesFromNewVoxels` reports index 0 as new even for an
 unchanged cloud. Both reproduce in plain C++ against 1.14.0. Nothing here
 papers over them — a wrapper that silently dropped index 0 would be lying
 about what PCL returned — so the tests document the behaviour instead.
+The root cause is where the grid goes: with no `defineBoundingBox`, PCL
+aligns it on the first point added, which then sits exactly on a voxel
+corner, so anything clustered around that point is split across up to
+eight voxels. `OctreePointCloudVoxelCentroid` and
+`OctreePointCloudDensity` expose `define_bounding_box` and say so in
+their docstrings; the tests place the first point away from the
+clusters they measure.
 
 And sometimes the bug is in the *documentation*: `pcl::people::HOG`'s
 `descriptor` out-parameter has no stated length, and a short buffer is a
@@ -160,6 +441,39 @@ tells you it is not your bug), then decide in the `.pyx` layer: absorb it
 when it would otherwise crash or silently no-op, document it when it is
 merely surprising.
 
+## Windows linking (MSVC against conda-forge PCL)
+
+`PCL_EXPORTS` is `__declspec(dllexport)` while PCL builds and EMPTY for
+everyone else, so a consumer reaches PCL's exported FUNCTIONS through
+the import library but can never link its static DATA (that needs
+`dllimport`). Anything that makes our module instantiate PCL inline code
+touching such data fails to link on Windows only. The live case:
+`RangeImageSpherical` has an inline constructor, so its vtable lands in
+our module, dragging in `RangeImage::getSubImage` / `getHalfImage` (not
+exported) and inline overrides that read the static lookup tables --
+Linux links it, MSVC cannot, and neither could any C++ program outside
+PCL. `range_image_args.h` refuses it under `_WIN32`. Before wrapping a
+PCL class with an inline constructor, check that every virtual it
+inherits is exported. A class with no `PCL_EXPORTS` at all is the plain
+case: `pcl::SVM` and PCL's bundled libsvm export nothing, so `_ml`
+failed to link on 12 SVM symbols while `Kmeans` / `DenseCrf` (marked)
+linked; `ml_args.h` compiles a throwing `SupportVectorMachine` under
+`_WIN32`. grep a header for `PCL_EXPORTS` before wrapping its
+non-template classes. Separately, MSVC needs `/bigobj` for the biggest
+generated modules (`src/pcl/CMakeLists.txt` sets it for all).
+
+## VTK leaks `kiss_fft_scalar=double`
+
+VTK's imported `VTK::kissfft` target carries
+`INTERFACE_COMPILE_DEFINITIONS kiss_fft_scalar=double`, and PCL's
+VTK-linked targets pass it to every module here. PCL ships its own
+kiss_fft in `pcl_common`, built with float, so any PCL header code that
+calls it from our side -- `CRHAlignment` -- passes double pairs to a
+float FFT. Same histograms: the right roll in plain C++, five wrong ones
+from Python. `src/pcl/CMakeLists.txt` adds `-Ukiss_fft_scalar` (MSVC
+`/U`) to every module -- options follow definitions on the command line
+-- and `recognition_extra.h` static_asserts the float layout.
+
 ## Cython traps found the hard way
 
 - **No comprehension or generator over a C++ reference.** Cython builds a
@@ -169,6 +483,10 @@ merely surprising.
   backtrace put it in the closure's `tp_new`.
 - Every `cdef` method needs a declaration in the type's `.pxd` once one
   exists, internal helpers included.
+- **No generator expression inside a fused-type function.** Cython 3
+  names the generator's closure after the specialisation without
+  mangling it (`..._result[ParticleTrackerT[PointXYZ] *]_genexpr`), and
+  the C++ does not compile. Loop into a list instead.
 
 ## Environment (relative/discovered only)
 

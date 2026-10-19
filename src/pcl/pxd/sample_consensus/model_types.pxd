@@ -23,4 +23,3 @@ cdef extern from "pcl/sample_consensus/model_types.h" namespace "pcl" nogil:
         SACMODEL_PARALLEL_PLANE = 15
         SACMODEL_NORMAL_PARALLEL_PLANE = 16
         SACMODEL_STICK = 17
-        SACMODEL_ELLIPSE3D = 18

@@ -186,26 +186,54 @@ aligned = source.transform(transform)      # or pcl.transform_cloud(source, m)
 A matrix that is not a rigid motion is rejected: PCL would apply a
 scaling or reflecting one silently and hand back a distorted cloud.
 
+All four of those *refine* a pose that is already roughly right. When
+there is no initial guess at all, align from FPFH descriptors first and
+hand the result to ICP:
+
+```python
+def describe(cloud):
+    normals = cloud.make_NormalEstimation(); normals.set_KSearch(15)
+    fpfh = cloud.make_FPFHEstimation()
+    fpfh.set_InputNormals(normals.compute_cloud())
+    fpfh.set_RadiusSearch(0.12)
+    return fpfh.compute()
+
+align = source.make_SampleConsensusPrerejective()
+align.set_MaxCorrespondenceDistance(0.05)      # cloud units; no default fits
+converged, transform, estimate, fitness = align.align(
+    source, describe(source), target, describe(target))
+
+converged, refined, _, _ = icp.icp(source.transform(transform), target)
+```
+
 ### Wrapped so far
 
 | area | classes |
 |---|---|
-| core | `PointCloud`, `pcl.load` / `pcl.save` (PCD, PLY, `.gz`), `cloud.transform` / `pcl.transform_cloud` |
-| point types | `PointCloud_PointXYZI`, `PointCloud_PointXYZRGB`, `PointCloud_PointXYZRGBA`, `PointCloud_Normal` (+ `pcl.load_XYZI` / `load_XYZRGB` / `load_XYZRGBA`) |
-| filters | `VoxelGridFilter`, `ApproximateVoxelGrid`, `PassThroughFilter`, `StatisticalOutlierRemovalFilter`, `RadiusOutlierRemoval`, `ExtractIndices`, `CropBox`, `ProjectInliers`, `RandomSample`, `UniformSampling`, `FastBilateralFilter`, `CropHull` |
-| keypoints | `HarrisKeypoint3D`, NARF (via `RangeImage.narf_keypoints`) |
-| range image | `RangeImage` (+ `pcl.CAMERA_FRAME` / `LASER_FRAME`) |
-| conditions | `ConditionAnd`, `ConditionalRemoval` (+ `pcl.CompareOp_*`) |
-| sample consensus | `RandomSampleConsensus` + `SampleConsensusModel{Plane,Line,Circle2D,Circle3D,Sphere,Stick}` |
-| search | `KdTreeFLANN`, `OctreePointCloudSearch`, `OctreePointCloudChangeDetector` |
-| features | `NormalEstimation`, `IntegralImageNormalEstimation`, `DifferenceOfNormalsEstimation`, `MomentOfInertiaEstimation`, `VFHEstimation`, `FPFHEstimation`, `SHOTEstimation` |
-| surface | `MovingLeastSquares`, `ConcaveHull`, `ConvexHull`, `GreedyProjectionTriangulation`, `pcl.save_mesh` / `pcl.load_mesh` (PLY, OBJ, VTK) |
-| registration | `IterativeClosestPoint`, `IterativeClosestPointNonLinear`, `GeneralizedIterativeClosestPoint`, `NormalDistributionsTransform` |
-| segmentation | `Segmentation` (SAC), `SegmentationNormal`, `EuclideanClusterExtraction`, `ProgressiveMorphologicalFilter`, `MinCutSegmentation`, `ConditionalEuclideanClustering` |
-| recognition | `GeometricConsistencyGrouping`, `Hough3DGrouping`, `pcl.match_descriptors` (FLANN) |
-| tracking | `ParticleFilterTracker` |
+| core | `PointCloud`, `pcl.load` / `pcl.save` (PCD, PLY, `.gz`; OBJ vertices read-only), `cloud.transform` / `pcl.transform_cloud` |
+| point types | `PointCloud_PointXYZI`, `PointCloud_PointXYZRGB`, `PointCloud_PointXYZRGBA`, `PointCloud_Normal`, `PointCloud_PointNormal`, `PointCloud_PointWithViewpoint` (+ `pcl.load_XYZI` / `load_XYZRGB` / `load_XYZRGBA` / `load_PointNormal` / `load_PointWithViewpoint`) |
+| filters | `VoxelGridFilter`, `ApproximateVoxelGrid`, `PassThroughFilter`, `StatisticalOutlierRemovalFilter`, `RadiusOutlierRemoval`, `ExtractIndices`, `CropBox`, `ProjectInliers`, `RandomSample`, `UniformSampling`, `FastBilateralFilter`, `CropHull`, `ShadowPoints`, `NormalSpaceSampling`, `SamplingSurfaceNormal`, `GridMinimum`, `LocalMaximum`, `FrustumCulling`, `MedianFilter`, `BilateralFilter`, `ModelOutlierRemoval`, `cloud.remove_nan()`, `FarthestPointSampling`, `CovarianceSampling`, `FastBilateralFilterOMP`, `NormalRefinement`, `VoxelGridLabel`, `VoxelGridCovariance`, `VoxelGridOcclusionEstimation`, `PlaneClipper3D`, `BoxClipper3D`, `Convolution3D` (Gaussian, + RGB), `Convolution` (2-D, + `pcl.BORDERS_POLICY_*`), `pcl.apply_morphological_operator` (+ `pcl.MORPH_*`) |
+| keypoints | `HarrisKeypoint3D`, `HarrisKeypoint6D` (RGB, serial), `ISSKeypoint3D`, `SIFTKeypoint` (RGB), `SUSANKeypoint` (RGB), `TrajkovicKeypoint3D`, `SmoothedSurfacesKeypoint`; on organized RGBA images `HarrisKeypoint2D`, `TrajkovicKeypoint2D` (+ `pcl.FOUR_CORNERS` / `EIGHT_CORNERS`), `AgastKeypoint2D` (AGAST 7_12s / 5_8, OAST 9_16; a fresh detector per frame, PCL keeps the first frame's), `BriskKeypoint2D` + `BRISK2DEstimation`; NARF (via `RangeImage.narf_keypoints`) |
+| range image | `RangeImage`, `RangeImagePlanar` (from a cloud or a depth image), `RangeImageSpherical` (not on Windows, see below), `RangeImageBorderExtractor` (+ `pcl.BORDER_TRAIT__*`), `NarfDescriptor` (+ `pcl.CAMERA_FRAME` / `LASER_FRAME`), `pcl.bearing_angle_image` / `bearing_angle` |
+| conditions | `ConditionAnd`, `ConditionOr` (nestable; field, `TfQuadraticXYZ`, packed RGB / HSI comparisons), `ConditionalRemoval` on XYZ, XYZRGB and XYZRGBA clouds (+ `pcl.CompareOp_*`) |
+| console | `pcl.set_verbosity_level` / `get_verbosity_level` (+ `pcl.L_ALWAYS` .. `L_VERBOSE`) |
+| sample consensus | `SampleConsensus` (RANSAC, LMedS, MSAC, RMSAC, MLESAC, PROSAC via `pcl.SAC_*`; RRANSAC refused, see below) / `RandomSampleConsensus` + `SampleConsensusModel{Plane,Line,Circle2D,Circle3D,Sphere,Stick,Cylinder,Cone,NormalPlane,NormalSphere,ParallelPlane,PerpendicularPlane,NormalParallelPlane,ParallelLine,Registration,Ellipse3D}` (TORUS / PARALLEL_LINES / REGISTRATION_2D refused, see below) |
+| search | `KdTreeFLANN`, `OrganizedNeighbor`, `BruteForceSearch`, `FlannSearch` (single / multi kd-tree, k-means index), `OctreePointCloudSearch` (+ ray casting: `get_intersected_voxel_centers` / `_indices`), `OctreePointCloudChangeDetector`, `OctreePointCloudVoxelCentroid`, `OctreePointCloudDensity`, `OctreePointCloudOccupancy`, `OctreePointCloudPointVector`, `OctreePointCloudSinglePoint`, `OctreePointCloudAdjacency` (voxel graph, occlusion test) |
+| compression | `OctreePointCloudCompression` / `OctreePointCloudCompressionRGB` (bytes in, bytes out; the `pcl.*_COMPRESSION_*` profiles), `OrganizedPointCloudCompression` (depth + colour images, organized clouds; only where PCL was built with libpng) |
+| features | `NormalEstimation`, `IntegralImageNormalEstimation`, `DifferenceOfNormalsEstimation`, `MomentOfInertiaEstimation`, `VFHEstimation`, `CVFHEstimation`, `ESFEstimation`, `FPFHEstimation`, `PFHEstimation`, `SHOTEstimation`, `BoundaryEstimation`, `PrincipalCurvaturesEstimation`, `RSDEstimation`, `GRSDEstimation`, `SpinImageEstimation`, `GASDEstimation` / `GASDColorEstimation`, `OURCVFHEstimation`, `CRHEstimation`, `MomentInvariantsEstimation`, `NormalEstimationOMP`, `FPFHEstimationOMP`, `SHOTEstimationOMP`, `SHOTColorEstimation` (+ OMP), `PFHRGBEstimation`, `ShapeContext3DEstimation`, `UniqueShapeContext`, `PPFEstimation`, `PPFRGBEstimation`, `CPPFEstimation`, `SHOTLocalReferenceFrameEstimation` (+ OMP), `BOARDLocalReferenceFrameEstimation`, `FLARELocalReferenceFrameEstimation`, `IntensityGradientEstimation`, `IntensitySpinEstimation`, `RIFTEstimation`, `LinearLeastSquaresNormalEstimation`, `OrganizedEdgeBase` / `FromNormals` / `FromRGB` / `FromRGBNormals` (+ `pcl.EDGELABEL_*`), `GFPFHEstimation`, `ROPSEstimation`, `StatisticalMultiscaleInterestRegionExtraction`, `MultiscaleFeaturePersistence` (FPFH, + `pcl.NORM_*`), `pcl.compute_approximate_normals`, `pcl.compute_pair_features` |
+| surface | `MovingLeastSquares`, `ConcaveHull`, `ConvexHull`, `GreedyProjectionTriangulation`, `Poisson`, `MarchingCubesHoppe`, `MarchingCubesRBF`, `GridProjection`, `OrganizedFastMesh` (+ `pcl.TRIANGLE_*` / `QUAD_MESH`), `BilateralUpsampling`, `SurfelSmoothing`, `EarClipping`, `SimplificationRemoveUnusedVertices`, `pcl.texture_mesh_with_cameras` (TextureMapping: which camera textures each face, and its UVs), `pcl.save_mesh` / `pcl.load_mesh` (PLY, OBJ, VTK; STL where PCL has VTK); where PCL was built with VTK also `MeshSmoothingLaplacianVTK`, `MeshSmoothingWindowedSincVTK`, `MeshSubdivisionVTK` (linear, Loop, butterfly), `MeshQuadricDecimationVTK` |
+| registration | `IterativeClosestPoint`, `IterativeClosestPointNonLinear`, `GeneralizedIterativeClosestPoint`, `NormalDistributionsTransform`, `IterativeClosestPointWithNormals`, `SampleConsensusPrerejective` / `SampleConsensusInitialAlignment` / `FPCSInitialAlignment` / `KFPCSInitialAlignment` (global), and the correspondence pipeline as functions: `pcl.estimate_correspondences`, `reject_one_to_one` / `reject_by_distance` / `reject_median_distance` / `reject_trimmed` / `reject_sample_consensus` / `reject_surface_normal`, `estimate_transformation` (SVD, LM, dual quaternion, SVD with scale, 2-D, three-point), `estimate_transformation_point_to_plane` (LM, linear least squares, weighted, symmetric), `estimate_correspondences_normal_shooting` / `_back_projection` / `_organized_projection`, `reject_var_trimmed` / `reject_poly` / `reject_organized_boundary`, `validate_transformation`; `GeneralizedIterativeClosestPoint6D`, `NormalDistributionsTransform2D`, `JointIterativeClosestPoint`, `PPFRegistration`, `IncrementalRegistration`, `MetaRegistration`, `LUM`, `ELCH`, `pcl.compare_pyramid_feature_histograms` |
+| segmentation | `Segmentation` (SAC), `SegmentationNormal`, `EuclideanClusterExtraction`, `ProgressiveMorphologicalFilter`, `MinCutSegmentation`, `ConditionalEuclideanClustering`, `RegionGrowing`, `RegionGrowingRGB`, `ExtractPolygonalPrismData`, `SegmentDifferences`, `ApproximateProgressiveMorphologicalFilter`, `SeededHueSegmentation`, `OrganizedMultiPlaneSegmentation`, `SupervoxelClustering` / `SupervoxelClusteringXYZ` (+ `.lccp()` / `.cpc()` for LCCP / CPC segmentation), `OrganizedMultiPlaneSegmentation.segment_and_refine()`, `OrganizedConnectedComponentSegmentation` with `EuclideanClusterComparator`, `PlaneCoefficientComparator`, `EuclideanPlaneCoefficientComparator`, `EdgeAwarePlaneComparator`, `GroundPlaneComparator`, `RGBPlaneCoefficientComparator`, `LabeledEuclideanClusterExtraction`, `GrabCut`, `UnaryClassifier`, `pcl.random_walker` |
+| recognition | `GeometricConsistencyGrouping`, `Hough3DGrouping`, `GreedyVerification`, `PapazovHV`, `pcl.match_descriptors` (FLANN), `CRHAlignment` (roll candidates from two CRH histograms), `TrimmedICP`, `pcl.occlusion_filter` / `get_occluded_cloud` (against an organized scene), `ObjRecRANSAC`, `ImplicitShapeModelEstimation` (FPFH words; train, find, save / load), `LineRGBD` (LINEMOD on colour gradients + normals, + semi-scale-invariant detection), `DOTMOD` (with PCL's colour-gradient DOT modality corrected: it uses pi = 4 tan 1 and does not compile with clang) |
+| 2d | `pcl.image_kernel` (Sobel, Prewitt, Roberts, derivatives, Gaussian, LoG), `pcl.image_convolve` (correlation; clamp / mirror / zero borders), `pcl.image_edges` (Sobel / Prewitt / Roberts gradients), `pcl.image_canny`, `pcl.image_log`, `pcl.image_morphology` (gray and binary erosion / dilation / opening / closing), `pcl.image_binary_operation`, `pcl.structuring_element` |
+| common | `PCA`, `pcl.line_line_intersection` / `plane_plane_intersection` / `three_planes_intersection`, `pcl.histogram_distance` (all 13 of norms.h), `pcl.transformation_from_correspondences` (weighted), `pcl.estimate_projection_matrix` (P and K of an organized cloud), `pcl.poses_from_matches` (PosesFromMatches: pose hypotheses from 1, 2 or 3 6-DoF matches) |
+| ml | `pcl.kmeans`, `SVM` (libsvm: C / nu / one-class / regression, train, classify with probabilities, save / load) (not on Windows, see below), `DenseCrf` (Gaussian and bilateral pairwise terms, MAP and marginals) |
+| outofcore | `OutofcoreOctree` (create / open a disk-backed octree, add, box queries, voxel centres, level of detail) -- only where PCL has outofcore, which it builds only with VTK |
+| stereo | `BlockBasedStereoMatching`, `AdaptiveCostSOStereoMatching` (disparity map, organized cloud with or without colour, median filter), `pcl.disparity_to_cloud` (+ intensity), `pcl.digital_elevation_map` |
+| tracking | `ParticleFilterTracker`, `KLDAdaptiveParticleFilterTracker` (on `PointCloud`, on `PointCloud_PointXYZRGBA` with `add_HSVColorCoherence`, on `PointCloud_PointNormal` with `add_NormalCoherence`; `exact_coherence` for kd-tree instead of voxel pairing), `PyramidalKLTTracker` (pixels across organized colour frames + the rigid motion they imply; PCL's own barely moves a point, so it runs with its gradients and window placement corrected) |
 | people | `pcl.hog` / `pcl.hog_descriptor_size` |
-| sensors | `PCDGrabber`, `HDLGrabber` |
+| sensors | `PCDGrabber` (files, a directory or a .tar of PCD files), `HDLGrabber`, `VLPGrabber` (both replaying a .pcap), `ImageGrabber` (a directory of depth + colour images, PNG / TIFF or .pclzf, read by index) |
+| io | `pcl.load` / `pcl.save` for PCD, PLY, OBJ (vertices), IFS and x-y-z text (`pcl.load_ascii` for other separators); `pcl.load_mesh` for PLY, OBJ, IFS; `pcl.load_polygon_file` / `save_polygon_file` (STL, VTK, PLY, OBJ through VTK, where PCL has it); `pcl.save_png`, `pcl.extract_image` (z / rgb / normal / curvature / intensity of an organized cloud), `pcl.label_image`, `pcl.lzf_compress` / `lzf_decompress`, `.pclzf` files (`write_pclzf_depth` / `_rgb` / `_yuv422` / `_bayer8` / `_parameters`, `read_pclzf_depth`, `read_pclzf_image` for any colour format, `read_pclzf`), `pcl.debayer` |
 
 The built artifacts are native extension modules (`_pointcloud`,
 `_filters`, `_kdtree`, `_segmentation`; `.so` on Linux/macOS, `.pyd` on
@@ -213,16 +241,205 @@ Windows) installed into the `pcl` package.
 
 ### Not wrapped, and why
 
-- **`pcl/visualization`** — needs VTK development headers, which turns a
-  `pip install` into a VTK build. Everything here works headless; render
-  with whatever the caller already has (matplotlib, Open3D, `pcl_viewer`).
+- **`pcl/visualization`** — a VTK rendering front end (windows, an
+  interactor loop, OpenGL); everything here works headless. Render with
+  whatever the caller already has (matplotlib, Open3D, `pcl_viewer`).
+  The parts of PCL that only *compute* through VTK — mesh smoothing,
+  subdivision, decimation, STL files, the out-of-core octree — are
+  wrapped where PCL was built with VTK.
 - **The rest of `pcl/people`** — `person_cluster.h` does an unconditional
   `#include <pcl/visualization/pcl_visualizer.h>`, so `PersonCluster`,
   `HeightMap2D`, `HeadBasedSubclustering` and
-  `GroundBasedPeopleDetectionApp` all inherit the VTK dependency above.
+  `GroundBasedPeopleDetectionApp` (and `PersonClassifier`, which takes
+  a `PersonCluster`) all inherit the VTK rendering dependency above.
   `GroundBasedPeopleDetectionApp` additionally needs a trained SVM file
   that this package cannot ship. `HOG` includes only `point_types.h`, so
   it is wrapped.
+- **`SAC_RRANSAC`** — PCL 1.14's `RandomizedRandomSampleConsensus` never
+  returns on data with outliers: its pre-test rejects a candidate as soon
+  as one point of a random 10% subset is an outlier, and the loop bound
+  is only lowered once a candidate passes, so `max_iterations` is never
+  consulted (reproduced on a plane with 20% outliers; the process had to
+  be killed). `SampleConsensus` and `Segmentation.set_method_type` refuse
+  it with that reason. `SAC_RMSAC` shares the pre-test but does stop.
+- **`GlobalHypothesesVerification`** — keeps every hypothesis it is
+  given. Its `addModel` filters the model's points with the NaN check
+  inverted (`if (isNormalFinite(...)) continue;`, still so on PCL master),
+  keeping only the points whose normal could NOT be estimated, so a
+  well-sampled hypothesis is reduced to nothing and every one costs the
+  same. Measured in plain C++ against 1.14: a model floating in empty
+  space is kept; with only that line fixed, it is rejected.
+  `GreedyVerification` and `PapazovHV` are wrapped and get it right.
+- **`NormalBasedSignatureEstimation`** — returns only NaN. Its DFT step
+  evaluates `cos(2π / (N·k·n))`, a division by zero for the `n = 0`
+  term of every coefficient (the arguments are inverted; the DCT step
+  has the same slip, and `(k + 1) / N_` is integer division). Measured
+  in plain C++ against 1.14: 0 of 18,000 values finite on a sphere with
+  exact normals. Still so on PCL master.
+- **`ZBuffering`** (`pcl/recognition/hv/occlusion_reasoning.h`) — keeps
+  the wrong points. `computeDepthMap` fills `(w/2 - 0.5) * (h/2 - 0.5)`
+  of its `w * h` buffer with NaN and leaves the rest uninitialised, and
+  it reads `depth_[u * h + v]` but writes `depth_[u * w + v]`, so for a
+  non-square image the writes land in other cells (or past the end, if
+  the garbage happens to let them through). Measured in plain C++
+  against 1.14: a 64 x 48 wall with 96 model points in front of it kept
+  21. The organized-scene functions in the same header (`filter`,
+  `getOccludedCloud`) are wrapped as `pcl.occlusion_filter` /
+  `pcl.get_occluded_cloud`.
+- **`RFFaceDetectorTrainer`** (`pcl/recognition/face_detection`) — trains
+  only from a directory of posed head views read by
+  `FaceDetectorDataProvider`, and detects only with a forest trained
+  that way; there is no such dataset here to train or test against.
+- **`StereoGrabber`** — publishes nothing: `readAhead()` has the read of
+  each image pair commented out and `valid_` is never set (1.14 and
+  master). `BlockBasedStereoMatching` / `AdaptiveCostSOStereoMatching`
+  take the image pairs directly.
+- **`CorrespondenceRejectorFeatures`** — does not compile in PCL 1.14
+  for any feature type: its nested `FeatureContainer` calls a
+  `getClassName()` it does not have (fixed on master).
+  `reject_sample_consensus` and `pcl.match_descriptors` cover the
+  feature-gated rejection it would add.
+- **`CorrespondenceRejectorSampleConsensus2D`, `SACMODEL_REGISTRATION_2D`**
+  — they read `.u` and `.v` from points that also need `x, y, z`, and
+  PCL defines no point type with both, so there is nothing to
+  instantiate them on. `SampleConsensusModel` refuses the constant.
+- **`SACMODEL_TORUS`, `SACMODEL_PARALLEL_LINES`** — values of PCL's
+  `SacModel` enum with no model class behind them anywhere in PCL.
+  `SampleConsensusModel` refuses both with that reason.
+- **Live sensors** — `OpenNIGrabber`, `OpenNI2Grabber`, `ONIGrabber`,
+  `RealSenseGrabber`, `DinastGrabber`, `EnsensoGrabber`,
+  `DavidSDKGrabber`, `FotonicGrabber`, `RobotEyeGrabber`, `TimGrabber`
+  and the live-network `HDLGrabber` / `VLPGrabber` constructors each
+  need a device (or its vendor SDK at build time), so nothing here could
+  test them; `ONIGrabber` replays `.oni` files but only through the
+  OpenNI 1 runtime. Recorded data is covered: `.pcap` through
+  `HDLGrabber` / `VLPGrabber` (tested on a synthetic VLP-16 capture),
+  depth + colour images and `.pclzf` through `ImageGrabber`, PCD
+  sequences through `PCDGrabber`.
+- **The rest of `pcl/io/vtk_lib_io.h`** — the point-cloud / range-image
+  / texture-mesh converters to and from `vtkPolyData` hand VTK objects
+  across, which a numpy caller has no use for. Its mesh files are
+  wrapped (`pcl.load_polygon_file` / `save_polygon_file`, and STL in
+  `pcl.save_mesh` / `load_mesh`) where PCL has VTK; without VTK, PLY,
+  OBJ, IFS and the legacy VTK writer still cover meshes.
+- **`RangeImageSpherical` on Windows** — its constructor is inline, so
+  its vtable is built in the caller's module, and that vtable needs
+  `RangeImage::getSubImage` / `getHalfImage` (not exported from
+  `pcl_common`) plus inline overrides reading `RangeImage`'s static
+  lookup tables, which no module outside PCL can link there
+  (`PCL_EXPORTS` is empty for consumers, so data never gets `dllimport`).
+  Measured: the MSVC link fails on exactly those five symbols. The class
+  raises `RuntimeError` on Windows; Linux and macOS have it.
+- **`SVM` on Windows** — neither `pcl::SVM` / `SVMTrain` / `SVMClassify`
+  nor the libsvm copy built into `pcl_ml` is marked `PCL_EXPORTS` (1.11
+  through master), and a Windows DLL exports only what is marked, so no
+  module outside PCL can link them: the MSVC link of `_ml` failed on 12
+  unresolved externals, all SVM or libsvm. `pcl.SVM()` raises
+  `RuntimeError` on Windows; `pcl.kmeans` and `DenseCrf` are exported and
+  work there.
+- **`CrfSegmentation`** — returns wrong labels. Its unary potentials
+  put each annotated point's energy in slot `labels.size()` (the number
+  of distinct labels seen so far) instead of that label's own slot, and
+  the output reads `labels[r[i]]` past the end of the label list. Measured
+  in plain C++ against 1.14 on two coloured blobs annotated 2 and 5: the
+  first came back all 0, the second mostly 0 and partly 2. Unset kernel
+  parameters are uninitialised (an Eigen assertion aborts the process in
+  `Permutohedral::init`), and it writes progress lines to stdout.
+- **`CrfNormalSegmentation`** — `segmentPoints()` has an empty body.
+- **`PlanarPolygonFusion`** — `addInputPolygons` only appends to a
+  protected vector and nothing reads it back; there is no fusion to call.
+  `segment_and_refine()` returns the planar regions it would be fed.
+- **`OctreePointCloud2Buf`** (python-pcl's double-buffered octree) — its
+  one use, finding the voxels that are new since the previous frame, is
+  what `OctreePointCloudChangeDetector` wraps; the second buffer is an
+  implementation detail of that. The base `OctreePointCloud` methods
+  python-pcl exposes (`is_voxel_occupied_at_point`,
+  `delete_voxel_at_point`, `get_occupied_voxel_centers`, ...) live on
+  `OctreePointCloudSearch` here.
+
+### Everything else in PCL's headers
+
+Every class and struct declared in PCL 1.14's installed headers was
+checked against this package. Beyond the entries above, what is left is
+one of these:
+
+- **Applications, not library API** — `pcl/apps` (the point-cloud
+  editor's tools and commands, `DominantPlaneSegmentation`,
+  `RenderViewsTesselatedSphere`), `pcl/in_hand_scanner` and
+  `pcl/modeler` are Qt / OpenGL programs and their widgets.
+  `DominantPlaneSegmentation` is a chain of wrapped parts (voxel grid,
+  SAC plane, `ExtractPolygonalPrismData`, `EuclideanClusterExtraction`);
+  `RenderViewsTesselatedSphere` renders through VTK.
+- **`pcl/gpu`, `pcl/cuda`, `pcl/simulation`** — Ubuntu's `libpcl-dev`
+  installs none of their headers, and they need a CUDA device or an
+  OpenGL context to run at all.
+- **Base classes and the working parts of wrapped algorithms** —
+  `PCLBase`, the `Feature*` bases, `FilterIndices`, `SHOTEstimationBase`,
+  the surface bases (`PCLSurfaceBase`, `SurfaceReconstruction`,
+  `MeshConstruction`, `MeshProcessing`, `CloudSurfaceProcessing`),
+  `CorrespondenceEstimationBase`, `GrayStereoMatching`,
+  `AgastKeypoint2DBase`, `PCDGrabberBase`, `FileGrabber`; and inside
+  them MLS's `MLSResult` / `MLSVoxelGrid`, BRISK's scale space and
+  sampling pattern, GrabCut's `BoykovKolmogorov` max-flow and
+  `GaussianFitter`, the supervoxel / LCCP graph types, CPC's
+  `WeightedRandomSampleConsensus`, LINEMOD's modalities, energy maps and
+  quantized templates (driven through `LineRGBD`), ObjRecRANSAC's ORR
+  octree, model library, hypotheses and rotation space, Hough 3-D's
+  vote space, ISM's vote lists, the verifiers' `RecognitionModel`s,
+  DenseCrf's pairwise potentials and permutohedral lattice, outofcore's
+  nodes, metadata and iterators, the HDL packet structs, PPF's hash and
+  vote types, the LUM / ELCH graph vertices. Nothing a caller builds.
+- **Optimisers and functors** — `BFGS` (+ `PolynomialSolver`), the
+  Levenberg–Marquardt `OptimizationFunctor`s and the
+  `WarpPointRigid` / `3D` / `6D` parameterisations they optimise over,
+  `DefaultConvergenceCriteria` (the registration classes' iteration and
+  epsilon setters configure it), SAC-IA's error functions, the SAC
+  models' fitting functors.
+- **Octree internals** — the node, container and iterator classes
+  (branch / leaf nodes, index containers, depth-first, breadth-first,
+  fixed-depth and leaf iterators) and `Octree2BufBase` (see above): C++
+  traversal, where the wrapped octrees return what a traversal computes —
+  occupied voxel centres, per-voxel indices, bounds, depth.
+- **Compression stages** — `PointCoding`, `ColorCoding`,
+  `OrganizedConversion` and the range coders inside the two wrapped
+  compressors. `StaticRangeCoder` / `AdaptiveRangeCoder` are
+  general-purpose entropy coders over bytes, which `zlib` and `lzma`
+  already are.
+- **Half-edge meshes** (`pcl/geometry`: `TriangleMesh`, `QuadMesh`,
+  `PolygonMesh`, `MeshBase`, the circulators, `MeshIO`) — a C++ data
+  structure whose per-element data and manifoldness are compile-time
+  traits; every mesh function here takes and returns vertices plus
+  index tuples instead. `LineIterator` and `OrganizedIndexIterator` walk
+  an organized image's pixels, which is numpy indexing.
+- **Decision forests and ferns** (`pcl/ml`: the `DecisionForest`,
+  `DecisionTree` and `Fern` trainers and evaluators, `MultiChannel2D*`,
+  the branch and statistics estimators) — a template framework
+  instantiated with C++ feature handlers, data providers and statistics;
+  the one concrete set PCL ships, pixel-pair comparisons on multichannel
+  images, exists for `RFFaceDetectorTrainer` (above). scikit-learn's
+  forests fill that role for a Python caller.
+- **Helpers numpy or the standard library already is** — `VectorAverage`
+  (`np.mean`, `np.cov`, `np.linalg.eigh`), `CentroidPoint`,
+  `CloudGenerator` and the random generators (`np.random`),
+  `PiecewiseLinearFunction` (`np.interp`), `BivariatePolynomialT` /
+  `PolynomialCalculationsT` (`numpy.polynomial`), `ColorLUT`,
+  `StopWatch` / `ScopeTime` / `EventFrequency` / `TimeTrigger` / `TicToc`
+  (`time`, `threading.Timer`), `Synchronizer` (pairs two timestamped C++
+  streams), `IntegralImage2D` (`np.cumsum` twice), `FunctorFilter`
+  (`filters/experimental`: a C++ predicate per point — a boolean mask
+  over `to_array()`), the point representations (feature-space layouts
+  for C++ kd-trees; the searches and `pcl.match_descriptors` here take
+  float arrays), `PointCorrespondence3D`, cloud iterators, field mappers
+  and conversion functors.
+- **Readers and writers as classes** — `PCDReader` / `PCDWriter`,
+  `PLYReader` / `PLYWriter`, `OBJReader` / `MTLReader`, `IFSReader`,
+  `LZFImageWriter` and the image wrappers (`ImageRGB24`, `ImageYUV422`,
+  `IRImage`, ...) are reached through `pcl.load` / `pcl.save` and the
+  `.pclzf` functions; `TARHeader` through `PCDGrabber`'s .tar support.
+- **Exceptions** — PCL's exception classes surface as Python exceptions
+  (`RuntimeError`, through Cython's `except +`).
+- **Live-sensor drivers** — the OpenNI / OpenNI2 device, driver and
+  frame-listener classes behind the live grabbers listed above.
 
 ## Performance
 
