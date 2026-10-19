@@ -54,7 +54,7 @@ def test_array_roundtrip(cls, cols):
     cloud = cls(values)
     assert cloud.size == len(values)
     assert cloud.to_array() == pytest.approx(values, abs=1e-6)
-    assert cloud.to_list() == pytest.approx(values.tolist(), abs=1e-6)
+    assert np.asarray(cloud.to_list()) == pytest.approx(values, abs=1e-6)
 
 
 @pytest.mark.parametrize("cls,cols", TYPES)
