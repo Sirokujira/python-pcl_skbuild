@@ -277,6 +277,7 @@ from ._common import (
     histogram_distance,
     line_line_intersection,
     plane_plane_intersection,
+    poses_from_matches,
     three_planes_intersection,
     transformation_from_correspondences,
 )
@@ -284,6 +285,14 @@ from ._ml import SVM, DenseCrf, kmeans
 try:
     # built only where PCL has outofcore (it needs VTK); see CMakeLists.txt
     from ._outofcore import OutofcoreOctree
+except ImportError:
+    pass
+try:
+    # built only where PCL has VTK; see CMakeLists.txt
+    from ._vtk_mesh import (MeshQuadricDecimationVTK,
+                            MeshSmoothingLaplacianVTK,
+                            MeshSmoothingWindowedSincVTK, MeshSubdivisionVTK,
+                            load_polygon_file, save_polygon_file)
 except ImportError:
     pass
 from ._tracking import (ParticleFilterTracker, KLDAdaptiveParticleFilterTracker,
@@ -634,7 +643,8 @@ __all__ = [
     "image_kernel", "image_log", "image_morphology", "structuring_element",
     "PCA", "estimate_projection_matrix", "histogram_distance",
     "line_line_intersection", "plane_plane_intersection",
-    "three_planes_intersection", "transformation_from_correspondences",
+    "poses_from_matches", "three_planes_intersection",
+    "transformation_from_correspondences",
     "SVM", "DenseCrf", "kmeans", "texture_mesh_with_cameras",
     "read_pclzf_image", "write_pclzf_bayer8", "write_pclzf_yuv422",
     "KLDAdaptiveParticleFilterTracker",
@@ -711,6 +721,12 @@ __all__ = [
 ]
 if "OutofcoreOctree" in globals():
     __all__.append("OutofcoreOctree")
+for _name in ("MeshSmoothingLaplacianVTK", "MeshSmoothingWindowedSincVTK",
+              "MeshSubdivisionVTK", "MeshQuadricDecimationVTK",
+              "load_polygon_file", "save_polygon_file"):
+    if _name in globals():
+        __all__.append(_name)
+del _name
 
 __version__ = "0.1.0"
 

@@ -42,4 +42,12 @@ double estimateProjectionMatrix(
     const std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>& cloud,
     float* projection12, float* camera9);
 
+void posesFromMatches(const std::vector<float>& points1,
+                      const std::vector<float>& points2,
+                      const std::vector<float>& poses,
+                      const std::vector<float>& distances, int size,
+                      int max_tested, int max_results, float max_distance_error,
+                      std::vector<float>& out_poses, std::vector<float>& out_scores,
+                      std::vector<int>& out_indices);
+
 }  // namespace pclcompat

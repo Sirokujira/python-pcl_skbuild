@@ -70,6 +70,15 @@ if(PCL_HAVE_OUTOFCORE)
     python_extension_module(_outofcore)
     install(TARGETS _outofcore LIBRARY DESTINATION src/pcl)
 endif()
+if(PCL_HAVE_VTK_MESH)
+    add_cython_target(_vtk_mesh CXX PY3)
+    add_library(_vtk_mesh MODULE ${_vtk_mesh})
+    target_compile_options(_vtk_mesh PRIVATE ${PCL_CYTHON_COMPILE_OPTIONS})
+    target_link_libraries(_vtk_mesh ${PCL_LIBRARIES} VTK::FiltersModeling
+                          VTK::FiltersCore VTK::CommonExecutionModel)
+    python_extension_module(_vtk_mesh)
+    install(TARGETS _vtk_mesh LIBRARY DESTINATION src/pcl)
+endif()
 
 # Modules compiled WITHOUT OpenMP: header-only PCL code whose OpenMP
 # pragmas do not compile on current compilers -- see

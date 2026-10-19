@@ -1,8 +1,8 @@
 # distutils: language = c++
 # cython: language_level=3
 """pcl/common algorithms: PCA, line / plane intersections, the histogram
-norms, TransformationFromCorrespondences and projection-matrix
-estimation.
+norms, TransformationFromCorrespondences, projection-matrix
+estimation and PosesFromMatches.
 
 The rest of pcl/common -- centroids, covariance, min / max, distances,
 angles, random clouds, colour tables -- is a line of numpy each and is
@@ -15,7 +15,7 @@ from libcpp.vector cimport vector
 
 from pcl.pxd.compat.common_args cimport (
     PrincipalComponents, estimateProjectionMatrix, histogramNorm,
-    lineWithLine, planeWithPlane, threePlanes,
+    lineWithLine, planeWithPlane, posesFromMatches, threePlanes,
     transformationFromCorrespondences)
 from pcl.pxd.point_cloud cimport PointCloud as cPointCloud
 from pcl.pxd.point_types cimport PointXYZ
@@ -207,3 +207,65 @@ def estimate_projection_matrix(PointCloud cloud not None):
     cdef float[::1] vk = k
     residual = estimateProjectionMatrix(cloud.thisptr_shared, &vp[0], &vk[0])
     return p.reshape(3, 4), k.reshape(3, 3), float(residual)
+
+
+def poses_from_matches(points1, points2, poses, distances, int size=3,
+                       int max_tested_combinations=1000, int max_results=-1,
+                       double max_distance_error=0.2):
+    """Pose hypotheses from 6-DoF matches (pcl::PosesFromMatches), e.g.
+    NARF features matched between a scene and a model.
+
+    Match i pairs ``points1[i]`` (scene) with ``points2[i]`` (model) and
+    carries ``poses[i]``, the 4 x 4 transform taking model coordinates to
+    scene coordinates that the match alone implies; ``distances[i]`` is
+    its descriptor distance. PCL expects the matches sorted best first.
+    `size` is how many matches each hypothesis is built from:
+
+    * 1 -- every match's own pose, as given;
+    * 2 -- pairs whose point distances agree within
+      `max_distance_error` (a fraction) in both clouds, also along each
+      match's own axes, fitted to all of that;
+    * 3 -- triples whose three pairwise distances agree, fitted to the
+      three point pairs (the poses are not used).
+
+    Pairs and triples are tried best first, at most
+    `max_tested_combinations` of them; `max_results` < 0 keeps every
+    hypothesis. Returns a list of ``(pose, score, matches)``: the 4 x 4
+    float32 transform, the mean distance of the matches used (PCL calls
+    it a score, but lower is better) and their indices."""
+    import numpy as np
+    p1 = np.ascontiguousarray(points1, dtype=np.float32)
+    p2 = np.ascontiguousarray(points2, dtype=np.float32)
+    t = np.asarray(poses, dtype=np.float32)
+    d = np.ascontiguousarray(distances, dtype=np.float32).ravel()
+    n = len(d)
+    if p1.shape != (n, 3) or p2.shape != (n, 3) or t.shape != (n, 4, 4):
+        raise ValueError("need (n, 3) points1 and points2, (n, 4, 4) poses "
+                         "and n distances")
+    if size not in (1, 2, 3):
+        raise ValueError("size must be 1, 2 or 3")
+    if max_tested_combinations < 1 or max_distance_error < 0:
+        raise ValueError("max_tested_combinations must be >= 1 and "
+                         "max_distance_error >= 0")
+    if not (np.isfinite(p1).all() and np.isfinite(p2).all()
+            and np.isfinite(t).all() and np.isfinite(d).all()):
+        raise ValueError("matches must be finite")
+    cdef vector[float] v1 = p1.ravel().tolist()
+    cdef vector[float] v2 = p2.ravel().tolist()
+    cdef vector[float] vt = np.transpose(t, (0, 2, 1)).ravel().tolist()
+    cdef vector[float] vd = d.tolist()
+    cdef vector[float] out_poses, out_scores
+    cdef vector[int] out_indices
+    with nogil:
+        posesFromMatches(v1, v2, vt, vd, size, max_tested_combinations,
+                         max_results, max_distance_error, out_poses,
+                         out_scores, out_indices)
+    all_poses = np.asarray(out_poses, dtype=np.float32).reshape(-1, 4, 4)
+    result = []
+    cdef Py_ssize_t i, k
+    for i in range(<Py_ssize_t> out_scores.size()):
+        used = []
+        for k in range(size):
+            used.append(out_indices[i * size + k])
+        result.append((all_poses[i].T.copy(), float(out_scores[i]), used))
+    return result

@@ -30,3 +30,5 @@ cdef extern from "pcl/compat/common_args.h" namespace "pclcompat" nogil:
     void transformationFromCorrespondences(const PointCloud[PointXYZ]& from_, const PointCloud[PointXYZ]& to, const vector[float]& weights, float* out16) except +
 
     double estimateProjectionMatrix(const shared_ptr[PointCloud[PointXYZ]]& cloud, float* projection12, float* camera9) except +
+
+    void posesFromMatches(const vector[float]& points1, const vector[float]& points2, const vector[float]& poses, const vector[float]& distances, int size, int max_tested, int max_results, float max_distance_error, vector[float]& out_poses, vector[float]& out_scores, vector[int]& out_indices) except +

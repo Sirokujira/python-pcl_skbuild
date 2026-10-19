@@ -273,11 +273,24 @@ def test_save_mesh_rejects_an_out_of_range_index(tmp_path, quad):
 def test_unsupported_formats_report_what_is_supported(tmp_path, quad):
     cloud, polygons = quad
     with pytest.raises(ValueError, match="writable"):
-        pcl.save_mesh(cloud, polygons, str(tmp_path / "mesh.stl"))
-
-    # VTK is write-only: PCL's VTK reader needs the VTK libraries.
-    pcl.save_mesh(cloud, polygons, str(tmp_path / "mesh.vtk"))
+        pcl.save_mesh(cloud, polygons, str(tmp_path / "mesh.off"))
     with pytest.raises(ValueError, match="readable"):
+        pcl.load_mesh(str(tmp_path / "mesh.off"))
+
+
+def test_vtk_only_formats_without_vtk(tmp_path, quad):
+    """STL, and reading VTK files, go through PCL's VTK-based I/O;
+    test_vtk_mesh.py covers them where it is built."""
+    try:
+        import pcl._vtk_mesh  # noqa: F401
+        pytest.skip("this PCL has VTK")
+    except ImportError:
+        pass
+    cloud, polygons = quad
+    with pytest.raises(ValueError, match="VTK"):
+        pcl.save_mesh(cloud, polygons, str(tmp_path / "mesh.stl"))
+    pcl.save_mesh(cloud, polygons, str(tmp_path / "mesh.vtk"))
+    with pytest.raises(ValueError, match="VTK"):
         pcl.load_mesh(str(tmp_path / "mesh.vtk"))
 
 

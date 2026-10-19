@@ -116,6 +116,54 @@ def test_projection_matrix_of_a_pinhole_cloud():
                                                       .astype(np.float32)))
 
 
+def _matches(n_good=6, n_bad=4, seed=7):
+    """Good matches agree on one rigid motion; bad ones point anywhere.
+    Interleaved, best (lowest distance) first."""
+    rng = np.random.RandomState(seed)
+    true = np.eye(4)
+    true[:3, :3] = _rotation((1, 1, 0), 0.6)
+    true[:3, 3] = (0.5, -1.0, 2.0)
+    model = rng.rand(n_good + n_bad, 3) * 4
+    scene = model @ true[:3, :3].T + true[:3, 3]
+    poses = np.repeat(true[None], n_good + n_bad, axis=0)
+    bad = np.arange(n_good + n_bad) % 3 == 2           # every third
+    bad[n_good + n_bad - (n_bad - bad.sum()):] |= bad.sum() < n_bad
+    scene[bad] = rng.rand(bad.sum(), 3) * 4
+    for i in np.flatnonzero(bad):
+        poses[i][:3, :3] = _rotation(rng.randn(3), rng.rand() * 3)
+    distances = np.linspace(0.1, 0.9, n_good + n_bad)
+    return scene, model, poses, distances, true, bad
+
+
+@pytest.mark.parametrize("size", [1, 2, 3])
+def test_poses_from_matches(size):
+    scene, model, poses, distances, true, bad = _matches()
+    estimates = pcl.poses_from_matches(scene, model, poses, distances,
+                                       size=size)
+    assert estimates
+    for pose, score, used in estimates:
+        assert len(used) == size and pose.shape == (4, 4)
+        assert score == pytest.approx(distances[used].mean(), rel=1e-5)
+        if not bad[used].any():
+            assert np.allclose(pose, true, atol=1e-3), used
+    if size == 1:
+        assert [u for _, _, u in estimates] == [[i] for i in range(len(bad))]
+    else:
+        # every all-good combination passes the distance checks (and
+        # max_results=-1 keeps them all, which PCL's own -1 does not);
+        # a bad one only passes by chance
+        n_good = (~bad).sum()
+        good = [u for _, _, u in estimates if not bad[u].any()]
+        assert len(good) == (n_good * (n_good - 1) // 2 if size == 2
+                             else n_good * (n_good - 1) * (n_good - 2) // 6)
+        assert len(good) > len(estimates) / 2
+    capped = pcl.poses_from_matches(scene, model, poses, distances,
+                                    size=size, max_results=2)
+    assert len(capped) == 2
+    with pytest.raises(ValueError):
+        pcl.poses_from_matches(scene, model, poses[:3], distances, size=size)
+
+
 # --- ml ------------------------------------------------------------------------
 
 

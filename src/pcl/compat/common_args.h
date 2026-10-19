@@ -1,6 +1,7 @@
 // pcl/common algorithms that numpy has no one-line equivalent for, behind
 // flat arrays: PCA, the line / plane intersections, the histogram norms,
-// TransformationFromCorrespondences and projection-matrix estimation.
+// TransformationFromCorrespondences, projection-matrix estimation and
+// PosesFromMatches.
 //
 // norms.h's selectNorm() handles every NormType except PF and K, which
 // take two parameters; histogramNorm() calls those directly.
@@ -10,6 +11,7 @@
 // master); estimateProjectionMatrix() here passes every index.
 #pragma once
 
+#include <limits>
 #include <memory>
 #include <vector>
 
@@ -18,6 +20,7 @@
 #include <pcl/common/intersections.h>
 #include <pcl/common/norms.h>
 #include <pcl/common/pca.h>
+#include <pcl/common/poses_from_matches.h>
 #include <pcl/common/projection_matrix.h>
 #include <pcl/common/transformation_from_correspondences.h>
 #include <pcl/point_cloud.h>
@@ -172,6 +175,64 @@ inline double estimateProjectionMatrix(const std::shared_ptr<CommonCloud>& cloud
         }
     }
     return residual;
+}
+
+/// pcl::PosesFromMatches on n 6-DoF matches, best first: `points1` and
+/// `points2` (3 n values each) and `poses` (16 n, column-major, with
+/// point1 = pose * point2), `distances` (n). `size` is 1, 2 or 3 matches
+/// per estimate. Out, per estimate: its pose (16, column-major), its
+/// score (the mean distance of the matches used) and `size` indices.
+/// `max_results` < 0 means all: PCL documents -1 that way for the
+/// single-match estimator, but the pair and triple ones stop once
+/// `added >= max_results`, so -1 returned only the first hypothesis.
+inline void posesFromMatches(const std::vector<float>& points1,
+                             const std::vector<float>& points2,
+                             const std::vector<float>& poses,
+                             const std::vector<float>& distances, int size,
+                             int max_tested, int max_results,
+                             float max_distance_error,
+                             std::vector<float>& out_poses,
+                             std::vector<float>& out_scores,
+                             std::vector<int>& out_indices) {
+    pcl::PointCorrespondences6DVector matches(distances.size());
+    for (std::size_t i = 0; i < matches.size(); ++i) {
+        auto& m = matches[i];
+        m.index_query = m.index_match = static_cast<pcl::index_t>(i);
+        m.distance = distances[i];
+        m.point1 = Eigen::Vector3f(points1[3 * i], points1[3 * i + 1], points1[3 * i + 2]);
+        m.point2 = Eigen::Vector3f(points2[3 * i], points2[3 * i + 1], points2[3 * i + 2]);
+        Eigen::Matrix4f pose;
+        for (int k = 0; k < 16; ++k) {
+            pose.data()[k] = poses[16 * i + k];
+        }
+        m.transformation = Eigen::Affine3f(pose);
+    }
+    pcl::PosesFromMatches estimator;
+    estimator.getParameters().max_correspondence_distance_error = max_distance_error;
+    pcl::PosesFromMatches::PoseEstimatesVector estimates;
+    if (max_results < 0 && size != 1) {
+        max_results = std::numeric_limits<int>::max();
+    }
+    if (size == 1) {
+        estimator.estimatePosesUsing1Correspondence(matches, max_results, estimates);
+    } else if (size == 2) {
+        estimator.estimatePosesUsing2Correspondences(matches, max_tested, max_results,
+                                                     estimates);
+    } else {
+        estimator.estimatePosesUsing3Correspondences(matches, max_tested, max_results,
+                                                     estimates);
+    }
+    out_poses.clear();
+    out_scores.clear();
+    out_indices.clear();
+    for (const auto& e : estimates) {
+        const Eigen::Matrix4f m = e.transformation.matrix();
+        out_poses.insert(out_poses.end(), m.data(), m.data() + 16);
+        out_scores.push_back(e.score);
+        for (const auto index : e.correspondence_indices) {
+            out_indices.push_back(static_cast<int>(index));
+        }
+    }
 }
 
 }  // namespace pclcompat

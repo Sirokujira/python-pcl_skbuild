@@ -751,6 +751,10 @@ _MESH_FORMATS = {"ply": MESH_FORMAT_PLY, "obj": MESH_FORMAT_OBJ,
                  "vtk": MESH_FORMAT_VTK, "ifs": MESH_FORMAT_IFS}
 _MESH_READABLE = ("ifs", "obj", "ply")
 _MESH_WRITABLE = ("obj", "ply", "vtk")
+# What only PCL's VTK-based I/O handles: pcl._vtk_mesh, built where PCL
+# has VTK.
+_VTK_MESH_READABLE = ("stl", "vtk")
+_VTK_MESH_WRITABLE = ("stl",)
 
 
 def texture_mesh_with_cameras(PointCloud cloud not None, triangles, cameras):
@@ -810,17 +814,31 @@ def texture_mesh_with_cameras(PointCloud cloud not None, triangles, cameras):
     return out
 
 
-cdef _mesh_format(path, format, readable):
+cdef str _mesh_name(path, format):
     import os.path
     name = format if format is not None else os.path.splitext(str(path))[1][1:]
-    name = name.lower()
+    return name.lower()
+
+
+cdef _mesh_format(path, format, readable):
+    name = _mesh_name(path, format)
     allowed = _MESH_READABLE if readable else _MESH_WRITABLE
     if name not in allowed:
+        vtk = _VTK_MESH_READABLE if readable else _VTK_MESH_WRITABLE
         raise ValueError(
-            "unsupported mesh format %r (%s: %s)"
+            "unsupported mesh format %r (%s: %s, and %s where PCL has VTK)"
             % (name, "readable" if readable else "writable",
-               ", ".join(allowed)))
+               ", ".join(allowed), ", ".join(vtk)))
     return _MESH_FORMATS[name]
+
+
+cdef object _vtk_mesh_module(str name):
+    try:
+        from pcl import _vtk_mesh
+    except ImportError:
+        raise ValueError("%s meshes need PCL built with VTK (pcl._vtk_mesh "
+                         "is not built here)" % name) from None
+    return _vtk_mesh
 
 
 def save_mesh(PointCloud cloud not None, polygons, path, format=None,
@@ -835,8 +853,14 @@ def save_mesh(PointCloud cloud not None, polygons, path, format=None,
         ...
         pcl.save_mesh(cloud, mesher.reconstruct(), "surface.ply")
 
-    `binary` applies to PLY only; OBJ and VTK are text formats.
+    `binary` applies to PLY (and STL); OBJ and VTK are text formats.
+    STL goes through PCL's VTK-based writer, so it needs a PCL built
+    with VTK (`pcl.save_polygon_file`).
     """
+    name = _mesh_name(path, format)
+    if name in _VTK_MESH_WRITABLE:
+        _vtk_mesh_module(name).save_polygon_file(path, cloud, polygons, binary)
+        return
     cdef int fmt = _mesh_format(path, format, False)
 
     cdef vector[int] indices
@@ -854,11 +878,15 @@ def save_mesh(PointCloud cloud not None, polygons, path, format=None,
 
 
 def load_mesh(path, format=None):
-    """Read a mesh from *path* (.ply, .obj or .ifs).
+    """Read a mesh from *path* (.ply, .obj or .ifs; .stl and .vtk where
+    PCL has VTK, through `pcl.load_polygon_file`).
 
     Returns ``(cloud, polygons)`` in the same shape `save_mesh` takes and
     `reconstruct_with_polygons()` returns.
     """
+    name = _mesh_name(path, format)
+    if name in _VTK_MESH_READABLE:
+        return _vtk_mesh_module(name).load_polygon_file(path)
     cdef int fmt = _mesh_format(path, format, True)
 
     cdef shared_ptr[cPointCloud[PointXYZ]] holder

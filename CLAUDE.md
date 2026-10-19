@@ -45,84 +45,87 @@ src/pcl/compat/*.h          C++ shims for what Cython cannot state
 
 ## Wrapped so far
 
-`PointCloud` (+ PCD/PLY I/O via `pcl.load` / `pcl.save`, `.gz`
-transparent, and `cloud.transform(matrix)` to apply a registration or
-recognition result), `PointCloud_PointXYZI` / `_PointXYZRGB` / `_PointXYZRGBA`
-(with `to_rgb_array` / `from_rgb_array` uint8 colour views alongside
-python-pcl's packed-float column), `PointCloud_PointNormal` (+
-`from_xyz_and_normals`, normals-aware `transform`),
-`PointCloud_PointWithViewpoint`, `VoxelGridFilter`, `ApproximateVoxelGrid`,
-`PassThroughFilter`, `StatisticalOutlierRemovalFilter`,
-`RadiusOutlierRemoval`, `ExtractIndices`, `CropBox`, `ProjectInliers`,
-`RandomSample`, `UniformSampling`, `ConditionAnd` / `ConditionOr` /
-`ConditionalRemoval` (XYZ, XYZRGB, XYZRGBA), `pcl.set_verbosity_level`,
-`ShadowPoints`, `NormalSpaceSampling`, `SamplingSurfaceNormal`, `GridMinimum`,
-`LocalMaximum`, `FrustumCulling`, `MedianFilter`, `BilateralFilter`,
-`ModelOutlierRemoval`, the samplers / voxel grids / clippers /
-convolutions in `_filters_extra`, `OctreePointCloudCompression` (+ RGB),
-`HarrisKeypoint3D`, `SegmentationNormal`, `ProgressiveMorphologicalFilter`,
-`SampleConsensus` (all `pcl.SAC_*` methods) / `RandomSampleConsensus` + the
+`PointCloud` (+ PCD/PLY I/O via `pcl.load` / `pcl.save`, `.gz` transparent,
+and `cloud.transform(matrix)` to apply a registration or recognition
+result), `PointCloud_PointXYZI` / `_PointXYZRGB` / `_PointXYZRGBA` (with
+`to_rgb_array` / `from_rgb_array` uint8 colour views alongside python-pcl's
+packed-float column), `PointCloud_PointNormal` (+ `from_xyz_and_normals`,
+normals-aware `transform`), `PointCloud_PointWithViewpoint`,
+`VoxelGridFilter`, `ApproximateVoxelGrid`, `PassThroughFilter`,
+`StatisticalOutlierRemovalFilter`, `RadiusOutlierRemoval`, `ExtractIndices`,
+`CropBox`, `ProjectInliers`, `RandomSample`, `UniformSampling`,
+`ConditionAnd` / `ConditionOr` / `ConditionalRemoval` (XYZ, XYZRGB,
+XYZRGBA), `pcl.set_verbosity_level`, `ShadowPoints`, `NormalSpaceSampling`,
+`SamplingSurfaceNormal`, `GridMinimum`, `LocalMaximum`, `FrustumCulling`,
+`MedianFilter`, `BilateralFilter`, `ModelOutlierRemoval`, the samplers /
+voxel grids / clippers / convolutions in `_filters_extra`,
+`OctreePointCloudCompression` (+ RGB), `HarrisKeypoint3D`,
+`SegmentationNormal`, `ProgressiveMorphologicalFilter`, `SampleConsensus`
+(all `pcl.SAC_*` methods) / `RandomSampleConsensus` + the
 `SampleConsensusModel*` builders (incl. cylinder, cone, normal and axis
-models, registration, ellipse 3-D), `ExtractPolygonalPrismData`, `SegmentDifferences`,
-`ApproximateProgressiveMorphologicalFilter`, `SeededHueSegmentation`,
-`OrganizedMultiPlaneSegmentation` (+ segment-and-refine),
-`SupervoxelClustering` (+ LCCP, CPC), `OrganizedConnectedComponentSegmentation`
-and its six comparators, `LabeledEuclideanClusterExtraction`, `GrabCut`,
-`UnaryClassifier`, `pcl.random_walker` (all in `_segmentation_extra`),
-`pcl.match_descriptors` (FLANN),
-`IntegralImageNormalEstimation`, `DifferenceOfNormalsEstimation`,
+models, registration, ellipse 3-D), `ExtractPolygonalPrismData`,
+`SegmentDifferences`, `ApproximateProgressiveMorphologicalFilter`,
+`SeededHueSegmentation`, `OrganizedMultiPlaneSegmentation` (+
+segment-and-refine), `SupervoxelClustering` (+ LCCP, CPC),
+`OrganizedConnectedComponentSegmentation` and its six comparators,
+`LabeledEuclideanClusterExtraction`, `GrabCut`, `UnaryClassifier`,
+`pcl.random_walker` (all in `_segmentation_extra`), `pcl.match_descriptors`
+(FLANN), `IntegralImageNormalEstimation`, `DifferenceOfNormalsEstimation`,
 `FPFHEstimation`, `SHOTEstimation`, `CVFHEstimation`, `ESFEstimation`,
 `BoundaryEstimation`, `PFHEstimation`, `PrincipalCurvaturesEstimation`,
-`RSDEstimation`, `GRSDEstimation`, `SpinImageEstimation`, `GASDEstimation` (+ Color),
-`OURCVFHEstimation`, `CRHEstimation`, `MomentInvariantsEstimation`,
-`NormalEstimationOMP`, the OMP / colour / shape-context / point-pair /
-reference-frame / intensity / organized-edge / RoPS / GFPFH / multiscale
-estimators in `_features_extra`, `ISSKeypoint3D`, `SIFTKeypoint`, `SUSANKeypoint`,
-the 2-D image detectors (Harris2D, Trajkovic, AGAST, BRISK), Trajkovic3D,
-SmoothedSurfacesKeypoint, `HarrisKeypoint6D` (in `_keypoints_serial`),
-`Poisson`, `MarchingCubesHoppe`, `MarchingCubesRBF`,
-`ConditionalEuclideanClustering`,
-`RegionGrowing`, `RegionGrowingRGB`,
-`GreedyProjectionTriangulation` (+ `pcl.save_mesh` / `pcl.load_mesh`),
-`CropHull`, `RangeImage` + NARF keypoints,
-`KdTreeFLANN`, `BruteForceSearch`, `FlannSearch`, `OctreePointCloudSearch`,
-`OctreePointCloudChangeDetector`, `OctreePointCloudOccupancy` /
-`PointVector` / `SinglePoint` / `Adjacency`, `OrganizedPointCloudCompression`,
-`pcl.bearing_angle_image`, `NormalEstimation`,
-`MomentOfInertiaEstimation`, `MovingLeastSquares`, `ConcaveHull`,
-`ConvexHull`, `IterativeClosestPoint`,
+`RSDEstimation`, `GRSDEstimation`, `SpinImageEstimation`, `GASDEstimation`
+(+ Color), `OURCVFHEstimation`, `CRHEstimation`,
+`MomentInvariantsEstimation`, `NormalEstimationOMP`, the OMP / colour /
+shape-context / point-pair / reference-frame / intensity / organized-edge /
+RoPS / GFPFH / multiscale estimators in `_features_extra`, `ISSKeypoint3D`,
+`SIFTKeypoint`, `SUSANKeypoint`, the 2-D image detectors (Harris2D,
+Trajkovic, AGAST, BRISK), Trajkovic3D, SmoothedSurfacesKeypoint,
+`HarrisKeypoint6D` (in `_keypoints_serial`), `Poisson`,
+`MarchingCubesHoppe`, `MarchingCubesRBF`, `ConditionalEuclideanClustering`,
+`RegionGrowing`, `RegionGrowingRGB`, `GreedyProjectionTriangulation` (+
+`pcl.save_mesh` / `pcl.load_mesh`), `CropHull`, `RangeImage` + NARF
+keypoints, `KdTreeFLANN`, `BruteForceSearch`, `FlannSearch`,
+`OctreePointCloudSearch`, `OctreePointCloudChangeDetector`,
+`OctreePointCloudOccupancy` / `PointVector` / `SinglePoint` / `Adjacency`,
+`OrganizedPointCloudCompression`, `pcl.bearing_angle_image`,
+`NormalEstimation`, `MomentOfInertiaEstimation`, `MovingLeastSquares`,
+`ConcaveHull`, `ConvexHull`, `IterativeClosestPoint`,
 `IterativeClosestPointNonLinear`, `GeneralizedIterativeClosestPoint`,
 `NormalDistributionsTransform`, `IterativeClosestPointWithNormals`,
 `SampleConsensusPrerejective`, `SampleConsensusInitialAlignment`,
-`FPCSInitialAlignment`, `KFPCSInitialAlignment`, the correspondence
-pipeline functions (`pcl.estimate_correspondences*`, `reject_*`,
+`FPCSInitialAlignment`, `KFPCSInitialAlignment`, the correspondence pipeline
+functions (`pcl.estimate_correspondences*`, `reject_*`,
 `estimate_transformation*`, `validate_transformation`),
 `GeneralizedIterativeClosestPoint6D`, `NormalDistributionsTransform2D`,
 `JointIterativeClosestPoint`, `PPFRegistration`, `IncrementalRegistration`,
 `MetaRegistration`, `LUM`, `ELCH`, `pcl.compare_pyramid_feature_histograms`,
-`Segmentation` (SAC),
-`EuclideanClusterExtraction`, `GeometricConsistencyGrouping`,
-`Hough3DGrouping`, `GreedyVerification`, `PapazovHV`, `CRHAlignment`,
-`TrimmedICP`, `pcl.occlusion_filter`, `ObjRecRANSAC`,
-`ImplicitShapeModelEstimation`, `LineRGBD`, `DOTMOD` (in
+`Segmentation` (SAC), `EuclideanClusterExtraction`,
+`GeometricConsistencyGrouping`, `Hough3DGrouping`, `GreedyVerification`,
+`PapazovHV`, `CRHAlignment`, `TrimmedICP`, `pcl.occlusion_filter`,
+`ObjRecRANSAC`, `ImplicitShapeModelEstimation`, `LineRGBD`, `DOTMOD` (in
 `_recognition_extra`), `BlockBasedStereoMatching`,
 `AdaptiveCostSOStereoMatching`, `pcl.disparity_to_cloud`,
-`pcl.digital_elevation_map` (in `_stereo`), the `pcl.image_*` 2-D
-functions (`_image2d`), `PCA` and the intersection / norm / projection
-helpers (`_common`), `pcl.kmeans`, `SVM`, `DenseCrf` (`_ml`),
-`OutofcoreOctree` (`_outofcore`, built only where PCL has outofcore),
- `ParticleFilterTracker`, `KLDAdaptiveParticleFilterTracker` (XYZ,
-XYZRGBA + HSV colour, PointNormal + normal coherence), `PyramidalKLTTracker`,
-`GridProjection`, `OrganizedFastMesh`, `BilateralUpsampling`,
-`SurfelSmoothing`, `EarClipping`, `SimplificationRemoveUnusedVertices`,
-`pcl.texture_mesh_with_cameras`, `OrganizedNeighbor`, octree ray casting,
-`OctreePointCloudVoxelCentroid`, `OctreePointCloudDensity`, `RangeImagePlanar`, `RangeImageSpherical`,
+`pcl.digital_elevation_map` (in `_stereo`), the `pcl.image_*` 2-D functions
+(`_image2d`), `PCA` and the intersection / norm / projection helpers and
+`pcl.poses_from_matches` (`_common`), `pcl.kmeans`, `SVM`, `DenseCrf`
+(`_ml`), `OutofcoreOctree` (`_outofcore`, built only where PCL has
+outofcore), `ParticleFilterTracker`, `KLDAdaptiveParticleFilterTracker`
+(XYZ, XYZRGBA + HSV colour, PointNormal + normal coherence),
+`PyramidalKLTTracker`, `GridProjection`, `OrganizedFastMesh`,
+`BilateralUpsampling`, `SurfelSmoothing`, `EarClipping`,
+`SimplificationRemoveUnusedVertices`, `pcl.texture_mesh_with_cameras`, the
+VTK mesh classes (`MeshSmoothingLaplacianVTK` / `WindowedSincVTK`,
+`MeshSubdivisionVTK`, `MeshQuadricDecimationVTK`, `pcl.load_polygon_file` /
+`save_polygon_file`; `_vtk_mesh`, built only where PCL has VTK),
+`OrganizedNeighbor`, octree ray casting, `OctreePointCloudVoxelCentroid`,
+`OctreePointCloudDensity`, `RangeImagePlanar`, `RangeImageSpherical`,
 `RangeImageBorderExtractor`, `NarfDescriptor`, `pcl.hog`, and the sensor
-side: `PCDGrabber`, `HDLGrabber`, `VLPGrabber`, `ImageGrabber`; plus the
-file formats and image helpers in `_io` (IFS, ASCII, PNG, image
-extraction, LZF / .pclzf in every colour format, debayering). Names follow
-[sirokujira/python-pcl](https://github.com/sirokujira/python-pcl),
-including the `cloud.make_*()` factory methods.
+side: `PCDGrabber` (+ .tar archives), `HDLGrabber`, `VLPGrabber`,
+`ImageGrabber`; plus the file formats and image helpers in `_io` (IFS,
+ASCII, PNG, image extraction, LZF / .pclzf in every colour format,
+debayering). Names follow
+[sirokujira/python-pcl](https://github.com/sirokujira/python-pcl), including
+the `cloud.make_*()` factory methods.
 
 Sensors deliver frames through `register_callback(handler)`; PCL calls
 back on its own thread. The bridge is `src/pcl/compat/grabber_callback.h`

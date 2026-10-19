@@ -111,7 +111,9 @@ alignment, trimmed ICP, ObjRecRANSAC, occlusion reasoning, ISM,
 LineRGBD, DOTMOD and its modality, the three stereo headers, FPFH's
 impl): all at 1.11 with the signatures the shims call. So were the
 extras' three (`agast_2d.h`, `texture_mapping.h`, the `.pclzf`
-YUV / Bayer reader-writers in `lzf_image_io.h`). The KLT status
+YUV / Bayer reader-writers in `lzf_image_io.h`). And the VTK mesh
+batch's six (the four `vtk_smoothing/` classes, `vtk_lib_io.h`'s
+`load` / `savePolygonFile`, `poses_from_matches.h`). The KLT status
 getter was renamed in 1.12 (`getPointsToTrackStatus` returning
 PointIndices before); `tracking_args.h` branches on the version and
 both branches were compiled.
@@ -391,6 +393,28 @@ code at 1.11). `keypoint_args.h` hands it a fresh detector of the chosen
 kind on every call. `TextureMapping` logs each camera at INFO and treats
 a principal point or focal length of exactly 0 as unset (`> 0` tests) --
 documented, not absorbed.
+
+The VTK mesh batch (`_vtk_mesh`, optional like outofcore: built where
+PCL installed `vtk_smoothing/` and `vtk_lib_io.h`, which it does only
+with VTK): `MeshSubdivisionVTK` and `MeshSmoothingWindowedSincVTK` hand
+`vtk...::New()` to a `vtkSmartPointer`, which takes a second reference,
+so every call leaks the filter and its output (ASan, 900-point grid:
+214 KB and 68 KB per call; 1.11 through master). `VTKUtils::vtk2mesh`
+dereferences the output's points unchecked, and VTK's Loop subdivision
+fails -- null points -- on any mesh with a vertex no face uses: a
+segfault in plain C++. `vtk_mesh_args.h` overrides both
+`performProcessing`s (VTK's `vtkSmartPointer<T>::New()`, a null check);
+Laplacian smoothing and decimation are PCL's own. `loadPolygonFile`
+returns 0 points rather than an error for a missing file. In io,
+`PCDGrabber` reads .tar archives of PCDs natively, but since 1.14
+`PCDReader::readHeader` accepts a header with zero points (1.11-1.13
+refused it), and the grabber's probe reads the archive itself as one
+such PCD: three clouds in a tar came back as one empty frame (plain
+C++, 1.14 and master). `_grabber.pyx` unpacks archives into a temporary
+directory instead. And `PosesFromMatches` documents `max_no_of_results
+= -1` as "all" only for its single-match estimator; the pair and
+triple ones stop once `added >= max_results`, so -1 returned the first
+hypothesis alone -- `common_args.h` passes INT_MAX.
 
 Not every quirk is worth absorbing, though. PCL's octree treats the FIRST
 point of a cloud specially: `voxelSearch` can miss it, and

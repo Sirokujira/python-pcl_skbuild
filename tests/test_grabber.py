@@ -79,6 +79,34 @@ def test_grabber_accepts_a_directory(pcd_files):
     assert grabber.num_frames() == 3
 
 
+def _tar(paths, target):
+    import tarfile
+    with tarfile.open(target, "w", format=tarfile.USTAR_FORMAT) as archive:
+        for path in paths:
+            archive.add(path, arcname=os.path.basename(path))
+    return target
+
+
+def test_grabber_replays_a_tar_archive(pcd_files, tmp_path):
+    """PCL 1.14's own tar support reads the archive as one empty cloud."""
+    archive = _tar(pcd_files, str(tmp_path / "frames.tar"))
+    grabber = pcl.PCDGrabber(archive, FPS)
+    assert grabber.num_frames() == 3
+    collector = Collector()
+    grabber.register_callback(collector)
+    with grabber:
+        collector.wait()
+        threading.Event().wait(6.0 / FPS)
+    values = [float(c.to_array()[0][0]) for c in collector.frames]
+    assert values and set(values) <= {0.0, 1.0, 2.0}
+    assert all(c.size == 10 for c in collector.frames)
+    # tar archives inside a sequence, too
+    mixed = pcl.PCDGrabber([pcd_files[0], archive], FPS)
+    assert mixed.num_frames() == 4
+    with pytest.raises(ValueError, match="no .pcd"):
+        pcl.PCDGrabber(_tar([__file__], str(tmp_path / "none.tar")), FPS)
+
+
 def test_grabber_rejects_an_empty_file_list():
     with pytest.raises(ValueError):
         pcl.PCDGrabber([], FPS)

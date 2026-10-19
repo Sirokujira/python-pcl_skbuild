@@ -55,6 +55,26 @@ else()
     message(STATUS "pcl_outofcore (or VTK headers) not found: no pcl._outofcore")
 endif()
 
+# Optional: PCL's VTK mesh code -- smoothing, subdivision and decimation
+# in pcl_surface, STL / VTK / PLY / OBJ mesh files in pcl_io. PCL
+# compiles both, and installs their headers, only when it was built with
+# VTK; the shim also calls VTK's filters itself
+# (compat/vtk_mesh_args.h), so their targets must be there too.
+find_path(PCL_SURFACE_VTK_HEADER
+    pcl/surface/vtk_smoothing/vtk_mesh_smoothing_laplacian.h
+    HINTS ${PCL_INCLUDE_DIRS} NO_DEFAULT_PATH)
+find_path(PCL_IO_VTK_HEADER pcl/io/vtk_lib_io.h
+    HINTS ${PCL_INCLUDE_DIRS} NO_DEFAULT_PATH)
+if(PCL_SURFACE_VTK_HEADER AND PCL_IO_VTK_HEADER
+        AND TARGET VTK::FiltersModeling AND TARGET VTK::FiltersCore
+        AND TARGET VTK::CommonExecutionModel)
+    set(PCL_HAVE_VTK_MESH ON)
+    message(STATUS "PCL has its VTK mesh code: building pcl._vtk_mesh")
+else()
+    set(PCL_HAVE_VTK_MESH OFF)
+    message(STATUS "PCL built without VTK: no pcl._vtk_mesh")
+endif()
+
 # Supported range: PCL 1.11+. 1.11 is where boost::shared_ptr became
 # std::shared_ptr across the API; the generated pxd declare std::shared_ptr
 # unconditionally, so an older PCL fails deep inside the C++ compile with
