@@ -241,6 +241,22 @@ from ._recognition import (
     Hough3DGrouping,
     match_descriptors,
 )
+from ._recognition_extra import (
+    CRHAlignment,
+    DOTMOD,
+    ImplicitShapeModelEstimation,
+    LineRGBD,
+    ObjRecRANSAC,
+    TrimmedICP,
+    get_occluded_cloud,
+    occlusion_filter,
+)
+from ._stereo import (
+    AdaptiveCostSOStereoMatching,
+    BlockBasedStereoMatching,
+    digital_elevation_map,
+    disparity_to_cloud,
+)
 from ._tracking import (ParticleFilterTracker, KLDAdaptiveParticleFilterTracker,
                         PyramidalKLTTracker)
 from ._rangeimage import (
@@ -581,6 +597,10 @@ __all__ = [
     "BORDER_TRAIT__VEIL_POINT_RIGHT", "BORDER_TRAIT__VEIL_POINT_BOTTOM",
     "BORDER_TRAIT__VEIL_POINT_LEFT",
     "GreedyVerification", "PapazovHV",
+    "CRHAlignment", "DOTMOD", "ImplicitShapeModelEstimation", "LineRGBD",
+    "ObjRecRANSAC", "TrimmedICP", "get_occluded_cloud", "occlusion_filter",
+    "AdaptiveCostSOStereoMatching", "BlockBasedStereoMatching",
+    "digital_elevation_map", "disparity_to_cloud",
     "KLDAdaptiveParticleFilterTracker",
     "PyramidalKLTTracker",
     "estimate_transformation_point_to_plane",

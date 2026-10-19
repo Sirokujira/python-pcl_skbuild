@@ -106,7 +106,13 @@ and `sac_model_ellipse3d.h`. Both sit behind rung 4 —
 `SAC_MODEL_ELLIPSE3D` (-1 before 1.13) — and both shims were compiled
 with `PCL_VERSION` forced to 1.12 to prove the fallback builds. Re-run
 the audit when a batch adds headers; it checks headers, not every
-symbol in them.
+symbol in them. The recognition / stereo batch added twelve (CRH
+alignment, trimmed ICP, ObjRecRANSAC, occlusion reasoning, ISM,
+LineRGBD, DOTMOD and its modality, the three stereo headers, FPFH's
+impl): all at 1.11 with the signatures the shims call. The KLT status
+getter was renamed in 1.12 (`getPointsToTrackStatus` returning
+PointIndices before); `tracking_args.h` branches on the version and
+both branches were compiled.
 
 ## C++ shims (src/pcl/compat/)
 
@@ -318,6 +324,26 @@ and `track` (PCL's code with those three fixed, plus a NaN guard on the
 uses `InterpolationType` without including `pcl/common/io.h`; the shim
 includes it first.
 
+The recognition batch: `ImplicitShapeModelEstimation` casts its feature
+estimator to `FeatureFromNormals` and calls through the result unchecked
+(a spin-image estimator segfaults), its `alignYCoordWithNormal` divides
+by zero for a normal exactly along x or z (NaN votes reach the
+mean-shift kd-tree), it uses NaN normals as given, and `calculateSigmas`
+takes the largest dot product of two points as the object's size;
+`recognition_extra.h` fixes the estimator (FPFH into all 153 bins),
+cleans and tilts the normals, and passes diameter / 10.
+`implicit_shape_model.h` also includes an Eigen-internal header before
+`<Eigen/Core>`. `LineRGBD::createAndAddTemplate` takes its 3-D box from
+whatever cloud it is handed, so the shim hands it the masked points.
+DOTMOD's template size and anchor are pixels (undocumented) and it reads
+half a bin past the window; the wrapper refuses windows that do not fit.
+ObjRecRANSAC prints progress on every call: `OBJ_REC_RANSAC_VERBOSE` is
+defined in its header, so it is compiled into pcl_recognition.
+
+The stereo batch: `DigitalElevationMapBuilder` can round a disparity
+just under the maximum into one histogram past the end;
+`stereo_args.h` drops those with the same float arithmetic first.
+
 Not every quirk is worth absorbing, though. PCL's octree treats the FIRST
 point of a cloud specially: `voxelSearch` can miss it, and
 `getPointIndicesFromNewVoxels` reports index 0 as new even for an
@@ -359,6 +385,18 @@ PCL class with an inline constructor, check that every virtual it
 inherits is exported. Separately, MSVC needs `/bigobj` for the biggest
 generated modules (`src/pcl/CMakeLists.txt` sets it for all).
 
+## VTK leaks `kiss_fft_scalar=double`
+
+VTK's imported `VTK::kissfft` target carries
+`INTERFACE_COMPILE_DEFINITIONS kiss_fft_scalar=double`, and PCL's
+VTK-linked targets pass it to every module here. PCL ships its own
+kiss_fft in `pcl_common`, built with float, so any PCL header code that
+calls it from our side -- `CRHAlignment` -- passes double pairs to a
+float FFT. Same histograms: the right roll in plain C++, five wrong ones
+from Python. `src/pcl/CMakeLists.txt` adds `-Ukiss_fft_scalar` (MSVC
+`/U`) to every module -- options follow definitions on the command line
+-- and `recognition_extra.h` static_asserts the float layout.
+
 ## Cython traps found the hard way
 
 - **No comprehension or generator over a C++ reference.** Cython builds a
@@ -368,6 +406,10 @@ generated modules (`src/pcl/CMakeLists.txt` sets it for all).
   backtrace put it in the closure's `tp_new`.
 - Every `cdef` method needs a declaration in the type's `.pxd` once one
   exists, internal helpers included.
+- **No generator expression inside a fused-type function.** Cython 3
+  names the generator's closure after the specialisation without
+  mangling it (`..._result[ParticleTrackerT[PointXYZ] *]_genexpr`), and
+  the C++ does not compile. Loop into a list instead.
 
 ## Environment (relative/discovered only)
 

@@ -224,7 +224,8 @@ converged, refined, _, _ = icp.icp(source.transform(transform), target)
 | surface | `MovingLeastSquares`, `ConcaveHull`, `ConvexHull`, `GreedyProjectionTriangulation`, `Poisson`, `MarchingCubesHoppe`, `MarchingCubesRBF`, `GridProjection`, `OrganizedFastMesh` (+ `pcl.TRIANGLE_*` / `QUAD_MESH`), `BilateralUpsampling`, `SurfelSmoothing`, `EarClipping`, `SimplificationRemoveUnusedVertices`, `pcl.save_mesh` / `pcl.load_mesh` (PLY, OBJ, VTK) |
 | registration | `IterativeClosestPoint`, `IterativeClosestPointNonLinear`, `GeneralizedIterativeClosestPoint`, `NormalDistributionsTransform`, `IterativeClosestPointWithNormals`, `SampleConsensusPrerejective` / `SampleConsensusInitialAlignment` / `FPCSInitialAlignment` / `KFPCSInitialAlignment` (global), and the correspondence pipeline as functions: `pcl.estimate_correspondences`, `reject_one_to_one` / `reject_by_distance` / `reject_median_distance` / `reject_trimmed` / `reject_sample_consensus` / `reject_surface_normal`, `estimate_transformation` (SVD, LM, dual quaternion, SVD with scale, 2-D, three-point), `estimate_transformation_point_to_plane` (LM, linear least squares, weighted, symmetric), `estimate_correspondences_normal_shooting` / `_back_projection` / `_organized_projection`, `reject_var_trimmed` / `reject_poly` / `reject_organized_boundary`, `validate_transformation`; `GeneralizedIterativeClosestPoint6D`, `NormalDistributionsTransform2D`, `JointIterativeClosestPoint`, `PPFRegistration`, `IncrementalRegistration`, `MetaRegistration`, `LUM`, `ELCH`, `pcl.compare_pyramid_feature_histograms` |
 | segmentation | `Segmentation` (SAC), `SegmentationNormal`, `EuclideanClusterExtraction`, `ProgressiveMorphologicalFilter`, `MinCutSegmentation`, `ConditionalEuclideanClustering`, `RegionGrowing`, `RegionGrowingRGB`, `ExtractPolygonalPrismData`, `SegmentDifferences`, `ApproximateProgressiveMorphologicalFilter`, `SeededHueSegmentation`, `OrganizedMultiPlaneSegmentation`, `SupervoxelClustering` / `SupervoxelClusteringXYZ` (+ `.lccp()` / `.cpc()` for LCCP / CPC segmentation), `OrganizedMultiPlaneSegmentation.segment_and_refine()`, `OrganizedConnectedComponentSegmentation` with `EuclideanClusterComparator`, `PlaneCoefficientComparator`, `EuclideanPlaneCoefficientComparator`, `EdgeAwarePlaneComparator`, `GroundPlaneComparator`, `RGBPlaneCoefficientComparator`, `LabeledEuclideanClusterExtraction`, `GrabCut`, `UnaryClassifier`, `pcl.random_walker` |
-| recognition | `GeometricConsistencyGrouping`, `Hough3DGrouping`, `GreedyVerification`, `PapazovHV`, `pcl.match_descriptors` (FLANN) |
+| recognition | `GeometricConsistencyGrouping`, `Hough3DGrouping`, `GreedyVerification`, `PapazovHV`, `pcl.match_descriptors` (FLANN), `CRHAlignment` (roll candidates from two CRH histograms), `TrimmedICP`, `pcl.occlusion_filter` / `get_occluded_cloud` (against an organized scene), `ObjRecRANSAC`, `ImplicitShapeModelEstimation` (FPFH words; train, find, save / load), `LineRGBD` (LINEMOD on colour gradients + normals, + semi-scale-invariant detection), `DOTMOD` |
+| stereo | `BlockBasedStereoMatching`, `AdaptiveCostSOStereoMatching` (disparity map, organized cloud with or without colour, median filter), `pcl.disparity_to_cloud` (+ intensity), `pcl.digital_elevation_map` |
 | tracking | `ParticleFilterTracker`, `KLDAdaptiveParticleFilterTracker` (on `PointCloud`, on `PointCloud_PointXYZRGBA` with `add_HSVColorCoherence`, on `PointCloud_PointNormal` with `add_NormalCoherence`; `exact_coherence` for kd-tree instead of voxel pairing), `PyramidalKLTTracker` (pixels across organized colour frames + the rigid motion they imply; PCL's own barely moves a point, so it runs with its gradients and window placement corrected) |
 | people | `pcl.hog` / `pcl.hog_descriptor_size` |
 | sensors | `PCDGrabber`, `HDLGrabber`, `VLPGrabber` (both replaying a .pcap), `ImageGrabber` (a directory of depth + colour images, PNG / TIFF or .pclzf, read by index) |
@@ -267,6 +268,24 @@ Windows) installed into the `pcl` package.
   has the same slip, and `(k + 1) / N_` is integer division). Measured
   in plain C++ against 1.14: 0 of 18,000 values finite on a sphere with
   exact normals. Still so on PCL master.
+- **`ZBuffering`** (`pcl/recognition/hv/occlusion_reasoning.h`) — keeps
+  the wrong points. `computeDepthMap` fills `(w/2 - 0.5) * (h/2 - 0.5)`
+  of its `w * h` buffer with NaN and leaves the rest uninitialised, and
+  it reads `depth_[u * h + v]` but writes `depth_[u * w + v]`, so for a
+  non-square image the writes land in other cells (or past the end, if
+  the garbage happens to let them through). Measured in plain C++
+  against 1.14: a 64 x 48 wall with 96 model points in front of it kept
+  21. The organized-scene functions in the same header (`filter`,
+  `getOccludedCloud`) are wrapped as `pcl.occlusion_filter` /
+  `pcl.get_occluded_cloud`.
+- **`RFFaceDetectorTrainer`** (`pcl/recognition/face_detection`) — trains
+  only from a directory of posed head views read by
+  `FaceDetectorDataProvider`, and detects only with a forest trained
+  that way; there is no such dataset here to train or test against.
+- **`StereoGrabber`** — publishes nothing: `readAhead()` has the read of
+  each image pair commented out and `valid_` is never set (1.14 and
+  master). `BlockBasedStereoMatching` / `AdaptiveCostSOStereoMatching`
+  take the image pairs directly.
 - **`CorrespondenceRejectorFeatures`** — does not compile in PCL 1.14
   for any feature type: its nested `FeatureContainer` calls a
   `getClassName()` it does not have (fixed on master).

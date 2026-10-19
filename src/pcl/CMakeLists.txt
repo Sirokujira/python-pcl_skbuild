@@ -25,6 +25,8 @@ set(PCL_CYTHON_MODULES
     _sac
     _rangeimage
     _recognition
+    _recognition_extra
+    _stereo
     _tracking
     _people
 )
@@ -33,6 +35,17 @@ set(PCL_CYTHON_MODULES
 # larger generated modules (_registration) pass that.
 if(MSVC)
     set(PCL_CYTHON_COMPILE_OPTIONS /bigobj)
+endif()
+
+# VTK's imported VTK::kissfft target exports kiss_fft_scalar=double to
+# everything that links it, which PCL's VTK-linked targets pass on to
+# us. PCL's own kiss_fft (in pcl_common) is built with float, so header
+# code that calls it -- CRHAlignment -- would hand it double pairs.
+# Options come after definitions on the command line, so this wins.
+if(MSVC)
+    list(APPEND PCL_CYTHON_COMPILE_OPTIONS /Ukiss_fft_scalar)
+else()
+    list(APPEND PCL_CYTHON_COMPILE_OPTIONS -Ukiss_fft_scalar)
 endif()
 
 foreach(module ${PCL_CYTHON_MODULES})
