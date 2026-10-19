@@ -1,12 +1,17 @@
 """pcl/common algorithms (PCA, intersections, norms, rigid motion,
 projection matrix) and pcl/ml (k-means, SVM, DenseCrf)."""
 
+import sys
+
 import numpy as np
 import pytest
 
 pcl = pytest.importorskip("pcl")
 pytest.importorskip("pcl._common")
 pytest.importorskip("pcl._ml")
+
+no_svm_on_windows = pytest.mark.skipif(
+    sys.platform == "win32", reason="pcl::SVM is not exported on Windows")
 
 
 def _rotation(axis, angle):
@@ -138,6 +143,7 @@ def _two_classes(n=60, seed=4):
     return features.astype(np.float32), labels
 
 
+@no_svm_on_windows
 @pytest.mark.parametrize("kernel", ["linear", "rbf"])
 def test_svm_classifies(kernel, tmp_path):
     features, labels = _two_classes()
@@ -159,12 +165,19 @@ def test_svm_classifies(kernel, tmp_path):
     assert np.array_equal(loaded.classify(test), svm.classify(test))
 
 
+@no_svm_on_windows
 def test_svm_reports_bad_parameters_instead_of_exiting():
     features, labels = _two_classes()
     svm = pcl.SVM(svm_type="nu_svc", nu=-1)
     svm.add_TrainingSamples(features, labels)
     with pytest.raises(ValueError, match="nu"):
         svm.train()
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only refusal")
+def test_svm_refused_on_windows():
+    with pytest.raises(RuntimeError, match="Windows"):
+        pcl.SVM()
 
 
 def test_dense_crf_smooths_noisy_labels():

@@ -19,6 +19,11 @@
 // - DenseCrf::mapInference writes result[i] without sizing `result`;
 //   the shim sizes it. Both inference calls print a line per iteration
 //   to std::cout, which the shim mutes for the call (C++ streams only).
+// - Neither pcl::SVM nor PCL's bundled libsvm is marked PCL_EXPORTS
+//   (1.11 through master), so on Windows, where a DLL exports only what
+//   is marked, no module outside pcl_ml can link them (MSVC: 12
+//   unresolved externals). SupportVectorMachine's constructor throws
+//   there; Kmeans and DenseCrf are exported and work everywhere.
 #pragma once
 
 #include <cstdlib>
@@ -31,7 +36,11 @@
 
 #include <pcl/ml/densecrf.h>
 #include <pcl/ml/kmeans.h>
+#ifndef _WIN32
 #include <pcl/ml/svm_wrapper.h>
+#else
+#include <stdexcept>
+#endif
 
 namespace pclcompat {
 
@@ -66,6 +75,8 @@ inline void kmeans(const std::vector<float>& data, unsigned int n,
 }
 
 // --- SVM --------------------------------------------------------------------------
+
+#ifndef _WIN32
 
 class CheckedTrainer : public pcl::SVMTrain {
 public:
@@ -227,6 +238,33 @@ private:
     CheckedTrainer trainer_;        // first: the classifier borrows its model
     CheckedClassifier classifier_;
 };
+
+#else
+
+class SupportVectorMachine {
+public:
+    SupportVectorMachine() {
+        throw std::runtime_error(
+            "pcl::SVM cannot be linked from outside PCL on Windows (neither "
+            "pcl::SVM nor PCL's bundled libsvm is exported from pcl_ml)");
+    }
+    void setParameters(int, int, int, double, double, double, double, double, double,
+                       bool, bool) {}
+    void addSamples(const std::vector<float>&, unsigned int, unsigned int,
+                    const std::vector<double>&) {}
+    std::string train() { return "unavailable on Windows"; }
+    bool ready() const { return false; }
+    bool save(const std::string&) { return false; }
+    bool load(const std::string&) { return false; }
+    void classify(const std::vector<float>&, unsigned int, unsigned int, bool,
+                  std::vector<double>& out, int& width) {
+        out.clear();
+        width = 0;
+    }
+    std::vector<int> labels() { return {}; }
+};
+
+#endif
 
 // --- DenseCrf ------------------------------------------------------------------
 

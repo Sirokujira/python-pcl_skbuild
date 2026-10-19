@@ -227,7 +227,7 @@ converged, refined, _, _ = icp.icp(source.transform(transform), target)
 | recognition | `GeometricConsistencyGrouping`, `Hough3DGrouping`, `GreedyVerification`, `PapazovHV`, `pcl.match_descriptors` (FLANN), `CRHAlignment` (roll candidates from two CRH histograms), `TrimmedICP`, `pcl.occlusion_filter` / `get_occluded_cloud` (against an organized scene), `ObjRecRANSAC`, `ImplicitShapeModelEstimation` (FPFH words; train, find, save / load), `LineRGBD` (LINEMOD on colour gradients + normals, + semi-scale-invariant detection), `DOTMOD` (with PCL's colour-gradient DOT modality corrected: it uses pi = 4 tan 1 and does not compile with clang) |
 | 2d | `pcl.image_kernel` (Sobel, Prewitt, Roberts, derivatives, Gaussian, LoG), `pcl.image_convolve` (correlation; clamp / mirror / zero borders), `pcl.image_edges` (Sobel / Prewitt / Roberts gradients), `pcl.image_canny`, `pcl.image_log`, `pcl.image_morphology` (gray and binary erosion / dilation / opening / closing), `pcl.image_binary_operation`, `pcl.structuring_element` |
 | common | `PCA`, `pcl.line_line_intersection` / `plane_plane_intersection` / `three_planes_intersection`, `pcl.histogram_distance` (all 13 of norms.h), `pcl.transformation_from_correspondences` (weighted), `pcl.estimate_projection_matrix` (P and K of an organized cloud) |
-| ml | `pcl.kmeans`, `SVM` (libsvm: C / nu / one-class / regression, train, classify with probabilities, save / load), `DenseCrf` (Gaussian and bilateral pairwise terms, MAP and marginals) |
+| ml | `pcl.kmeans`, `SVM` (libsvm: C / nu / one-class / regression, train, classify with probabilities, save / load) (not on Windows, see below), `DenseCrf` (Gaussian and bilateral pairwise terms, MAP and marginals) |
 | outofcore | `OutofcoreOctree` (create / open a disk-backed octree, add, box queries, voxel centres, level of detail) -- only where PCL has outofcore, which it builds only with VTK |
 | stereo | `BlockBasedStereoMatching`, `AdaptiveCostSOStereoMatching` (disparity map, organized cloud with or without colour, median filter), `pcl.disparity_to_cloud` (+ intensity), `pcl.digital_elevation_map` |
 | tracking | `ParticleFilterTracker`, `KLDAdaptiveParticleFilterTracker` (on `PointCloud`, on `PointCloud_PointXYZRGBA` with `add_HSVColorCoherence`, on `PointCloud_PointNormal` with `add_NormalCoherence`; `exact_coherence` for kd-tree instead of voxel pairing), `PyramidalKLTTracker` (pixels across organized colour frames + the rigid motion they imply; PCL's own barely moves a point, so it runs with its gradients and window placement corrected) |
@@ -323,6 +323,13 @@ Windows) installed into the `pcl` package.
   (`PCL_EXPORTS` is empty for consumers, so data never gets `dllimport`).
   Measured: the MSVC link fails on exactly those five symbols. The class
   raises `RuntimeError` on Windows; Linux and macOS have it.
+- **`SVM` on Windows** — neither `pcl::SVM` / `SVMTrain` / `SVMClassify`
+  nor the libsvm copy built into `pcl_ml` is marked `PCL_EXPORTS` (1.11
+  through master), and a Windows DLL exports only what is marked, so no
+  module outside PCL can link them: the MSVC link of `_ml` failed on 12
+  unresolved externals, all SVM or libsvm. `pcl.SVM()` raises
+  `RuntimeError` on Windows; `pcl.kmeans` and `DenseCrf` are exported and
+  work there.
 - **`CrfSegmentation`** — returns wrong labels. Its unary potentials
   put each annotated point's energy in slot `labels.size()` (the number
   of distinct labels seen so far) instead of that label's own slot, and

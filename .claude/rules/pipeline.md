@@ -430,7 +430,12 @@ exported) and inline overrides that read the static lookup tables --
 Linux links it, MSVC cannot, and neither could any C++ program outside
 PCL. `range_image_args.h` refuses it under `_WIN32`. Before wrapping a
 PCL class with an inline constructor, check that every virtual it
-inherits is exported. Separately, MSVC needs `/bigobj` for the biggest
+inherits is exported. A class with no `PCL_EXPORTS` at all is the plain
+case: `pcl::SVM` and PCL's bundled libsvm export nothing, so `_ml`
+failed to link on 12 SVM symbols while `Kmeans` / `DenseCrf` (marked)
+linked; `ml_args.h` compiles a throwing `SupportVectorMachine` under
+`_WIN32`. grep a header for `PCL_EXPORTS` before wrapping its
+non-template classes. Separately, MSVC needs `/bigobj` for the biggest
 generated modules (`src/pcl/CMakeLists.txt` sets it for all).
 
 ## VTK leaks `kiss_fft_scalar=double`
