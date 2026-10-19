@@ -33,6 +33,32 @@ from pcl.pxd.features.moment_of_inertia_estimation cimport (
     MomentOfInertiaEstimation as cMomentOfInertiaEstimation)
 from pcl.pxd.features.vfh cimport VFHEstimation as cVFHEstimation
 from pcl.pxd.point_types cimport Boundary, ESFSignature640
+from pcl.pxd.point_types cimport (
+    PrincipalCurvatures, PFHSignature125, PrincipalRadiiRSD,
+    GASDSignature512, GASDSignature984, GRSDSignature21, MomentInvariants,
+    PointXYZRGB)
+from pcl.pxd.compat.feature_types cimport (
+    Histogram153, Histogram90, setCRHCentroid)
+from pcl.pxd.features.principal_curvatures cimport (
+    PrincipalCurvaturesEstimation as cPrincipalCurvaturesEstimation)
+from pcl.pxd.features.normal_3d_omp cimport (
+    NormalEstimationOMP as cNormalEstimationOMP)
+from pcl.pxd.features.pfh cimport PFHEstimation as cPFHEstimation
+from pcl.pxd.features.rsd cimport RSDEstimation as cRSDEstimation
+from pcl.pxd.features.spin_image cimport (
+    SpinImageEstimation as cSpinImageEstimation)
+from pcl.pxd.features.gasd cimport (
+    GASDEstimation as cGASDEstimation,
+    GASDColorEstimation as cGASDColorEstimation,
+    HistogramInterpolationMethod)
+cimport pcl.pxd.features.gasd as gasd_types
+from pcl.pxd.features.grsd cimport GRSDEstimation as cGRSDEstimation
+from pcl.pxd.features.our_cvfh cimport (
+    OURCVFHEstimation as cOURCVFHEstimation)
+from pcl.pxd.features.crh cimport CRHEstimation as cCRHEstimation
+from pcl.pxd.features.moment_invariants cimport (
+    MomentInvariantsEstimation as cMomentInvariantsEstimation)
+from pcl._pointtypes cimport PointCloud_PointXYZRGB
 from pcl.pxd.features.boundary cimport (
     BoundaryEstimation as cBoundaryEstimation)
 from pcl.pxd.features.esf cimport ESFEstimation as cESFEstimation
@@ -535,6 +561,750 @@ cdef class CVFHEstimation:
             p = &out[<size_t> i]
             for j in range(308):
                 view[i, j] = p.histogram[j]
+        return result
+
+
+cdef class PrincipalCurvaturesEstimation:
+    """Principal curvatures of each point's neighbourhood
+    (pcl::PrincipalCurvaturesEstimation).
+
+    From the normals around a point: the direction of greatest curvature
+    and the two curvature magnitudes `pc1 >= pc2`. Needs normals and
+    `set_KSearch` / `set_RadiusSearch`.
+    """
+
+    cdef cPrincipalCurvaturesEstimation[PointXYZ, Normal, PrincipalCurvatures]* me
+    cdef bint has_normals
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cPrincipalCurvaturesEstimation[PointXYZ, Normal, PrincipalCurvatures]()
+        self.has_normals = False
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_InputNormals(self, PointCloud_Normal normals not None):
+        self.me.setInputNormals(normals.thisptr_shared)
+        self.has_normals = True
+
+    def set_KSearch(self, int k):
+        self.me.setKSearch(k)
+
+    def set_RadiusSearch(self, double radius):
+        self.me.setRadiusSearch(radius)
+
+    def compute(self):
+        """Return an ``(n, 5)`` float32 array, one row per input point:
+        principal_curvature_x, principal_curvature_y, principal_curvature_z, pc1, pc2."""
+        import numpy as np
+        if not self.has_normals:
+            raise RuntimeError(
+                "PrincipalCurvaturesEstimation needs normals: call set_InputNormals() with a "
+                "PointCloud_Normal (NormalEstimation.compute_cloud())")
+        cdef cPointCloud[PrincipalCurvatures] out
+        with nogil:
+            self.me.compute(out)
+        cdef Py_ssize_t n = <Py_ssize_t> out.size()
+        result = np.empty((n, 5), dtype=np.float32)
+        cdef float[:, ::1] view = result
+        cdef PrincipalCurvatures* p
+        cdef Py_ssize_t i
+        for i in range(n):
+            p = &out[<size_t> i]
+            view[i, 0] = p.principal_curvature_x
+            view[i, 1] = p.principal_curvature_y
+            view[i, 2] = p.principal_curvature_z
+            view[i, 3] = p.pc1
+            view[i, 4] = p.pc2
+        return result
+
+
+cdef class PFHEstimation:
+    """Point Feature Histograms (pcl::PFHEstimation).
+
+    The exact 125-bin ancestor of FPFH: every pair in a point's
+    neighbourhood contributes, so it costs O(k^2) per point. Needs
+    normals and `set_KSearch` / `set_RadiusSearch`.
+    """
+
+    cdef cPFHEstimation[PointXYZ, Normal, PFHSignature125]* me
+    cdef bint has_normals
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cPFHEstimation[PointXYZ, Normal, PFHSignature125]()
+        self.has_normals = False
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_InputNormals(self, PointCloud_Normal normals not None):
+        self.me.setInputNormals(normals.thisptr_shared)
+        self.has_normals = True
+
+    def set_KSearch(self, int k):
+        self.me.setKSearch(k)
+
+    def set_RadiusSearch(self, double radius):
+        self.me.setRadiusSearch(radius)
+
+    def set_MaximumCacheSize(self, unsigned int size):
+        self.me.setMaximumCacheSize(size)
+
+    def get_MaximumCacheSize(self):
+        return self.me.getMaximumCacheSize()
+
+    def set_UseInternalCache(self, bint use_cache):
+        self.me.setUseInternalCache(use_cache)
+
+    def get_UseInternalCache(self):
+        return self.me.getUseInternalCache()
+
+    def compute(self):
+        """Return an ``(n, 125)`` float32 array, one histogram per
+        input point."""
+        import numpy as np
+        if not self.has_normals:
+            raise RuntimeError(
+                "PFHEstimation needs normals: call set_InputNormals() with a "
+                "PointCloud_Normal (NormalEstimation.compute_cloud())")
+        cdef cPointCloud[PFHSignature125] out
+        with nogil:
+            self.me.compute(out)
+        cdef Py_ssize_t n = <Py_ssize_t> out.size()
+        result = np.empty((n, 125), dtype=np.float32)
+        cdef float[:, ::1] view = result
+        cdef PFHSignature125* p
+        cdef Py_ssize_t i, j
+        for i in range(n):
+            p = &out[<size_t> i]
+            for j in range(125):
+                view[i, j] = p.histogram[j]
+        return result
+
+
+cdef class RSDEstimation:
+    """Radius-based Surface Descriptor (pcl::RSDEstimation).
+
+    The smallest and largest surface radius around each point, from the
+    distance/angle relation to its neighbours. Radius search only --
+    PCL's setKSearch is a no-op that prints an error. Radii above
+    `set_PlaneRadius` (default 0.2) are clamped as "planar", so raise it
+    for large or coarse clouds.
+    """
+
+    cdef cRSDEstimation[PointXYZ, Normal, PrincipalRadiiRSD]* me
+    cdef bint has_normals
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cRSDEstimation[PointXYZ, Normal, PrincipalRadiiRSD]()
+        self.has_normals = False
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_InputNormals(self, PointCloud_Normal normals not None):
+        self.me.setInputNormals(normals.thisptr_shared)
+        self.has_normals = True
+
+    def set_RadiusSearch(self, double radius):
+        self.me.setRadiusSearch(radius)
+
+    def set_NrSubdivisions(self, int count):
+        self.me.setNrSubdivisions(count)
+
+    def get_NrSubdivisions(self):
+        return self.me.getNrSubdivisions()
+
+    def set_PlaneRadius(self, double radius):
+        """Radius above which a surface counts as a plane; results are
+        clamped to it."""
+        self.me.setPlaneRadius(radius)
+
+    def get_PlaneRadius(self):
+        return self.me.getPlaneRadius()
+
+    def compute(self):
+        """Return an ``(n, 2)`` float32 array, one row per input point:
+        r_min, r_max."""
+        import numpy as np
+        if not self.has_normals:
+            raise RuntimeError(
+                "RSDEstimation needs normals: call set_InputNormals() with a "
+                "PointCloud_Normal (NormalEstimation.compute_cloud())")
+        cdef cPointCloud[PrincipalRadiiRSD] out
+        with nogil:
+            self.me.compute(out)
+        cdef Py_ssize_t n = <Py_ssize_t> out.size()
+        result = np.empty((n, 2), dtype=np.float32)
+        cdef float[:, ::1] view = result
+        cdef PrincipalRadiiRSD* p
+        cdef Py_ssize_t i
+        for i in range(n):
+            p = &out[<size_t> i]
+            view[i, 0] = p.r_min
+            view[i, 1] = p.r_max
+        return result
+
+
+cdef class SpinImageEstimation:
+    """Spin images (pcl::SpinImageEstimation).
+
+    Each point's neighbourhood as a 2-D histogram over (radial distance,
+    height along the normal) -- an 8-wide image, 153 bins. Needs normals
+    and `set_KSearch` / `set_RadiusSearch`.
+    """
+
+    cdef cSpinImageEstimation[PointXYZ, Normal, Histogram153]* me
+    cdef bint has_normals
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cSpinImageEstimation[PointXYZ, Normal, Histogram153]()
+        self.has_normals = False
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_InputNormals(self, PointCloud_Normal normals not None):
+        self.me.setInputNormals(normals.thisptr_shared)
+        self.has_normals = True
+
+    def set_KSearch(self, int k):
+        self.me.setKSearch(k)
+
+    def set_RadiusSearch(self, double radius):
+        self.me.setRadiusSearch(radius)
+
+    def set_ImageWidth(self, unsigned int width):
+        """Bins per side; the output is sized for the default 8."""
+        if width != 8:
+            raise ValueError(
+                "only the default image width 8 (153 bins) is supported")
+        self.me.setImageWidth(width)
+
+    def set_SupportAngle(self, double support_angle_cos):
+        """Cosine of the largest angle between a neighbour's normal and
+        the point's for it to count (0 = everything)."""
+        self.me.setSupportAngle(support_angle_cos)
+
+    def set_MinPointCountInNeighbourhood(self, unsigned int count):
+        self.me.setMinPointCountInNeighbourhood(count)
+
+    def set_AngularDomain(self, bint is_angular):
+        self.me.setAngularDomain(is_angular)
+
+    def set_RadialStructure(self, bint is_radial):
+        self.me.setRadialStructure(is_radial)
+
+    def compute(self):
+        """Return an ``(n, 153)`` float32 array, one histogram per
+        input point."""
+        import numpy as np
+        if not self.has_normals:
+            raise RuntimeError(
+                "SpinImageEstimation needs normals: call set_InputNormals() with a "
+                "PointCloud_Normal (NormalEstimation.compute_cloud())")
+        cdef cPointCloud[Histogram153] out
+        with nogil:
+            self.me.compute(out)
+        cdef Py_ssize_t n = <Py_ssize_t> out.size()
+        result = np.empty((n, 153), dtype=np.float32)
+        cdef float[:, ::1] view = result
+        cdef Histogram153* p
+        cdef Py_ssize_t i, j
+        for i in range(n):
+            p = &out[<size_t> i]
+            for j in range(153):
+                view[i, j] = p.histogram[j]
+        return result
+
+
+cdef class NormalEstimationOMP:
+    """`NormalEstimation` parallelised with OpenMP
+    (pcl::NormalEstimationOMP). Same calls, plus `set_NumberOfThreads`
+    (0, the default, lets OpenMP decide).
+    """
+
+    cdef cNormalEstimationOMP[PointXYZ, Normal]* me
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cNormalEstimationOMP[PointXYZ, Normal]()
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_NumberOfThreads(self, unsigned int threads):
+        self.me.setNumberOfThreads(threads)
+
+    def set_KSearch(self, int k):
+        self.me.setKSearch(k)
+
+    def get_KSearch(self):
+        return self.me.getKSearch()
+
+    def set_RadiusSearch(self, double radius):
+        self.me.setRadiusSearch(radius)
+
+    def get_RadiusSearch(self):
+        return self.me.getRadiusSearch()
+
+    def set_ViewPoint(self, float x, float y, float z):
+        self.me.setViewPoint(x, y, z)
+
+    def compute_cloud(self):
+        """Return the normals as a :class:`PointCloud_Normal`."""
+        cdef shared_ptr[cPointCloud[Normal]] holder
+        holder.reset(new cPointCloud[Normal]())
+        cdef cPointCloud[Normal]* out = holder.get()
+        with nogil:
+            self.me.compute(deref(out))
+        return wrap_normal_cloud(holder)
+
+    def compute(self):
+        """Return an ``(n, 4)`` float32 array:
+        ``normal_x, normal_y, normal_z, curvature``."""
+        import numpy as np
+        cdef cPointCloud[Normal] out
+        with nogil:
+            self.me.compute(out)
+        cdef Py_ssize_t n = <Py_ssize_t> out.size()
+        result = np.empty((n, 4), dtype=np.float32)
+        cdef float[:, ::1] view = result
+        cdef Normal* p
+        cdef Py_ssize_t i
+        for i in range(n):
+            p = &out[<size_t> i]
+            view[i, 0] = p.normal_x
+            view[i, 1] = p.normal_y
+            view[i, 2] = p.normal_z
+            view[i, 3] = p.curvature
+        return result
+
+
+# GASD histogram interpolation, re-exported from the header so the
+# values cannot drift.
+INTERP_NONE = gasd_types.INTERP_NONE
+INTERP_TRILINEAR = gasd_types.INTERP_TRILINEAR
+INTERP_QUADRILINEAR = gasd_types.INTERP_QUADRILINEAR
+
+
+cdef _check_interp(int method):
+    if method not in (gasd_types.INTERP_NONE, gasd_types.INTERP_TRILINEAR,
+                      gasd_types.INTERP_QUADRILINEAR):
+        raise ValueError(
+            "unknown interpolation %d: use pcl.INTERP_NONE, "
+            "pcl.INTERP_TRILINEAR or pcl.INTERP_QUADRILINEAR" % method)
+
+
+cdef class GASDEstimation:
+    """Globally Aligned Spatial Distribution (pcl::GASDEstimation).
+
+    One 512-bin descriptor for the whole cloud: the cloud is aligned to
+    its own reference frame (centroid and principal axes) and a 3-D grid
+    of occupancy histograms is taken over it. Needs neither normals nor a
+    neighbourhood size:
+
+        histogram = cloud.make_GASDEstimation().compute()
+    """
+
+    cdef cGASDEstimation[PointXYZ, GASDSignature512]* me
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cGASDEstimation[PointXYZ, GASDSignature512]()
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_ShapeHalfGridSize(self, size_t size):
+        """Half the grid size per axis (default 4: an 8x8x8 grid). The
+        output is sized for the defaults; other values change the
+        descriptor length PCL writes into the fixed 512 bins."""
+        self.me.setShapeHalfGridSize(size)
+
+    def set_ShapeHistsSize(self, size_t size):
+        self.me.setShapeHistsSize(size)
+
+    def set_ShapeHistsInterpMethod(self, int method):
+        _check_interp(method)
+        self.me.setShapeHistsInterpMethod(<HistogramInterpolationMethod> method)
+
+    def compute(self):
+        """Return the descriptor as a length-512 float32 array."""
+        import numpy as np
+        cdef cPointCloud[GASDSignature512] out
+        with nogil:
+            self.me.compute(out)
+        if out.size() == 0:
+            raise RuntimeError(
+                "GASD produced no descriptor (is the input cloud empty?)")
+        result = np.empty(512, dtype=np.float32)
+        cdef float[::1] view = result
+        cdef GASDSignature512* p = &out[0]
+        cdef Py_ssize_t i
+        for i in range(512):
+            view[i] = p.histogram[i]
+        return result
+
+
+cdef class GASDColorEstimation:
+    """GASD with colour (pcl::GASDColorEstimation) on a
+    :class:`PointCloud_PointXYZRGB`: the 512 shape bins followed by 472
+    colour bins, 984 in all.
+    """
+
+    cdef cGASDColorEstimation[PointXYZRGB, GASDSignature984]* me
+
+    def __cinit__(self, PointCloud_PointXYZRGB pc=None):
+        self.me = new cGASDColorEstimation[PointXYZRGB, GASDSignature984]()
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud_PointXYZRGB pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_ShapeHalfGridSize(self, size_t size):
+        self.me.setShapeHalfGridSize(size)
+
+    def set_ShapeHistsSize(self, size_t size):
+        self.me.setShapeHistsSize(size)
+
+    def set_ShapeHistsInterpMethod(self, int method):
+        _check_interp(method)
+        self.me.setShapeHistsInterpMethod(<HistogramInterpolationMethod> method)
+
+    def set_ColorHalfGridSize(self, size_t size):
+        self.me.setColorHalfGridSize(size)
+
+    def set_ColorHistsSize(self, size_t size):
+        self.me.setColorHistsSize(size)
+
+    def set_ColorHistsInterpMethod(self, int method):
+        _check_interp(method)
+        self.me.setColorHistsInterpMethod(<HistogramInterpolationMethod> method)
+
+    def compute(self):
+        """Return the descriptor as a length-984 float32 array."""
+        import numpy as np
+        cdef cPointCloud[GASDSignature984] out
+        with nogil:
+            self.me.compute(out)
+        if out.size() == 0:
+            raise RuntimeError(
+                "GASD produced no descriptor (is the input cloud empty?)")
+        result = np.empty(984, dtype=np.float32)
+        cdef float[::1] view = result
+        cdef GASDSignature984* p = &out[0]
+        cdef Py_ssize_t i
+        for i in range(984):
+            view[i] = p.histogram[i]
+        return result
+
+
+cdef class GRSDEstimation:
+    """Global Radius-based Surface Descriptor (pcl::GRSDEstimation).
+
+    One 21-bin descriptor for the whole cloud from how its RSD surface
+    types (plane, edge, corner, ...) neighbour each other. Needs normals
+    and `set_RadiusSearch`, which also sets the voxel size.
+    """
+
+    cdef cGRSDEstimation[PointXYZ, Normal, GRSDSignature21]* me
+    cdef bint has_normals
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cGRSDEstimation[PointXYZ, Normal, GRSDSignature21]()
+        self.has_normals = False
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_InputNormals(self, PointCloud_Normal normals not None):
+        self.me.setInputNormals(normals.thisptr_shared)
+        self.has_normals = True
+
+    def set_RadiusSearch(self, double radius):
+        self.me.setRadiusSearch(radius)
+
+    def get_RadiusSearch(self):
+        return self.me.getRadiusSearch()
+
+    def set_NrSubdivisions(self, int count):
+        self.me.setNrSubdivisions(count)
+
+    def set_PlaneRadius(self, double radius):
+        self.me.setPlaneRadius(radius)
+
+    def compute(self):
+        """Return the descriptor as a length-21 float32 array."""
+        import numpy as np
+        if not self.has_normals:
+            raise RuntimeError(
+                "GRSDEstimation needs normals: call set_InputNormals() with "
+                "a PointCloud_Normal (NormalEstimation.compute_cloud())")
+        cdef cPointCloud[GRSDSignature21] out
+        with nogil:
+            self.me.compute(out)
+        if out.size() == 0:
+            raise RuntimeError(
+                "GRSD produced no descriptor (set_RadiusSearch missing?)")
+        result = np.empty(21, dtype=np.float32)
+        cdef float[::1] view = result
+        cdef GRSDSignature21* p = &out[0]
+        cdef Py_ssize_t i
+        for i in range(21):
+            view[i] = p.histogram[i]
+        return result
+
+
+cdef class OURCVFHEstimation:
+    """Oriented, Unique and Repeatable CVFH (pcl::OURCVFHEstimation).
+
+    `CVFHEstimation` plus a repeatable reference frame per smooth region,
+    so each 308-bin descriptor also fixes the object's roll. Same
+    settings and the same `set_RadiusNormals` trap as CVFH; `compute()`
+    returns ``(regions, 308)``.
+    """
+
+    cdef cOURCVFHEstimation[PointXYZ, Normal, VFHSignature308]* me
+    cdef bint has_normals
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cOURCVFHEstimation[PointXYZ, Normal, VFHSignature308]()
+        self.has_normals = False
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_InputNormals(self, PointCloud_Normal normals not None):
+        self.me.setInputNormals(normals.thisptr_shared)
+        self.has_normals = True
+
+    def set_KSearch(self, int k):
+        self.me.setKSearch(k)
+
+    def set_RadiusSearch(self, double radius):
+        self.me.setRadiusSearch(radius)
+
+    def set_ViewPoint(self, float x, float y, float z):
+        self.me.setViewPoint(x, y, z)
+
+    def set_RadiusNormals(self, float radius):
+        """Radius for the normal re-estimation before clustering: keep
+        it above the cloud's point spacing (see CVFHEstimation)."""
+        self.me.setRadiusNormals(radius)
+
+    def set_ClusterTolerance(self, float distance):
+        self.me.setClusterTolerance(distance)
+
+    def set_EPSAngleThreshold(self, float angle):
+        self.me.setEPSAngleThreshold(angle)
+
+    def set_CurvatureThreshold(self, float curvature):
+        self.me.setCurvatureThreshold(curvature)
+
+    def set_MinPoints(self, size_t count):
+        self.me.setMinPoints(count)
+
+    def set_NormalizeBins(self, bint normalize):
+        self.me.setNormalizeBins(normalize)
+
+    def set_RefineClusters(self, float factor):
+        """Fraction (0..1) of a region's points that must agree before
+        the region is refined; 1 disables."""
+        self.me.setRefineClusters(factor)
+
+    def set_AxisRatio(self, float ratio):
+        self.me.setAxisRatio(ratio)
+
+    def set_MinAxisValue(self, float value):
+        self.me.setMinAxisValue(value)
+
+    def compute(self):
+        """Return a ``(regions, 308)`` float32 array."""
+        import numpy as np
+        if not self.has_normals:
+            raise RuntimeError(
+                "OURCVFHEstimation needs normals: call set_InputNormals() "
+                "with a PointCloud_Normal (NormalEstimation.compute_cloud())")
+        cdef cPointCloud[VFHSignature308] out
+        with nogil:
+            self.me.compute(out)
+        cdef Py_ssize_t n = <Py_ssize_t> out.size()
+        if n == 0:
+            raise RuntimeError("OUR-CVFH produced no descriptor")
+        result = np.empty((n, 308), dtype=np.float32)
+        cdef float[:, ::1] view = result
+        cdef VFHSignature308* p
+        cdef Py_ssize_t i, j
+        for i in range(n):
+            p = &out[<size_t> i]
+            for j in range(308):
+                view[i, j] = p.histogram[j]
+        return result
+
+
+cdef class CRHEstimation:
+    """Camera Roll Histogram (pcl::CRHEstimation).
+
+    A 90-bin histogram of the cloud's roll about the line from the
+    viewpoint to its centroid -- the one degree of freedom CVFH leaves
+    open. PCL needs the centroid handed in; it is computed from the input
+    cloud unless `set_Centroid` was called. Needs normals.
+    """
+
+    cdef cCRHEstimation[PointXYZ, Normal, Histogram90]* me
+    cdef bint has_normals
+    cdef bint has_centroid
+    cdef PointCloud _input
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cCRHEstimation[PointXYZ, Normal, Histogram90]()
+        self.has_normals = False
+        self.has_centroid = False
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+        self._input = pc
+
+    def set_InputNormals(self, PointCloud_Normal normals not None):
+        self.me.setInputNormals(normals.thisptr_shared)
+        self.has_normals = True
+
+    def set_ViewPoint(self, float x, float y, float z):
+        self.me.setViewPoint(x, y, z)
+
+    def set_Centroid(self, float x, float y, float z):
+        """Centroid the roll is measured around (default: the input
+        cloud's mean)."""
+        setCRHCentroid(deref(self.me), x, y, z)
+        self.has_centroid = True
+
+    def compute(self):
+        """Return the histogram as a length-90 float32 array."""
+        import numpy as np
+        if not self.has_normals:
+            raise RuntimeError(
+                "CRHEstimation needs normals: call set_InputNormals() with "
+                "a PointCloud_Normal (NormalEstimation.compute_cloud())")
+        if self._input is None or self._input.size == 0:
+            raise RuntimeError("no input cloud, or an empty one")
+        if not self.has_centroid:
+            centroid = self._input.to_array()[:, :3].mean(axis=0)
+            setCRHCentroid(deref(self.me), centroid[0], centroid[1],
+                           centroid[2])
+        cdef cPointCloud[Histogram90] out
+        with nogil:
+            self.me.compute(out)
+        if out.size() == 0:
+            raise RuntimeError("CRH produced no descriptor")
+        result = np.empty(90, dtype=np.float32)
+        cdef float[::1] view = result
+        cdef Histogram90* p = &out[0]
+        cdef Py_ssize_t i
+        for i in range(90):
+            view[i] = p.histogram[i]
+        return result
+
+
+cdef class MomentInvariantsEstimation:
+    """The three moment invariants of each point's neighbourhood
+    (pcl::MomentInvariantsEstimation). Needs `set_KSearch` /
+    `set_RadiusSearch`; returns ``(n, 3)``: j1, j2, j3.
+    """
+
+    cdef cMomentInvariantsEstimation[PointXYZ, MomentInvariants]* me
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cMomentInvariantsEstimation[PointXYZ, MomentInvariants]()
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_KSearch(self, int k):
+        self.me.setKSearch(k)
+
+    def set_RadiusSearch(self, double radius):
+        self.me.setRadiusSearch(radius)
+
+    def compute(self):
+        """Return an ``(n, 3)`` float32 array: j1, j2, j3 per point."""
+        import numpy as np
+        cdef cPointCloud[MomentInvariants] out
+        with nogil:
+            self.me.compute(out)
+        cdef Py_ssize_t n = <Py_ssize_t> out.size()
+        result = np.empty((n, 3), dtype=np.float32)
+        cdef float[:, ::1] view = result
+        cdef MomentInvariants* p
+        cdef Py_ssize_t i
+        for i in range(n):
+            p = &out[<size_t> i]
+            view[i, 0] = p.j1
+            view[i, 1] = p.j2
+            view[i, 2] = p.j3
         return result
 
 

@@ -168,3 +168,14 @@ extra_cimports = [
     "from pcl.pxd.point_cloud cimport PointCloud",
     "from pcl.pxd.compression.octree_pointcloud_compression cimport OctreePointCloudCompression",
 ]
+
+[[headers]]
+path = "headers/pcl/compat/feature_types.h"
+extern_from = "pcl/compat/feature_types.h"
+output = "../src/pcl/pxd/compat/feature_types.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.point_types cimport PointXYZ, PointXYZRGB, Normal",
+    "from pcl.pxd.features.crh cimport CRHEstimation",
+]

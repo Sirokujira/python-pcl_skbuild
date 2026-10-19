@@ -70,3 +70,73 @@ extern_from = "pcl/features/cvfh.h"
 output = "../src/pcl/pxd/features/cvfh.pxd"
 namespaces = ["pcl"]
 extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/principal_curvatures.h"
+extern_from = "pcl/features/principal_curvatures.h"
+output = "../src/pcl/pxd/features/principal_curvatures.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/normal_3d_omp.h"
+extern_from = "pcl/features/normal_3d_omp.h"
+output = "../src/pcl/pxd/features/normal_3d_omp.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/pfh.h"
+extern_from = "pcl/features/pfh.h"
+output = "../src/pcl/pxd/features/pfh.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/rsd.h"
+extern_from = "pcl/features/rsd.h"
+output = "../src/pcl/pxd/features/rsd.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/spin_image.h"
+extern_from = "pcl/features/spin_image.h"
+output = "../src/pcl/pxd/features/spin_image.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/gasd.h"
+extern_from = "pcl/features/gasd.h"
+output = "../src/pcl/pxd/features/gasd.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/grsd.h"
+extern_from = "pcl/features/grsd.h"
+output = "../src/pcl/pxd/features/grsd.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/our_cvfh.h"
+extern_from = "pcl/features/our_cvfh.h"
+output = "../src/pcl/pxd/features/our_cvfh.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/crh.h"
+extern_from = "pcl/features/crh.h"
+output = "../src/pcl/pxd/features/crh.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/moment_invariants.h"
+extern_from = "pcl/features/moment_invariants.h"
+output = "../src/pcl/pxd/features/moment_invariants.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]

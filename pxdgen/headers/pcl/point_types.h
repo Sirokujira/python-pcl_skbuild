@@ -152,6 +152,77 @@ struct PointWithViewpoint {
 };
 
 
+// Principal curvatures (PrincipalCurvaturesEstimation output): the
+// direction of the largest curvature and the two magnitudes.
+struct PrincipalCurvatures {
+    union {
+        struct {
+            float principal_curvature_x;
+            float principal_curvature_y;
+            float principal_curvature_z;
+        };
+        float principal_curvature[3];
+    };
+    float pc1;
+    float pc2;
+};
+
+// A 125-bin Point Feature Histogram: 3 angular features x 5 bins, one
+// per point (PFHEstimation output).
+struct PFHSignature125 {
+    float histogram[125];
+};
+
+// Radius-based Surface Descriptor (RSDEstimation output): the smallest
+// and largest surface radius around a point.
+struct PrincipalRadiiRSD {
+    float r_min;
+    float r_max;
+};
+
+// Globally Aligned Spatial Distribution, shape only (GASDEstimation).
+struct GASDSignature512 {
+    float histogram[512];
+};
+
+// GASD with colour histograms (GASDColorEstimation).
+struct GASDSignature984 {
+    float histogram[984];
+};
+
+// Global RSD (GRSDEstimation): one 21-bin descriptor for a whole cloud.
+struct GRSDSignature21 {
+    float histogram[21];
+};
+
+// The three moment invariants of a point's neighbourhood.
+struct MomentInvariants {
+    float j1;
+    float j2;
+    float j3;
+};
+
+// A keypoint with the scale it was found at (SIFTKeypoint output).
+struct PointWithScale {
+    union {
+        struct {
+            float x;
+            float y;
+            float z;
+        };
+        float data[4];
+    };
+    union {
+        struct {
+            float scale;
+            float angle;
+            float response;
+            int octave;
+        };
+        float data_c[4];
+    };
+};
+
 // A 308-bin Viewpoint Feature Histogram: one descriptor for a whole
 // cloud, which is why VFHEstimation's output cloud holds a single point.
 struct VFHSignature308 {

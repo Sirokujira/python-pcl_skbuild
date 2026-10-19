@@ -213,13 +213,13 @@ converged, refined, _, _ = icp.icp(source.transform(transform), target)
 | core | `PointCloud`, `pcl.load` / `pcl.save` (PCD, PLY, `.gz`; OBJ vertices read-only), `cloud.transform` / `pcl.transform_cloud` |
 | point types | `PointCloud_PointXYZI`, `PointCloud_PointXYZRGB`, `PointCloud_PointXYZRGBA`, `PointCloud_Normal`, `PointCloud_PointNormal`, `PointCloud_PointWithViewpoint` (+ `pcl.load_XYZI` / `load_XYZRGB` / `load_XYZRGBA` / `load_PointNormal` / `load_PointWithViewpoint`) |
 | filters | `VoxelGridFilter`, `ApproximateVoxelGrid`, `PassThroughFilter`, `StatisticalOutlierRemovalFilter`, `RadiusOutlierRemoval`, `ExtractIndices`, `CropBox`, `ProjectInliers`, `RandomSample`, `UniformSampling`, `FastBilateralFilter`, `CropHull`, `ShadowPoints`, `NormalSpaceSampling`, `SamplingSurfaceNormal`, `GridMinimum`, `LocalMaximum`, `FrustumCulling`, `MedianFilter`, `BilateralFilter`, `ModelOutlierRemoval`, `cloud.remove_nan()` |
-| keypoints | `HarrisKeypoint3D`, NARF (via `RangeImage.narf_keypoints`) |
+| keypoints | `HarrisKeypoint3D`, `ISSKeypoint3D`, `SIFTKeypoint` (RGB), `SUSANKeypoint` (RGB), NARF (via `RangeImage.narf_keypoints`) |
 | range image | `RangeImage` (+ `pcl.CAMERA_FRAME` / `LASER_FRAME`) |
 | conditions | `ConditionAnd`, `ConditionalRemoval` (+ `pcl.CompareOp_*`) |
 | sample consensus | `RandomSampleConsensus` + `SampleConsensusModel{Plane,Line,Circle2D,Circle3D,Sphere,Stick}` |
 | search | `KdTreeFLANN`, `OctreePointCloudSearch`, `OctreePointCloudChangeDetector` |
 | compression | `OctreePointCloudCompression` / `OctreePointCloudCompressionRGB` (bytes in, bytes out; the `pcl.*_COMPRESSION_*` profiles) |
-| features | `NormalEstimation`, `IntegralImageNormalEstimation`, `DifferenceOfNormalsEstimation`, `MomentOfInertiaEstimation`, `VFHEstimation`, `CVFHEstimation`, `ESFEstimation`, `FPFHEstimation`, `SHOTEstimation`, `BoundaryEstimation` |
+| features | `NormalEstimation`, `IntegralImageNormalEstimation`, `DifferenceOfNormalsEstimation`, `MomentOfInertiaEstimation`, `VFHEstimation`, `CVFHEstimation`, `ESFEstimation`, `FPFHEstimation`, `PFHEstimation`, `SHOTEstimation`, `BoundaryEstimation`, `PrincipalCurvaturesEstimation`, `RSDEstimation`, `GRSDEstimation`, `SpinImageEstimation`, `GASDEstimation` / `GASDColorEstimation`, `OURCVFHEstimation`, `CRHEstimation`, `MomentInvariantsEstimation`, `NormalEstimationOMP` |
 | surface | `MovingLeastSquares`, `ConcaveHull`, `ConvexHull`, `GreedyProjectionTriangulation`, `Poisson`, `MarchingCubesHoppe`, `MarchingCubesRBF`, `pcl.save_mesh` / `pcl.load_mesh` (PLY, OBJ, VTK) |
 | registration | `IterativeClosestPoint`, `IterativeClosestPointNonLinear`, `GeneralizedIterativeClosestPoint`, `NormalDistributionsTransform`, `SampleConsensusPrerejective` (global) |
 | segmentation | `Segmentation` (SAC), `SegmentationNormal`, `EuclideanClusterExtraction`, `ProgressiveMorphologicalFilter`, `MinCutSegmentation`, `ConditionalEuclideanClustering`, `RegionGrowing`, `RegionGrowingRGB` |

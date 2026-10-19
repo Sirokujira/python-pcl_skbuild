@@ -588,6 +588,61 @@ cdef class PointCloud:
         from pcl._filters import ModelOutlierRemoval
         return ModelOutlierRemoval(self)
 
+    def make_PrincipalCurvaturesEstimation(self):
+        """Return a PrincipalCurvaturesEstimation with this cloud as input."""
+        from pcl._features import PrincipalCurvaturesEstimation
+        return PrincipalCurvaturesEstimation(self)
+
+    def make_NormalEstimationOMP(self):
+        """Return a NormalEstimationOMP with this cloud as input."""
+        from pcl._features import NormalEstimationOMP
+        return NormalEstimationOMP(self)
+
+    def make_PFHEstimation(self):
+        """Return a PFHEstimation with this cloud as input."""
+        from pcl._features import PFHEstimation
+        return PFHEstimation(self)
+
+    def make_RSDEstimation(self):
+        """Return a RSDEstimation with this cloud as input."""
+        from pcl._features import RSDEstimation
+        return RSDEstimation(self)
+
+    def make_SpinImageEstimation(self):
+        """Return a SpinImageEstimation with this cloud as input."""
+        from pcl._features import SpinImageEstimation
+        return SpinImageEstimation(self)
+
+    def make_GASDEstimation(self):
+        """Return a GASDEstimation with this cloud as input."""
+        from pcl._features import GASDEstimation
+        return GASDEstimation(self)
+
+    def make_GRSDEstimation(self):
+        """Return a GRSDEstimation with this cloud as input."""
+        from pcl._features import GRSDEstimation
+        return GRSDEstimation(self)
+
+    def make_OURCVFHEstimation(self):
+        """Return a OURCVFHEstimation with this cloud as input."""
+        from pcl._features import OURCVFHEstimation
+        return OURCVFHEstimation(self)
+
+    def make_CRHEstimation(self):
+        """Return a CRHEstimation with this cloud as input."""
+        from pcl._features import CRHEstimation
+        return CRHEstimation(self)
+
+    def make_MomentInvariantsEstimation(self):
+        """Return a MomentInvariantsEstimation with this cloud as input."""
+        from pcl._features import MomentInvariantsEstimation
+        return MomentInvariantsEstimation(self)
+
+    def make_ISSKeypoint3D(self):
+        """Return a ISSKeypoint3D with this cloud as input."""
+        from pcl._keypoints import ISSKeypoint3D
+        return ISSKeypoint3D(self)
+
     def make_NormalEstimation(self):
         """Return a NormalEstimation with this cloud as input."""
         from pcl._features import NormalEstimation

@@ -75,6 +75,46 @@ cdef extern from "pcl/point_types.h" namespace "pcl" nogil:
         float vp_z
         float data_c[4]
 
+    cdef struct PrincipalCurvatures:
+        float principal_curvature_x
+        float principal_curvature_y
+        float principal_curvature_z
+        float principal_curvature[3]
+        float pc1
+        float pc2
+
+    cdef struct PFHSignature125:
+        float histogram[125]
+
+    cdef struct PrincipalRadiiRSD:
+        float r_min
+        float r_max
+
+    cdef struct GASDSignature512:
+        float histogram[512]
+
+    cdef struct GASDSignature984:
+        float histogram[984]
+
+    cdef struct GRSDSignature21:
+        float histogram[21]
+
+    cdef struct MomentInvariants:
+        float j1
+        float j2
+        float j3
+
+    cdef struct PointWithScale:
+        float x
+        float y
+        float z
+        float data[4]
+        float scale
+        float angle
+        float response
+        int octave
+        float data_c[4]
+
     cdef struct VFHSignature308:
         float histogram[308]
 

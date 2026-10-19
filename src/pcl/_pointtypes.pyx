@@ -287,6 +287,21 @@ cdef class PointCloud_PointXYZRGB:
         from pcl._segmentation import RegionGrowingRGB
         return RegionGrowingRGB(self)
 
+    def make_GASDColorEstimation(self):
+        """Return a GASDColorEstimation with this cloud as input."""
+        from pcl._features import GASDColorEstimation
+        return GASDColorEstimation(self)
+
+    def make_SIFTKeypoint(self):
+        """Return a SIFTKeypoint detector with this cloud as input."""
+        from pcl._keypoints import SIFTKeypoint
+        return SIFTKeypoint(self)
+
+    def make_SUSANKeypoint(self):
+        """Return a SUSANKeypoint detector with this cloud as input."""
+        from pcl._keypoints import SUSANKeypoint
+        return SUSANKeypoint(self)
+
     def from_array(self, float[:, :] arr not None):
         """Fill from an ``(n, 4)`` float32 array: x, y, z, packed rgb."""
         if arr.shape[1] != 4:
