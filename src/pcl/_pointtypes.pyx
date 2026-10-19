@@ -101,6 +101,21 @@ cdef class PointCloud_PointXYZI:
         c.width = count
         c.height = 1
 
+    def make_IntensityGradientEstimation(self):
+        """Return a IntensityGradientEstimation with this cloud as input."""
+        from pcl._features_extra import IntensityGradientEstimation
+        return IntensityGradientEstimation(self)
+
+    def make_IntensitySpinEstimation(self):
+        """Return a IntensitySpinEstimation with this cloud as input."""
+        from pcl._features_extra import IntensitySpinEstimation
+        return IntensitySpinEstimation(self)
+
+    def make_RIFTEstimation(self):
+        """Return a RIFTEstimation with this cloud as input."""
+        from pcl._features_extra import RIFTEstimation
+        return RIFTEstimation(self)
+
     def make_BilateralFilter(self):
         """Return a BilateralFilter with this cloud as input."""
         from pcl._filters import BilateralFilter
@@ -661,6 +676,41 @@ cdef class PointCloud_PointXYZRGBA:
                 p.g = rgba[row, col, 1]
                 p.b = rgba[row, col, 2]
                 p.a = rgba[row, col, 3]
+
+    def make_SHOTColorEstimation(self):
+        """Return a SHOTColorEstimation with this cloud as input."""
+        from pcl._features_extra import SHOTColorEstimation
+        return SHOTColorEstimation(self)
+
+    def make_SHOTColorEstimationOMP(self):
+        """Return a SHOTColorEstimationOMP with this cloud as input."""
+        from pcl._features_extra import SHOTColorEstimationOMP
+        return SHOTColorEstimationOMP(self)
+
+    def make_PFHRGBEstimation(self):
+        """Return a PFHRGBEstimation with this cloud as input."""
+        from pcl._features_extra import PFHRGBEstimation
+        return PFHRGBEstimation(self)
+
+    def make_PPFRGBEstimation(self):
+        """Return a PPFRGBEstimation with this cloud as input."""
+        from pcl._features_extra import PPFRGBEstimation
+        return PPFRGBEstimation(self)
+
+    def make_CPPFEstimation(self):
+        """Return a CPPFEstimation with this cloud as input."""
+        from pcl._features_extra import CPPFEstimation
+        return CPPFEstimation(self)
+
+    def make_OrganizedEdgeFromRGB(self):
+        """Return a OrganizedEdgeFromRGB with this cloud as input."""
+        from pcl._features_extra import OrganizedEdgeFromRGB
+        return OrganizedEdgeFromRGB(self)
+
+    def make_OrganizedEdgeFromRGBNormals(self):
+        """Return a OrganizedEdgeFromRGBNormals with this cloud as input."""
+        from pcl._features_extra import OrganizedEdgeFromRGBNormals
+        return OrganizedEdgeFromRGBNormals(self)
 
     def make_BilateralUpsampling(self):
         """Return a BilateralUpsampling filter with this organized cloud

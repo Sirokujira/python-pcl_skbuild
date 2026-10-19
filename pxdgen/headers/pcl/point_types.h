@@ -271,4 +271,81 @@ struct SHOT352 {
     float rf[9];
 };
 
+// SHOT with colour (SHOTColorEstimation): 352 shape + 992 colour bins,
+// plus the local reference frame.
+struct SHOT1344 {
+    float descriptor[1344];
+    float rf[9];
+};
+
+// PFH with three colour-ratio features (PFHRGBEstimation).
+struct PFHRGBSignature250 {
+    float histogram[250];
+};
+
+// 3-D Shape Context (ShapeContext3DEstimation).
+struct ShapeContext1980 {
+    float descriptor[1980];
+    float rf[9];
+};
+
+// Unique Shape Context (UniqueShapeContext): 3DSC in a unique frame.
+struct UniqueShapeContext1960 {
+    float descriptor[1960];
+    float rf[9];
+};
+
+// Point Pair Feature of one ordered pair (PPFEstimation).
+struct PPFSignature {
+    float f1;
+    float f2;
+    float f3;
+    float f4;
+    float alpha_m;
+};
+
+// PPF plus the three colour ratios (PPFRGBEstimation).
+struct PPFRGBSignature {
+    float f1;
+    float f2;
+    float f3;
+    float f4;
+    float r_ratio;
+    float g_ratio;
+    float b_ratio;
+    float alpha_m;
+};
+
+// Colour Point Pair Feature (CPPFEstimation): ten features per pair.
+struct CPPFSignature {
+    float f1;
+    float f2;
+    float f3;
+    float f4;
+    float f5;
+    float f6;
+    float f7;
+    float f8;
+    float f9;
+    float f10;
+    float alpha_m;
+};
+
+// A local reference frame: three unit axes, row-major (x, y, z axis).
+struct ReferenceFrame {
+    float rf[9];
+};
+
+// Intensity gradient at a point (IntensityGradientEstimation).
+struct IntensityGradient {
+    float gradient_x;
+    float gradient_y;
+    float gradient_z;
+};
+
+// Global FPFH over labelled surface patches (GFPFHEstimation).
+struct GFPFHSignature16 {
+    float histogram[16];
+};
+
 }  // namespace pcl

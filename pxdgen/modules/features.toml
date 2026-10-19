@@ -140,3 +140,142 @@ extern_from = "pcl/features/moment_invariants.h"
 output = "../src/pcl/pxd/features/moment_invariants.pxd"
 namespaces = ["pcl"]
 extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/fpfh_omp.h"
+extern_from = "pcl/features/fpfh_omp.h"
+output = "../src/pcl/pxd/features/fpfh_omp.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/shot_omp.h"
+extern_from = "pcl/features/shot_omp.h"
+output = "../src/pcl/pxd/features/shot_omp.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/pfhrgb.h"
+extern_from = "pcl/features/pfhrgb.h"
+output = "../src/pcl/pxd/features/pfhrgb.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/3dsc.h"
+extern_from = "pcl/features/3dsc.h"
+output = "../src/pcl/pxd/features/shape_context_3d.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/usc.h"
+extern_from = "pcl/features/usc.h"
+output = "../src/pcl/pxd/features/usc.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/ppf.h"
+extern_from = "pcl/features/ppf.h"
+output = "../src/pcl/pxd/features/ppf.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/ppfrgb.h"
+extern_from = "pcl/compat/ppfrgb.h"
+output = "../src/pcl/pxd/features/ppfrgb.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/cppf.h"
+extern_from = "pcl/features/cppf.h"
+output = "../src/pcl/pxd/features/cppf.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/shot_lrf.h"
+extern_from = "pcl/features/shot_lrf.h"
+output = "../src/pcl/pxd/features/shot_lrf.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/shot_lrf_omp.h"
+extern_from = "pcl/features/shot_lrf_omp.h"
+output = "../src/pcl/pxd/features/shot_lrf_omp.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/board.h"
+extern_from = "pcl/features/board.h"
+output = "../src/pcl/pxd/features/board.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/flare.h"
+extern_from = "pcl/features/flare.h"
+output = "../src/pcl/pxd/features/flare.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/intensity_gradient.h"
+extern_from = "pcl/features/intensity_gradient.h"
+output = "../src/pcl/pxd/features/intensity_gradient.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/intensity_spin.h"
+extern_from = "pcl/features/intensity_spin.h"
+output = "../src/pcl/pxd/features/intensity_spin.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/rift.h"
+extern_from = "pcl/features/rift.h"
+output = "../src/pcl/pxd/features/rift.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/linear_least_squares_normal.h"
+extern_from = "pcl/features/linear_least_squares_normal.h"
+output = "../src/pcl/pxd/features/linear_least_squares_normal.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/organized_edge_detection.h"
+extern_from = "pcl/features/organized_edge_detection.h"
+output = "../src/pcl/pxd/features/organized_edge_detection.pxd"
+namespaces = ["pcl"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.point_indices cimport PointIndices",
+]
+
+[[headers]]
+path = "headers/pcl/features/gfpfh.h"
+extern_from = "pcl/features/gfpfh.h"
+output = "../src/pcl/pxd/features/gfpfh.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/rops_estimation.h"
+extern_from = "pcl/features/rops_estimation.h"
+output = "../src/pcl/pxd/features/rops_estimation.pxd"
+namespaces = ["pcl"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.vertices cimport Vertices",
+]

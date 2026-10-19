@@ -36,4 +36,19 @@ public:
     float getLRFRadius();
 };
 
+// SHOT over shape AND colour (CIELab), 1344 bins. Either half can be
+// switched off at construction.
+template <typename PointInT, typename PointNT, typename PointOutT>
+class SHOTColorEstimation {
+public:
+    SHOTColorEstimation(bool describe_shape, bool describe_color);
+
+    // Inherited entry points (PCLBase / Feature / FeatureFromNormals).
+    void setInputCloud(const std::shared_ptr<PointCloud<PointInT>>& cloud);
+    void setInputNormals(const std::shared_ptr<PointCloud<PointNT>>& normals);
+    void setRadiusSearch(double radius);
+    void compute(PointCloud<PointOutT>& output);
+    void setLRFRadius(float radius);
+};
+
 }  // namespace pcl

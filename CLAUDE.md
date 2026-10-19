@@ -70,7 +70,9 @@ models, registration), `ExtractPolygonalPrismData`, `SegmentDifferences`,
 `BoundaryEstimation`, `PFHEstimation`, `PrincipalCurvaturesEstimation`,
 `RSDEstimation`, `GRSDEstimation`, `SpinImageEstimation`, `GASDEstimation` (+ Color),
 `OURCVFHEstimation`, `CRHEstimation`, `MomentInvariantsEstimation`,
-`NormalEstimationOMP`, `ISSKeypoint3D`, `SIFTKeypoint`, `SUSANKeypoint`,
+`NormalEstimationOMP`, the OMP / colour / shape-context / point-pair /
+reference-frame / intensity / organized-edge / RoPS / GFPFH / multiscale
+estimators in `_features_extra`, `ISSKeypoint3D`, `SIFTKeypoint`, `SUSANKeypoint`,
 `Poisson`, `MarchingCubesHoppe`, `MarchingCubesRBF`,
 `ConditionalEuclideanClustering`,
 `RegionGrowing`, `RegionGrowingRGB`,

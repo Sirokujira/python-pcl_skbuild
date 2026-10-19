@@ -490,6 +490,83 @@ cdef class PointCloud:
         from pcl._octree import OctreePointCloudDensity
         return OctreePointCloudDensity(resolution, self)
 
+    def make_FPFHEstimationOMP(self):
+        """Return a FPFHEstimationOMP with this cloud as input."""
+        from pcl._features_extra import FPFHEstimationOMP
+        return FPFHEstimationOMP(self)
+
+    def make_SHOTEstimationOMP(self):
+        """Return a SHOTEstimationOMP with this cloud as input."""
+        from pcl._features_extra import SHOTEstimationOMP
+        return SHOTEstimationOMP(self)
+
+    def make_ShapeContext3DEstimation(self):
+        """Return a ShapeContext3DEstimation with this cloud as input."""
+        from pcl._features_extra import ShapeContext3DEstimation
+        return ShapeContext3DEstimation(self)
+
+    def make_UniqueShapeContext(self):
+        """Return a UniqueShapeContext with this cloud as input."""
+        from pcl._features_extra import UniqueShapeContext
+        return UniqueShapeContext(self)
+
+    def make_PPFEstimation(self):
+        """Return a PPFEstimation with this cloud as input."""
+        from pcl._features_extra import PPFEstimation
+        return PPFEstimation(self)
+
+    def make_SHOTLocalReferenceFrameEstimation(self):
+        """Return a SHOTLocalReferenceFrameEstimation with this cloud as input."""
+        from pcl._features_extra import SHOTLocalReferenceFrameEstimation
+        return SHOTLocalReferenceFrameEstimation(self)
+
+    def make_SHOTLocalReferenceFrameEstimationOMP(self):
+        """Return a SHOTLocalReferenceFrameEstimationOMP with this cloud as input."""
+        from pcl._features_extra import SHOTLocalReferenceFrameEstimationOMP
+        return SHOTLocalReferenceFrameEstimationOMP(self)
+
+    def make_BOARDLocalReferenceFrameEstimation(self):
+        """Return a BOARDLocalReferenceFrameEstimation with this cloud as input."""
+        from pcl._features_extra import BOARDLocalReferenceFrameEstimation
+        return BOARDLocalReferenceFrameEstimation(self)
+
+    def make_FLARELocalReferenceFrameEstimation(self):
+        """Return a FLARELocalReferenceFrameEstimation with this cloud as input."""
+        from pcl._features_extra import FLARELocalReferenceFrameEstimation
+        return FLARELocalReferenceFrameEstimation(self)
+
+    def make_LinearLeastSquaresNormalEstimation(self):
+        """Return a LinearLeastSquaresNormalEstimation with this cloud as input."""
+        from pcl._features_extra import LinearLeastSquaresNormalEstimation
+        return LinearLeastSquaresNormalEstimation(self)
+
+    def make_OrganizedEdgeBase(self):
+        """Return a OrganizedEdgeBase with this cloud as input."""
+        from pcl._features_extra import OrganizedEdgeBase
+        return OrganizedEdgeBase(self)
+
+    def make_OrganizedEdgeFromNormals(self):
+        """Return a OrganizedEdgeFromNormals with this cloud as input."""
+        from pcl._features_extra import OrganizedEdgeFromNormals
+        return OrganizedEdgeFromNormals(self)
+
+    def make_StatisticalMultiscaleInterestRegionExtraction(self):
+        """Return a StatisticalMultiscaleInterestRegionExtraction with this cloud as input."""
+        from pcl._features_extra import StatisticalMultiscaleInterestRegionExtraction
+        return StatisticalMultiscaleInterestRegionExtraction(self)
+
+    def make_ROPSEstimation(self, triangles):
+        """Return a ROPSEstimation over this cloud and the mesh
+        *triangles* (index triples into it)."""
+        from pcl._features_extra import ROPSEstimation
+        return ROPSEstimation(self, triangles)
+
+    def make_MultiscaleFeaturePersistence(self, normals):
+        """Return a MultiscaleFeaturePersistence (over FPFH) for this
+        cloud and its normals."""
+        from pcl._features_extra import MultiscaleFeaturePersistence
+        return MultiscaleFeaturePersistence(self, normals)
+
     def make_VFHEstimation(self):
         """Return a VFHEstimation with this cloud as input."""
         from pcl._features import VFHEstimation

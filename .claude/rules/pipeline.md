@@ -196,6 +196,18 @@ positive one); `OrganizedNeighbor::setInputCloud` returns false for a
 non-projective cloud and then answers queries anyway (the wrapper
 raises).
 
+The remaining features added their own: `IntensitySpinEstimation` and
+`RIFTEstimation` have a fixed-size output type but settable bin counts,
+and a product above 20 / 32 writes past every histogram, so the
+wrappers take the bins only as a pair whose product fits; `ROPSEstimation`
+fixes its rotations at 3 for the same reason. `SHOTColorEstimation`
+packs whichever halves are enabled at the front of its 1344 values, so
+the wrapper returns exactly that width. `NormalBasedSignatureEstimation`
+is not wrapped at all: it divides by zero in its DFT and returns only
+NaN (0 of 18,000 values finite in plain C++; same on master). And the
+`PPFRGBEstimation` impl calls a function its header never includes,
+which `compat/ppfrgb.h` supplies.
+
 Compile-time, too: `OctreePointCloudVoxelCentroid::getVoxelCentroidAtPoint`
 in 1.14 calls a dependent-base member without `this->`, which two-phase
 lookup rejects, and PCL never instantiates the header-only class itself

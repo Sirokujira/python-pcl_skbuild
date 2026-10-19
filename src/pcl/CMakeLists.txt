@@ -14,6 +14,7 @@ set(PCL_CYTHON_MODULES
     _grabber
     _octree
     _features
+    _features_extra
     _surface
     _registration
     _pointtypes

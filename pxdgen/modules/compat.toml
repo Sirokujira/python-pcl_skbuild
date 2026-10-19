@@ -180,8 +180,9 @@ output = "../src/pcl/pxd/compat/feature_types.pxd"
 namespaces = ["pclcompat"]
 extra_cimports = [
     "from pcl.pxd.point_cloud cimport PointCloud",
-    "from pcl.pxd.point_types cimport PointXYZ, PointXYZRGB, Normal",
+    "from pcl.pxd.point_types cimport PointXYZ, PointXYZRGB, Normal, FPFHSignature33",
     "from pcl.pxd.features.crh cimport CRHEstimation",
+    "from pcl.pxd.vertices cimport Vertices",
 ]
 
 [[headers]]

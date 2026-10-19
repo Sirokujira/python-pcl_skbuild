@@ -140,3 +140,59 @@ cdef extern from "pcl/point_types.h" namespace "pcl" nogil:
     cdef struct SHOT352:
         float descriptor[352]
         float rf[9]
+
+    cdef struct SHOT1344:
+        float descriptor[1344]
+        float rf[9]
+
+    cdef struct PFHRGBSignature250:
+        float histogram[250]
+
+    cdef struct ShapeContext1980:
+        float descriptor[1980]
+        float rf[9]
+
+    cdef struct UniqueShapeContext1960:
+        float descriptor[1960]
+        float rf[9]
+
+    cdef struct PPFSignature:
+        float f1
+        float f2
+        float f3
+        float f4
+        float alpha_m
+
+    cdef struct PPFRGBSignature:
+        float f1
+        float f2
+        float f3
+        float f4
+        float r_ratio
+        float g_ratio
+        float b_ratio
+        float alpha_m
+
+    cdef struct CPPFSignature:
+        float f1
+        float f2
+        float f3
+        float f4
+        float f5
+        float f6
+        float f7
+        float f8
+        float f9
+        float f10
+        float alpha_m
+
+    cdef struct ReferenceFrame:
+        float rf[9]
+
+    cdef struct IntensityGradient:
+        float gradient_x
+        float gradient_y
+        float gradient_z
+
+    cdef struct GFPFHSignature16:
+        float histogram[16]
