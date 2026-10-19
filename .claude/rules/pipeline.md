@@ -302,6 +302,22 @@ tells you it is not your bug), then decide in the `.pyx` layer: absorb it
 when it would otherwise crash or silently no-op, document it when it is
 merely surprising.
 
+## Windows linking (MSVC against conda-forge PCL)
+
+`PCL_EXPORTS` is `__declspec(dllexport)` while PCL builds and EMPTY for
+everyone else, so a consumer reaches PCL's exported FUNCTIONS through
+the import library but can never link its static DATA (that needs
+`dllimport`). Anything that makes our module instantiate PCL inline code
+touching such data fails to link on Windows only. The live case:
+`RangeImageSpherical` has an inline constructor, so its vtable lands in
+our module, dragging in `RangeImage::getSubImage` / `getHalfImage` (not
+exported) and inline overrides that read the static lookup tables --
+Linux links it, MSVC cannot, and neither could any C++ program outside
+PCL. `range_image_args.h` refuses it under `_WIN32`. Before wrapping a
+PCL class with an inline constructor, check that every virtual it
+inherits is exported. Separately, MSVC needs `/bigobj` for the biggest
+generated modules (`src/pcl/CMakeLists.txt` sets it for all).
+
 ## Cython traps found the hard way
 
 - **No comprehension or generator over a C++ reference.** Cython builds a

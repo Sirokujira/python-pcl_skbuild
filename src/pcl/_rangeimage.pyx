@@ -244,7 +244,12 @@ cdef _check_intrinsics(int width, int height, float fx, float fy):
 cdef class RangeImageSpherical(RangeImage):
     """A range image whose pixels are equal steps of azimuth and
     elevation (pcl::RangeImageSpherical) — the native layout of a
-    spinning LIDAR. Same constructor as :class:`RangeImage`."""
+    spinning LIDAR. Same constructor as :class:`RangeImage`.
+
+    Not available on Windows: the class's inline constructor puts its
+    vtable in the caller's module, and that vtable needs base-class
+    virtuals and static lookup tables PCL does not export, so no module
+    outside PCL can link it there; construction raises RuntimeError."""
 
     def __init__(self, PointCloud pc not None,
                  float angular_resolution=0.5 * DEG2RAD,

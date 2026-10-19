@@ -17,6 +17,7 @@
 #pragma once
 
 #include <memory>
+#include <stdexcept>
 #include <vector>
 
 #include <pcl/features/range_image_border_extractor.h>
@@ -165,6 +166,25 @@ inline RangeImagePtr makeRangeImageSpherical(const Cloud& cloud,
                                              float noise_level,
                                              float min_range,
                                              int border_size) {
+#ifdef _WIN32
+    // RangeImageSpherical's constructor is inline, so its vtable is built
+    // in the caller's module, and that vtable needs RangeImage's
+    // getSubImage / getHalfImage (not exported from pcl_common) and
+    // inline overrides that read RangeImage's static lookup tables (data
+    // a consumer cannot link: PCL_EXPORTS is empty outside PCL, so there
+    // is no dllimport). No module outside PCL can link it on Windows.
+    (void)cloud;
+    (void)angular_resolution;
+    (void)max_angle_width;
+    (void)max_angle_height;
+    (void)coordinate_frame;
+    (void)noise_level;
+    (void)min_range;
+    (void)border_size;
+    throw std::runtime_error(
+        "RangeImageSpherical cannot be linked from outside PCL on Windows "
+        "(its base's virtuals and lookup tables are not exported)");
+#else
     std::shared_ptr<pcl::RangeImageSpherical> image(
         new pcl::RangeImageSpherical());
     image->createFromPointCloud(
@@ -173,6 +193,7 @@ inline RangeImagePtr makeRangeImageSpherical(const Cloud& cloud,
         static_cast<pcl::RangeImage::CoordinateFrame>(coordinate_frame),
         noise_level, min_range, border_size);
     return image;
+#endif
 }
 
 // --- borders and NARF descriptors ----------------------------------------

@@ -28,9 +28,16 @@ set(PCL_CYTHON_MODULES
     _people
 )
 
+# MSVC caps an object file at 2^16 sections unless told otherwise; the
+# larger generated modules (_registration) pass that.
+if(MSVC)
+    set(PCL_CYTHON_COMPILE_OPTIONS /bigobj)
+endif()
+
 foreach(module ${PCL_CYTHON_MODULES})
     add_cython_target(${module} CXX PY3)
     add_library(${module} MODULE ${${module}})
+    target_compile_options(${module} PRIVATE ${PCL_CYTHON_COMPILE_OPTIONS})
     target_link_libraries(${module} ${PCL_LIBRARIES})
     python_extension_module(${module})
     install(TARGETS ${module} LIBRARY DESTINATION src/pcl)
@@ -49,6 +56,7 @@ foreach(module ${PCL_CYTHON_SERIAL_MODULES})
     add_cython_target(${module} CXX PY3)
     add_library(${module} MODULE ${${module}})
     set_target_properties(${module} PROPERTIES PCL_WITHOUT_OPENMP ON)
+    target_compile_options(${module} PRIVATE ${PCL_CYTHON_COMPILE_OPTIONS})
     target_link_libraries(${module} ${PCL_LIBRARIES})
     python_extension_module(${module})
     install(TARGETS ${module} LIBRARY DESTINATION src/pcl)

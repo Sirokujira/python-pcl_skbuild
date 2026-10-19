@@ -214,7 +214,7 @@ converged, refined, _, _ = icp.icp(source.transform(transform), target)
 | point types | `PointCloud_PointXYZI`, `PointCloud_PointXYZRGB`, `PointCloud_PointXYZRGBA`, `PointCloud_Normal`, `PointCloud_PointNormal`, `PointCloud_PointWithViewpoint` (+ `pcl.load_XYZI` / `load_XYZRGB` / `load_XYZRGBA` / `load_PointNormal` / `load_PointWithViewpoint`) |
 | filters | `VoxelGridFilter`, `ApproximateVoxelGrid`, `PassThroughFilter`, `StatisticalOutlierRemovalFilter`, `RadiusOutlierRemoval`, `ExtractIndices`, `CropBox`, `ProjectInliers`, `RandomSample`, `UniformSampling`, `FastBilateralFilter`, `CropHull`, `ShadowPoints`, `NormalSpaceSampling`, `SamplingSurfaceNormal`, `GridMinimum`, `LocalMaximum`, `FrustumCulling`, `MedianFilter`, `BilateralFilter`, `ModelOutlierRemoval`, `cloud.remove_nan()`, `FarthestPointSampling`, `CovarianceSampling`, `FastBilateralFilterOMP`, `NormalRefinement`, `VoxelGridLabel`, `VoxelGridCovariance`, `VoxelGridOcclusionEstimation`, `PlaneClipper3D`, `BoxClipper3D`, `Convolution3D` (Gaussian, + RGB), `Convolution` (2-D, + `pcl.BORDERS_POLICY_*`), `pcl.apply_morphological_operator` (+ `pcl.MORPH_*`) |
 | keypoints | `HarrisKeypoint3D`, `HarrisKeypoint6D` (RGB, serial), `ISSKeypoint3D`, `SIFTKeypoint` (RGB), `SUSANKeypoint` (RGB), `TrajkovicKeypoint3D`, `SmoothedSurfacesKeypoint`; on organized RGBA images `HarrisKeypoint2D`, `TrajkovicKeypoint2D` (+ `pcl.FOUR_CORNERS` / `EIGHT_CORNERS`), `AgastKeypoint2D`, `BriskKeypoint2D` + `BRISK2DEstimation`; NARF (via `RangeImage.narf_keypoints`) |
-| range image | `RangeImage`, `RangeImagePlanar` (from a cloud or a depth image), `RangeImageSpherical`, `RangeImageBorderExtractor` (+ `pcl.BORDER_TRAIT__*`), `NarfDescriptor` (+ `pcl.CAMERA_FRAME` / `LASER_FRAME`) |
+| range image | `RangeImage`, `RangeImagePlanar` (from a cloud or a depth image), `RangeImageSpherical` (not on Windows, see below), `RangeImageBorderExtractor` (+ `pcl.BORDER_TRAIT__*`), `NarfDescriptor` (+ `pcl.CAMERA_FRAME` / `LASER_FRAME`) |
 | conditions | `ConditionAnd`, `ConditionalRemoval` (+ `pcl.CompareOp_*`) |
 | sample consensus | `SampleConsensus` (RANSAC, LMedS, MSAC, RMSAC, MLESAC, PROSAC via `pcl.SAC_*`; RRANSAC refused, see below) / `RandomSampleConsensus` + `SampleConsensusModel{Plane,Line,Circle2D,Circle3D,Sphere,Stick,Cylinder,Cone,NormalPlane,NormalSphere,ParallelPlane,PerpendicularPlane,NormalParallelPlane,ParallelLine,Registration,Ellipse3D}` (TORUS / PARALLEL_LINES / REGISTRATION_2D refused, see below) |
 | search | `KdTreeFLANN`, `OrganizedNeighbor`, `OctreePointCloudSearch` (+ ray casting: `get_intersected_voxel_centers` / `_indices`), `OctreePointCloudChangeDetector`, `OctreePointCloudVoxelCentroid`, `OctreePointCloudDensity` |
@@ -277,6 +277,14 @@ Windows) installed into the `pcl` package.
 - **`SACMODEL_TORUS`, `SACMODEL_PARALLEL_LINES`** — values of PCL's
   `SacModel` enum with no model class behind them anywhere in PCL.
   `SampleConsensusModel` refuses both with that reason.
+- **`RangeImageSpherical` on Windows** — its constructor is inline, so
+  its vtable is built in the caller's module, and that vtable needs
+  `RangeImage::getSubImage` / `getHalfImage` (not exported from
+  `pcl_common`) plus inline overrides reading `RangeImage`'s static
+  lookup tables, which no module outside PCL can link there
+  (`PCL_EXPORTS` is empty for consumers, so data never gets `dllimport`).
+  Measured: the MSVC link fails on exactly those five symbols. The class
+  raises `RuntimeError` on Windows; Linux and macOS have it.
 - **`CrfSegmentation`** — returns wrong labels. Its unary potentials
   put each annotated point's energy in slot `labels.size()` (the number
   of distinct labels seen so far) instead of that label's own slot, and

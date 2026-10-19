@@ -5,6 +5,8 @@ Skipped when the package is not built (requires PCL at build time):
 pip install . && pytest tests/
 """
 
+import sys
+
 import numpy as np
 import pytest
 
@@ -83,6 +85,9 @@ def test_planar_image_works_with_narf(box_on_a_wall):
 # --- RangeImageSpherical ---------------------------------------------------
 
 
+@pytest.mark.skipif(sys.platform == "win32",
+                    reason="RangeImageSpherical cannot be linked outside PCL "
+                           "on Windows")
 def test_spherical_image(box_on_a_wall):
     image = pcl.RangeImageSpherical(box_on_a_wall,
                                     angular_resolution=np.radians(0.5))
@@ -91,6 +96,12 @@ def test_spherical_image(box_on_a_wall):
     assert np.isfinite(image.to_array()).any()
     with pytest.raises(ValueError):
         pcl.RangeImageSpherical(box_on_a_wall, angular_resolution=0)
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only refusal")
+def test_spherical_image_refused_on_windows(box_on_a_wall):
+    with pytest.raises(RuntimeError, match="Windows"):
+        pcl.RangeImageSpherical(box_on_a_wall)
 
 
 # --- RangeImageBorderExtractor ---------------------------------------------
