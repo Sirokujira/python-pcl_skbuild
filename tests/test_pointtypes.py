@@ -190,7 +190,7 @@ def test_xyzrgba_file_roundtrip(tmp_path, xyz, rgb):
 def test_typed_loaders_reject_unsupported_formats(tmp_path):
     for loader in (pcl.load_XYZI, pcl.load_XYZRGB, pcl.load_XYZRGBA):
         with pytest.raises(ValueError, match="pcd, ply"):
-            loader(str(tmp_path / "cloud.obj"))
+            loader(str(tmp_path / "cloud.stl"))
 
 
 def test_typed_loaders_handle_gzip(tmp_path, xyz, rgb):
