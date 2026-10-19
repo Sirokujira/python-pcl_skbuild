@@ -476,6 +476,11 @@ cdef class PointCloud:
         from pcl._segmentation import MinCutSegmentation
         return MinCutSegmentation(self)
 
+    def make_RegionGrowing(self):
+        """Return a RegionGrowing with this cloud as input."""
+        from pcl._segmentation import RegionGrowing
+        return RegionGrowing(self)
+
     def make_NormalEstimation(self):
         """Return a NormalEstimation with this cloud as input."""
         from pcl._features import NormalEstimation

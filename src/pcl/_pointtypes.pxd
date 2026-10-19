@@ -33,3 +33,5 @@ cdef class PointCloud_Normal:
 
 
 cdef PointCloud_Normal wrap_normal_cloud(shared_ptr[cPointCloud[Normal]] ptr)
+cdef PointCloud_PointXYZRGB wrap_xyzrgb_cloud(
+    shared_ptr[cPointCloud[PointXYZRGB]] ptr)

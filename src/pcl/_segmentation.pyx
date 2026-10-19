@@ -37,11 +37,19 @@ from pcl.pxd.segmentation.conditional_euclidean_clustering cimport (
     ConditionalEuclideanClustering as cConditionalEuclideanClustering)
 from pcl.pxd.compat.organized_args cimport (
     ClusterConditionFn, setClusterCondition)
+from libcpp.memory cimport shared_ptr
+from pcl.pxd.point_types cimport PointXYZRGB
+from pcl.pxd.point_cloud cimport PointCloud as cPointCloud
+from pcl.pxd.segmentation.region_growing cimport (
+    RegionGrowing as cRegionGrowing)
+from pcl.pxd.segmentation.region_growing_rgb cimport (
+    RegionGrowingRGB as cRegionGrowingRGB)
 cimport pcl.pxd.sample_consensus.method_types as method_types
 cimport pcl.pxd.sample_consensus.model_types as model_types
 
 from pcl._pointcloud cimport PointCloud
-from pcl._pointtypes cimport PointCloud_Normal
+from pcl._pointtypes cimport (
+    PointCloud_Normal, PointCloud_PointXYZRGB, wrap_xyzrgb_cloud)
 
 
 cdef class Segmentation:
@@ -384,6 +392,325 @@ cdef class MinCutSegmentation:
             [clusters[i].indices[j] for j in range(clusters[i].indices.size())]
             for i in range(clusters.size())
         ]
+
+
+cdef list _clusters_to_lists(vector[PointIndices]& clusters):
+    """Plain loops on purpose: a comprehension over a C++ reference
+    builds a closure that segfaults (see .claude/rules/pipeline.md)."""
+    cdef list result = []
+    cdef list one
+    cdef size_t i, j
+    for i in range(clusters.size()):
+        one = []
+        for j in range(clusters[i].indices.size()):
+            one.append(clusters[i].indices[j])
+        result.append(one)
+    return result
+
+
+cdef class RegionGrowing:
+    """Grow smooth regions outwards from low-curvature seeds
+    (pcl::RegionGrowing).
+
+    Needs normals: pass what `NormalEstimation.compute_cloud()` returns
+    to `set_InputNormals()`. A neighbour joins a region when its normal
+    deviates from the seed's by less than `set_SmoothnessThreshold`
+    (radians); growth stops at points whose curvature exceeds
+    `set_CurvatureThreshold`. `extract()` returns one index list per
+    region, `get_ColoredCloud()` the same points painted per region.
+    """
+
+    cdef cRegionGrowing[PointXYZ, Normal]* me
+    cdef PointCloud _input
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cRegionGrowing[PointXYZ, Normal]()
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+        self._input = pc
+
+    def set_InputNormals(self, PointCloud_Normal normals not None):
+        """Normals for the input cloud, one per point. Required."""
+        self.me.setInputNormals(normals.thisptr_shared)
+
+    def set_MinClusterSize(self, int size):
+        self.me.setMinClusterSize(size)
+
+    def get_MinClusterSize(self):
+        return self.me.getMinClusterSize()
+
+    def set_MaxClusterSize(self, int size):
+        self.me.setMaxClusterSize(size)
+
+    def get_MaxClusterSize(self):
+        return self.me.getMaxClusterSize()
+
+    def set_SmoothModeFlag(self, bint value):
+        """Compare each candidate's normal with its own neighbour's (True,
+        the default) or with the region's seed (False)."""
+        self.me.setSmoothModeFlag(value)
+
+    def get_SmoothModeFlag(self):
+        return self.me.getSmoothModeFlag()
+
+    def set_CurvatureTestFlag(self, bint value):
+        self.me.setCurvatureTestFlag(value)
+
+    def get_CurvatureTestFlag(self):
+        return self.me.getCurvatureTestFlag()
+
+    def set_ResidualTestFlag(self, bint value):
+        self.me.setResidualTestFlag(value)
+
+    def get_ResidualTestFlag(self):
+        return self.me.getResidualTestFlag()
+
+    def set_SmoothnessThreshold(self, float theta):
+        """Largest angle between normals, in radians, that still joins."""
+        self.me.setSmoothnessThreshold(theta)
+
+    def get_SmoothnessThreshold(self):
+        return self.me.getSmoothnessThreshold()
+
+    def set_ResidualThreshold(self, float residual):
+        self.me.setResidualThreshold(residual)
+
+    def get_ResidualThreshold(self):
+        return self.me.getResidualThreshold()
+
+    def set_CurvatureThreshold(self, float curvature):
+        self.me.setCurvatureThreshold(curvature)
+
+    def get_CurvatureThreshold(self):
+        return self.me.getCurvatureThreshold()
+
+    def set_NumberOfNeighbours(self, unsigned int count):
+        self.me.setNumberOfNeighbours(count)
+
+    def get_NumberOfNeighbours(self):
+        return self.me.getNumberOfNeighbours()
+
+    def extract(self):
+        """Return the regions as a list of index lists."""
+        # Without normals PCL prints an error and hands back no clusters
+        # -- a silent no-op from Python's side, so say what is missing.
+        if not self.me.getInputNormals():
+            raise RuntimeError(
+                "RegionGrowing needs normals: call set_InputNormals() with "
+                "the cloud NormalEstimation.compute_cloud() returns")
+        cdef vector[PointIndices] clusters
+        with nogil:
+            self.me.extract(clusters)
+        return _clusters_to_lists(clusters)
+
+    def get_SegmentFromPoint(self, int index):
+        """Return the indices of the region containing point `index`
+        (empty when that point belongs to no region)."""
+        if self._input is None:
+            raise RuntimeError("no input cloud: call set_InputCloud() first")
+        if index < 0 or index >= self._input.size:
+            raise IndexError(
+                "point index %d out of range for a cloud of %d points"
+                % (index, self._input.size))
+        if not self.me.getInputNormals():
+            raise RuntimeError(
+                "RegionGrowing needs normals: call set_InputNormals() with "
+                "the cloud NormalEstimation.compute_cloud() returns")
+        cdef PointIndices cluster
+        with nogil:
+            self.me.getSegmentFromPoint(index, cluster)
+        cdef list result = []
+        cdef size_t j
+        for j in range(cluster.indices.size()):
+            result.append(cluster.indices[j])
+        return result
+
+    def get_ColoredCloud(self):
+        """Return the input points as a :class:`PointCloud_PointXYZRGB`
+        with every region painted a random colour (points in no region
+        stay black). Only available after `extract()`."""
+        cdef shared_ptr[cPointCloud[PointXYZRGB]] colored
+        colored = self.me.getColoredCloud()
+        # PCL returns a null pointer until extract() has produced regions.
+        if not colored:
+            raise RuntimeError(
+                "no regions yet: call extract() before get_ColoredCloud()")
+        return wrap_xyzrgb_cloud(colored)
+
+
+cdef class RegionGrowingRGB:
+    """Region growing driven by colour (pcl::RegionGrowingRGB) on a
+    :class:`PointCloud_PointXYZRGB`.
+
+    Neighbours within `set_DistanceThreshold` join when their colours
+    differ by less than `set_PointColorThreshold`; afterwards regions
+    whose mean colours differ by less than `set_RegionColorThreshold`
+    are merged, and regions below `set_MinClusterSize` are absorbed by
+    their nearest neighbour. Normals are optional and only consulted when
+    `set_NormalTestFlag(True)`.
+    """
+
+    cdef cRegionGrowingRGB[PointXYZRGB, Normal]* me
+    cdef PointCloud_PointXYZRGB _input
+
+    def __cinit__(self, PointCloud_PointXYZRGB pc=None):
+        self.me = new cRegionGrowingRGB[PointXYZRGB, Normal]()
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud_PointXYZRGB pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+        self._input = pc
+
+    def set_InputNormals(self, PointCloud_Normal normals not None):
+        """Normals for the input cloud; needed only with the normal test
+        (or curvature / residual tests) switched on."""
+        self.me.setInputNormals(normals.thisptr_shared)
+
+    def set_MinClusterSize(self, int size):
+        self.me.setMinClusterSize(size)
+
+    def get_MinClusterSize(self):
+        return self.me.getMinClusterSize()
+
+    def set_MaxClusterSize(self, int size):
+        self.me.setMaxClusterSize(size)
+
+    def get_MaxClusterSize(self):
+        return self.me.getMaxClusterSize()
+
+    def set_SmoothModeFlag(self, bint value):
+        self.me.setSmoothModeFlag(value)
+
+    def get_SmoothModeFlag(self):
+        return self.me.getSmoothModeFlag()
+
+    def set_CurvatureTestFlag(self, bint value):
+        self.me.setCurvatureTestFlag(value)
+
+    def get_CurvatureTestFlag(self):
+        return self.me.getCurvatureTestFlag()
+
+    def set_ResidualTestFlag(self, bint value):
+        self.me.setResidualTestFlag(value)
+
+    def get_ResidualTestFlag(self):
+        return self.me.getResidualTestFlag()
+
+    def set_NormalTestFlag(self, bint value):
+        """Also require normals to agree (needs `set_InputNormals`)."""
+        self.me.setNormalTestFlag(value)
+
+    def get_NormalTestFlag(self):
+        return self.me.getNormalTestFlag()
+
+    def set_SmoothnessThreshold(self, float theta):
+        self.me.setSmoothnessThreshold(theta)
+
+    def get_SmoothnessThreshold(self):
+        return self.me.getSmoothnessThreshold()
+
+    def set_ResidualThreshold(self, float residual):
+        self.me.setResidualThreshold(residual)
+
+    def get_ResidualThreshold(self):
+        return self.me.getResidualThreshold()
+
+    def set_CurvatureThreshold(self, float curvature):
+        self.me.setCurvatureThreshold(curvature)
+
+    def get_CurvatureThreshold(self):
+        return self.me.getCurvatureThreshold()
+
+    def set_NumberOfNeighbours(self, unsigned int count):
+        self.me.setNumberOfNeighbours(count)
+
+    def get_NumberOfNeighbours(self):
+        return self.me.getNumberOfNeighbours()
+
+    def set_PointColorThreshold(self, float thresh):
+        """Largest colour difference between neighbours that still joins
+        (Euclidean distance in RGB, 0..441)."""
+        self.me.setPointColorThreshold(thresh)
+
+    def get_PointColorThreshold(self):
+        return self.me.getPointColorThreshold()
+
+    def set_RegionColorThreshold(self, float thresh):
+        """Regions whose mean colours are closer than this are merged."""
+        self.me.setRegionColorThreshold(thresh)
+
+    def get_RegionColorThreshold(self):
+        return self.me.getRegionColorThreshold()
+
+    def set_DistanceThreshold(self, float thresh):
+        """How far apart two points may be and still count as neighbours
+        (in the cloud's own units)."""
+        self.me.setDistanceThreshold(thresh)
+
+    def get_DistanceThreshold(self):
+        return self.me.getDistanceThreshold()
+
+    def set_NumberOfRegionNeighbours(self, unsigned int count):
+        self.me.setNumberOfRegionNeighbours(count)
+
+    def get_NumberOfRegionNeighbours(self):
+        return self.me.getNumberOfRegionNeighbours()
+
+    def extract(self):
+        """Return the regions as a list of index lists."""
+        if self.me.getNormalTestFlag() and not self.me.getInputNormals():
+            raise RuntimeError(
+                "the normal test is on but no normals were set: call "
+                "set_InputNormals() or set_NormalTestFlag(False)")
+        cdef vector[PointIndices] clusters
+        with nogil:
+            self.me.extract(clusters)
+        return _clusters_to_lists(clusters)
+
+    def get_SegmentFromPoint(self, int index):
+        """Return the indices of the region containing point `index`
+        (empty when that point belongs to no region)."""
+        if self._input is None:
+            raise RuntimeError("no input cloud: call set_InputCloud() first")
+        if index < 0 or index >= self._input.size:
+            raise IndexError(
+                "point index %d out of range for a cloud of %d points"
+                % (index, self._input.size))
+        if self.me.getNormalTestFlag() and not self.me.getInputNormals():
+            raise RuntimeError(
+                "the normal test is on but no normals were set: call "
+                "set_InputNormals() or set_NormalTestFlag(False)")
+        cdef PointIndices cluster
+        with nogil:
+            self.me.getSegmentFromPoint(index, cluster)
+        cdef list result = []
+        cdef size_t j
+        for j in range(cluster.indices.size()):
+            result.append(cluster.indices[j])
+        return result
+
+    def get_ColoredCloud(self):
+        """Return the input points as a new :class:`PointCloud_PointXYZRGB`
+        with every region painted a random colour. Only available after
+        `extract()`."""
+        cdef shared_ptr[cPointCloud[PointXYZRGB]] colored
+        colored = self.me.getColoredCloud()
+        if not colored:
+            raise RuntimeError(
+                "no regions yet: call extract() before get_ColoredCloud()")
+        return wrap_xyzrgb_cloud(colored)
 
 
 cdef bint _call_condition(object predicate, const PointXYZ& a,

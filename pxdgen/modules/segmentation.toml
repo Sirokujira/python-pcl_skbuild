@@ -59,3 +59,25 @@ extra_cimports = [
     "from pcl.pxd.point_cloud cimport PointCloud",
     "from pcl.pxd.point_indices cimport PointIndices",
 ]
+
+[[headers]]
+path = "headers/pcl/segmentation/region_growing.h"
+extern_from = "pcl/segmentation/region_growing.h"
+output = "../src/pcl/pxd/segmentation/region_growing.pxd"
+namespaces = ["pcl"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.point_indices cimport PointIndices",
+    "from pcl.pxd.point_types cimport PointXYZRGB",
+]
+
+[[headers]]
+path = "headers/pcl/segmentation/region_growing_rgb.h"
+extern_from = "pcl/segmentation/region_growing_rgb.h"
+output = "../src/pcl/pxd/segmentation/region_growing_rgb.pxd"
+namespaces = ["pcl"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.point_indices cimport PointIndices",
+    "from pcl.pxd.point_types cimport PointXYZRGB",
+]

@@ -264,6 +264,11 @@ cdef class PointCloud_PointXYZRGB:
         c.width = count
         c.height = 1
 
+    def make_RegionGrowingRGB(self):
+        """Return a RegionGrowingRGB with this cloud as input."""
+        from pcl._segmentation import RegionGrowingRGB
+        return RegionGrowingRGB(self)
+
     def from_array(self, float[:, :] arr not None):
         """Fill from an ``(n, 4)`` float32 array: x, y, z, packed rgb."""
         if arr.shape[1] != 4:
@@ -755,6 +760,15 @@ cdef class PointCloud_Normal:
 cdef PointCloud_Normal wrap_normal_cloud(shared_ptr[cPointCloud[Normal]] ptr):
     """Adopt an existing pcl::PointCloud<Normal> without copying."""
     cdef PointCloud_Normal pc = PointCloud_Normal()
+    pc.thisptr_shared = ptr
+    return pc
+
+
+cdef PointCloud_PointXYZRGB wrap_xyzrgb_cloud(
+        shared_ptr[cPointCloud[PointXYZRGB]] ptr):
+    """Adopt an existing pcl::PointCloud<PointXYZRGB> without copying —
+    how RegionGrowing's coloured cloud comes back."""
+    cdef PointCloud_PointXYZRGB pc = PointCloud_PointXYZRGB()
     pc.thisptr_shared = ptr
     return pc
 
