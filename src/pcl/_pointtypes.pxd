@@ -46,5 +46,7 @@ cdef class PointCloud_PointWithViewpoint:
 cdef PointCloud_Normal wrap_normal_cloud(shared_ptr[cPointCloud[Normal]] ptr)
 cdef PointCloud_PointNormal wrap_pointnormal_cloud(
     shared_ptr[cPointCloud[PointNormal]] ptr)
+cdef PointCloud_PointXYZRGBA wrap_xyzrgba_cloud(
+    shared_ptr[cPointCloud[PointXYZRGBA]] ptr)
 cdef PointCloud_PointXYZRGB wrap_xyzrgb_cloud(
     shared_ptr[cPointCloud[PointXYZRGB]] ptr)

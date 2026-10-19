@@ -166,12 +166,55 @@ consulted (read in `impl/rransac.hpp`; a plane with 20% outliers ran
 for ten minutes before being killed). `SampleConsensus` and
 `Segmentation.set_method_type` refuse the constant with that reason.
 
+Hypothesis verification has a quieter version of the same trap:
+`PapazovHV` iterates `complete_models_`, which `addModels()` only fills
+when occlusion reasoning is on, so called the obvious way it returns an
+EMPTY mask (measured in plain C++ against 1.14; GreedyVerification reads
+the visible models and is fine). `hypotheses_args.h` always passes the
+models as both. `GlobalHypothesesVerification` is past absorbing: its
+`addModel` keeps only the points whose normals are NOT finite (an
+inverted check, still on master), so it keeps every hypothesis — proven
+by patching that one line in a local copy, which makes it reject the
+wrong one. It is listed under "Not wrapped" in the README.
+
+`EarClipping` mis-triangulates most concave polygons (L, U and C shapes,
+both windings, jittered or not) while getting every convex one right.
+`surface_args.h` clips polygon by polygon and checks that the triangles
+tile the polygon, and the wrapper raises on a failure instead of
+returning triangles outside it. Same for the octree's ray casting:
+`max_voxel_count` is compared against each subtree's own count, so the
+result overshoots (3 voxels for a maximum of 2); the list is nearest
+first, so `octree_args.h` truncates it to what the limit means.
+
+Several more absorbed in the second surface/search batch, each a silent
+wrong answer otherwise: `BilateralUpsampling` never initialises its
+camera matrix (the wrapper always sets one, Kinect VGA by default);
+`SurfelSmoothing::computeSmoothedCloud` returns nothing at all when the
+normals are missing or mis-sized (the wrapper checks first);
+`NarfDescriptor`'s `support_size` defaults to -1 (the wrapper requires a
+positive one); `OrganizedNeighbor::setInputCloud` returns false for a
+non-projective cloud and then answers queries anyway (the wrapper
+raises).
+
+Compile-time, too: `OctreePointCloudVoxelCentroid::getVoxelCentroidAtPoint`
+in 1.14 calls a dependent-base member without `this->`, which two-phase
+lookup rejects, and PCL never instantiates the header-only class itself
+so nothing upstream notices. `octree_args.h` subclasses it and does the
+lookup correctly; the broken member is never instantiated.
+
 Not every quirk is worth absorbing, though. PCL's octree treats the FIRST
 point of a cloud specially: `voxelSearch` can miss it, and
 `getPointIndicesFromNewVoxels` reports index 0 as new even for an
 unchanged cloud. Both reproduce in plain C++ against 1.14.0. Nothing here
 papers over them — a wrapper that silently dropped index 0 would be lying
 about what PCL returned — so the tests document the behaviour instead.
+The root cause is where the grid goes: with no `defineBoundingBox`, PCL
+aligns it on the first point added, which then sits exactly on a voxel
+corner, so anything clustered around that point is split across up to
+eight voxels. `OctreePointCloudVoxelCentroid` and
+`OctreePointCloudDensity` expose `define_bounding_box` and say so in
+their docstrings; the tests place the first point away from the
+clusters they measure.
 
 And sometimes the bug is in the *documentation*: `pcl::people::HOG`'s
 `descriptor` out-parameter has no stated length, and a short buffer is a

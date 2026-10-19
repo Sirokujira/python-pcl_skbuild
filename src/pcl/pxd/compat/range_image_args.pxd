@@ -28,3 +28,45 @@ cdef extern from "pcl/compat/range_image_args.h" namespace "pclcompat" nogil:
     void rangeImagePoints(const RangeImage& image, vector[PointXYZ]& out) except +
 
     int narfKeypoints(RangeImage& image, float support_size, bool add_points_on_straight_edges, vector[int]& out) except +
+
+    shared_ptr[RangeImage] makeRangeImagePlanar(const PointCloud[PointXYZ]& cloud, int width, int height, float center_x, float center_y, float focal_length_x, float focal_length_y, int coordinate_frame, float noise_level, float min_range) except +
+
+    shared_ptr[RangeImage] makeRangeImagePlanarFromDepth(const float* depth, int width, int height, float center_x, float center_y, float focal_length_x, float focal_length_y) except +
+
+    bool rangeImagePlanarIntrinsics(const RangeImage& image, float* out4) except +
+
+    shared_ptr[RangeImage] makeRangeImageSpherical(const PointCloud[PointXYZ]& cloud, float angular_resolution, float max_angle_width, float max_angle_height, int coordinate_frame, float noise_level, float min_range, int border_size) except +
+
+    const int BORDER_TRAIT_OBSTACLE_BORDER
+
+    const int BORDER_TRAIT_SHADOW_BORDER
+
+    const int BORDER_TRAIT_VEIL_POINT
+
+    const int BORDER_TRAIT_SHADOW_BORDER_TOP
+
+    const int BORDER_TRAIT_SHADOW_BORDER_RIGHT
+
+    const int BORDER_TRAIT_SHADOW_BORDER_BOTTOM
+
+    const int BORDER_TRAIT_SHADOW_BORDER_LEFT
+
+    const int BORDER_TRAIT_OBSTACLE_BORDER_TOP
+
+    const int BORDER_TRAIT_OBSTACLE_BORDER_RIGHT
+
+    const int BORDER_TRAIT_OBSTACLE_BORDER_BOTTOM
+
+    const int BORDER_TRAIT_OBSTACLE_BORDER_LEFT
+
+    const int BORDER_TRAIT_VEIL_POINT_TOP
+
+    const int BORDER_TRAIT_VEIL_POINT_RIGHT
+
+    const int BORDER_TRAIT_VEIL_POINT_BOTTOM
+
+    const int BORDER_TRAIT_VEIL_POINT_LEFT
+
+    void rangeImageBorderTraits(RangeImage& image, int pixel_radius_borders, float minimum_border_probability, vector[unsigned int]& out) except +
+
+    int narfDescriptors(RangeImage& image, const vector[int]& indices, float support_size, bool rotation_invariant, vector[float]& out) except +

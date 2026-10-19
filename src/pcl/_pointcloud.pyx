@@ -480,6 +480,16 @@ cdef class PointCloud:
         from pcl._octree import OctreePointCloudChangeDetector
         return OctreePointCloudChangeDetector(resolution, self)
 
+    def make_octreeVoxelCentroid(self, double resolution):
+        """Return an OctreePointCloudVoxelCentroid built over this cloud."""
+        from pcl._octree import OctreePointCloudVoxelCentroid
+        return OctreePointCloudVoxelCentroid(resolution, self)
+
+    def make_octreeDensity(self, double resolution):
+        """Return an OctreePointCloudDensity built over this cloud."""
+        from pcl._octree import OctreePointCloudDensity
+        return OctreePointCloudDensity(resolution, self)
+
     def make_VFHEstimation(self):
         """Return a VFHEstimation with this cloud as input."""
         from pcl._features import VFHEstimation

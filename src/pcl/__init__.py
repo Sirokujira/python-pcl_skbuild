@@ -91,6 +91,8 @@ from ._features import (
 from ._octree import (
     OctreePointCloudChangeDetector,
     OctreePointCloudSearch,
+    OctreePointCloudVoxelCentroid,
+    OctreePointCloudDensity,
     OctreePointCloudCompression,
     OctreePointCloudCompressionRGB,
     LOW_RES_ONLINE_COMPRESSION_WITHOUT_COLOR,
@@ -128,6 +130,16 @@ from ._registration import (
     SampleConsensusPrerejective,
 )
 from ._surface import (
+    OrganizedFastMesh,
+    GridProjection,
+    BilateralUpsampling,
+    SurfelSmoothing,
+    EarClipping,
+    SimplificationRemoveUnusedVertices,
+    TRIANGLE_RIGHT_CUT,
+    TRIANGLE_LEFT_CUT,
+    TRIANGLE_ADAPTIVE_CUT,
+    QUAD_MESH,
     Poisson,
     MarchingCubesHoppe,
     MarchingCubesRBF,
@@ -182,15 +194,36 @@ from ._keypoints import (
 from ._grabber import HDLGrabber, PCDGrabber
 from ._people import hog, hog_descriptor_size
 from ._recognition import (
+    GreedyVerification,
+    PapazovHV,
     GeometricConsistencyGrouping,
     Hough3DGrouping,
     match_descriptors,
 )
-from ._tracking import ParticleFilterTracker
+from ._tracking import ParticleFilterTracker, KLDAdaptiveParticleFilterTracker
 from ._rangeimage import (
     CAMERA_FRAME,
     LASER_FRAME,
     RangeImage,
+    RangeImagePlanar,
+    RangeImageSpherical,
+    RangeImageBorderExtractor,
+    NarfDescriptor,
+    BORDER_TRAIT__OBSTACLE_BORDER,
+    BORDER_TRAIT__SHADOW_BORDER,
+    BORDER_TRAIT__VEIL_POINT,
+    BORDER_TRAIT__SHADOW_BORDER_TOP,
+    BORDER_TRAIT__SHADOW_BORDER_RIGHT,
+    BORDER_TRAIT__SHADOW_BORDER_BOTTOM,
+    BORDER_TRAIT__SHADOW_BORDER_LEFT,
+    BORDER_TRAIT__OBSTACLE_BORDER_TOP,
+    BORDER_TRAIT__OBSTACLE_BORDER_RIGHT,
+    BORDER_TRAIT__OBSTACLE_BORDER_BOTTOM,
+    BORDER_TRAIT__OBSTACLE_BORDER_LEFT,
+    BORDER_TRAIT__VEIL_POINT_TOP,
+    BORDER_TRAIT__VEIL_POINT_RIGHT,
+    BORDER_TRAIT__VEIL_POINT_BOTTOM,
+    BORDER_TRAIT__VEIL_POINT_LEFT,
 )
 from ._sac import (
     SampleConsensus,
@@ -212,7 +245,7 @@ from ._sac import (
     SampleConsensusModelSphere,
     SampleConsensusModelStick,
 )
-from ._kdtree import KdTreeFLANN
+from ._kdtree import KdTreeFLANN, OrganizedNeighbor
 from ._segmentation import (
     SupervoxelClustering,
     SupervoxelClusteringXYZ,
@@ -322,6 +355,25 @@ __all__ = [
     "reject_median_distance", "reject_trimmed", "reject_sample_consensus",
     "reject_surface_normal", "estimate_transformation",
     "validate_transformation",
+    "OrganizedFastMesh", "GridProjection", "BilateralUpsampling",
+    "SurfelSmoothing", "EarClipping", "SimplificationRemoveUnusedVertices",
+    "TRIANGLE_RIGHT_CUT", "TRIANGLE_LEFT_CUT", "TRIANGLE_ADAPTIVE_CUT",
+    "QUAD_MESH",
+    "OctreePointCloudVoxelCentroid", "OctreePointCloudDensity",
+    "OrganizedNeighbor",
+    "RangeImagePlanar", "RangeImageSpherical", "RangeImageBorderExtractor",
+    "NarfDescriptor",
+    "BORDER_TRAIT__OBSTACLE_BORDER", "BORDER_TRAIT__SHADOW_BORDER",
+    "BORDER_TRAIT__VEIL_POINT", "BORDER_TRAIT__SHADOW_BORDER_TOP",
+    "BORDER_TRAIT__SHADOW_BORDER_RIGHT", "BORDER_TRAIT__SHADOW_BORDER_BOTTOM",
+    "BORDER_TRAIT__SHADOW_BORDER_LEFT", "BORDER_TRAIT__OBSTACLE_BORDER_TOP",
+    "BORDER_TRAIT__OBSTACLE_BORDER_RIGHT",
+    "BORDER_TRAIT__OBSTACLE_BORDER_BOTTOM",
+    "BORDER_TRAIT__OBSTACLE_BORDER_LEFT", "BORDER_TRAIT__VEIL_POINT_TOP",
+    "BORDER_TRAIT__VEIL_POINT_RIGHT", "BORDER_TRAIT__VEIL_POINT_BOTTOM",
+    "BORDER_TRAIT__VEIL_POINT_LEFT",
+    "GreedyVerification", "PapazovHV",
+    "KLDAdaptiveParticleFilterTracker",
     "SampleConsensusModelCylinder", "SampleConsensusModelCone",
     "SampleConsensusModelNormalPlane", "SampleConsensusModelNormalSphere",
     "SampleConsensusModelParallelPlane",

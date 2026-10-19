@@ -88,7 +88,13 @@ pipeline functions (`pcl.estimate_correspondences`, `reject_*`,
 `estimate_transformation`, `validate_transformation`),
 `Segmentation` (SAC),
 `EuclideanClusterExtraction`, `GeometricConsistencyGrouping`,
-`Hough3DGrouping`, `ParticleFilterTracker`, `pcl.hog`, and the sensor
+`Hough3DGrouping`, `GreedyVerification`, `PapazovHV`,
+ `ParticleFilterTracker`, `KLDAdaptiveParticleFilterTracker`,
+`GridProjection`, `OrganizedFastMesh`, `BilateralUpsampling`,
+`SurfelSmoothing`, `EarClipping`, `SimplificationRemoveUnusedVertices`,
+`OrganizedNeighbor`, octree ray casting, `OctreePointCloudVoxelCentroid`,
+`OctreePointCloudDensity`, `RangeImagePlanar`, `RangeImageSpherical`,
+`RangeImageBorderExtractor`, `NarfDescriptor`, `pcl.hog`, and the sensor
 side: `PCDGrabber`, `HDLGrabber`. Names follow
 [sirokujira/python-pcl](https://github.com/sirokujira/python-pcl),
 including the `cloud.make_*()` factory methods.

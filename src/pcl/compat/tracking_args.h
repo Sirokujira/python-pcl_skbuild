@@ -27,6 +27,7 @@
 #include <pcl/search/octree.h>
 #include <pcl/tracking/approx_nearest_pair_point_cloud_coherence.h>
 #include <pcl/tracking/distance_coherence.h>
+#include <pcl/tracking/kld_adaptive_particle_filter_omp.h>
 #include <pcl/tracking/particle_filter_omp.h>
 #include <pcl/tracking/tracking.h>
 
@@ -42,6 +43,35 @@ public:
                     double maximum_distance, int threads)
         : tracker_(new pcl::tracking::ParticleFilterOMPTracker<
                        Point, ParticleState>(threads)) {
+        configure(particle_num, step_noise, resolution, maximum_distance);
+    }
+
+    /// The KLD-adaptive variant: the particle count adapts between
+    /// `particle_num` and `max_particle_num`, growing while the particles
+    /// spread over more state-space bins of size `bin_size` (one value
+    /// for all six dimensions) than the KLD bound for `epsilon` / `delta`
+    /// allows. Also the OMP class, for the same `changed_` reason.
+    ParticleTracker(int particle_num, double step_noise, double resolution,
+                    double maximum_distance, int threads,
+                    int max_particle_num, float bin_size, double epsilon,
+                    double delta) {
+        auto kld = std::make_shared<
+            pcl::tracking::KLDAdaptiveParticleFilterOMPTracker<
+                Point, ParticleState>>(threads);
+        kld->setMaximumParticleNum(max_particle_num);
+        kld->setEpsilon(epsilon);
+        kld->setDelta(delta);
+        ParticleState bins;
+        bins.x = bins.y = bins.z = bin_size;
+        bins.roll = bins.pitch = bins.yaw = bin_size;
+        kld->setBinSize(bins);
+        tracker_ = kld;
+        configure(particle_num, step_noise, resolution, maximum_distance);
+    }
+
+private:
+    void configure(int particle_num, double step_noise, double resolution,
+                   double maximum_distance) {
         tracker_->setParticleNum(particle_num);
         tracker_->setIterationNum(1);
         tracker_->setResampleLikelihoodThr(0.0);
@@ -66,6 +96,7 @@ public:
         tracker_->setCloudCoherence(coherence);
     }
 
+public:
     /// The reference cloud is the object to follow. PCL wants it in the
     /// object's own frame with the pose supplied separately, so the
     /// centroid is subtracted here and handed back as the initial
@@ -127,8 +158,11 @@ public:
     int particleNum() const { return tracker_->getParticleNum(); }
 
 private:
+    // The base class: both variants are driven through the same calls,
+    // and everything they override (initCompute, resample,
+    // computeTracking, weight) is virtual.
     std::shared_ptr<
-        pcl::tracking::ParticleFilterOMPTracker<Point, ParticleState>> tracker_;
+        pcl::tracking::ParticleFilterTracker<Point, ParticleState>> tracker_;
 };
 
 }  // namespace pclcompat

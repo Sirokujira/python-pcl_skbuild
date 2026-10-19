@@ -20,6 +20,10 @@ class ParticleTracker {
 public:
     ParticleTracker(int particle_num, double step_noise, double resolution,
                     double maximum_distance, int threads);
+    ParticleTracker(int particle_num, double step_noise, double resolution,
+                    double maximum_distance, int threads,
+                    int max_particle_num, float bin_size, double epsilon,
+                    double delta);
 
     void setReferenceCloud(
         const std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>& reference);

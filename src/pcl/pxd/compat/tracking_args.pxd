@@ -11,6 +11,7 @@ from pcl.pxd.point_types cimport PointXYZ
 cdef extern from "pcl/compat/tracking_args.h" namespace "pclcompat" nogil:
     cdef cppclass ParticleTracker:
         ParticleTracker(int particle_num, double step_noise, double resolution, double maximum_distance, int threads) except +
+        ParticleTracker(int particle_num, double step_noise, double resolution, double maximum_distance, int threads, int max_particle_num, float bin_size, double epsilon, double delta) except +
         void setReferenceCloud(const shared_ptr[PointCloud[PointXYZ]]& reference) except +
         void setInputCloud(const shared_ptr[PointCloud[PointXYZ]]& cloud) except +
         void compute() except +

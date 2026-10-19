@@ -1,0 +1,9 @@
+# pcl/search — the search back-ends behind pcl::search::Search.
+# Only [[headers]] entries belong here; see pxdgen/pcl_headers.toml.
+
+[[headers]]
+path = "headers/pcl/search/organized.h"
+extern_from = "pcl/search/organized.h"
+output = "../src/pcl/pxd/search/organized.pxd"
+namespaces = ["pcl::search"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]

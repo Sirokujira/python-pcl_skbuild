@@ -26,6 +26,11 @@ from pcl.pxd.octree.octree_search cimport (
 from pcl.pxd.octree.octree_pointcloud_changedetector cimport (
     OctreePointCloudChangeDetector as cOctreePointCloudChangeDetector)
 from pcl.pxd.compat.eigen_results cimport occupiedVoxelCenters
+from pcl.pxd.octree.octree_pointcloud_density cimport (
+    OctreePointCloudDensity as cOctreePointCloudDensity)
+from pcl.pxd.compat.octree_args cimport (
+    VoxelCentroidOctree, intersectedVoxelCenters, intersectedVoxelIndices,
+    occupiedVoxelCentersOf, voxelCentroids)
 
 from pcl._pointcloud cimport PointCloud
 from libcpp.string cimport string
@@ -174,6 +179,39 @@ cdef class OctreePointCloudSearch:
         p.y = y
         p.z = z
         self.me.deleteVoxelAtPoint(p)
+
+    def get_intersected_voxel_centers(self, origin, direction,
+                                      unsigned int max_voxel_count=0):
+        """Centres of the occupied voxels a ray from *origin* along
+        *direction* passes through, nearest first, as an ``(n, 3)``
+        float32 array. `max_voxel_count` 0 means all of them."""
+        cdef float o[3]
+        cdef float d[3]
+        _ray(origin, direction, o, d)
+        cdef vector[PointXYZ] centers
+        with nogil:
+            intersectedVoxelCenters(deref(self.me), o, d, max_voxel_count,
+                                    centers)
+        return _points_array(centers)
+
+    def get_intersected_voxel_indices(self, origin, direction,
+                                      unsigned int max_voxel_count=0):
+        """Indices of the cloud's points inside the voxels the ray passes
+        through, nearest voxel first, as an int32 array."""
+        import numpy as np
+        cdef float o[3]
+        cdef float d[3]
+        _ray(origin, direction, o, d)
+        cdef vector[int] indices
+        with nogil:
+            intersectedVoxelIndices(deref(self.me), o, d, max_voxel_count,
+                                    indices)
+        result = np.empty(indices.size(), dtype=np.int32)
+        cdef int[::1] view = result
+        cdef Py_ssize_t i
+        for i in range(<Py_ssize_t> indices.size()):
+            view[i] = indices[i]
+        return result
 
 
 cdef class OctreePointCloudChangeDetector:
@@ -370,3 +408,203 @@ cdef class OctreePointCloudCompressionRGB:
         cdef cPointCloud[PointXYZRGB]* out = cloud.ptr()
         decompressCloud[PointXYZRGB](deref(self.me), s, deref(out))
         return cloud
+
+
+cdef _ray(origin, direction, float* o, float* d):
+    ox, oy, oz = origin
+    dx, dy, dz = direction
+    if dx == 0 and dy == 0 and dz == 0:
+        raise ValueError("direction must not be the zero vector")
+    o[0] = ox
+    o[1] = oy
+    o[2] = oz
+    d[0] = dx
+    d[1] = dy
+    d[2] = dz
+
+
+cdef object _points_array(vector[PointXYZ]& points):
+    import numpy as np
+    result = np.empty((points.size(), 3), dtype=np.float32)
+    cdef float[:, ::1] view = result
+    cdef Py_ssize_t i
+    for i in range(<Py_ssize_t> points.size()):
+        view[i, 0] = points[i].x
+        view[i, 1] = points[i].y
+        view[i, 2] = points[i].z
+    return result
+
+
+cdef PointXYZ _point(point) except *:
+    cdef PointXYZ p
+    x, y, z = point
+    p.x = x
+    p.y = y
+    p.z = z
+    return p
+
+
+cdef class OctreePointCloudVoxelCentroid:
+    """An octree whose leaves keep the centroid of their points
+    (pcl::octree::OctreePointCloudVoxelCentroid) — a voxel-grid filter
+    you can also query by position.
+
+        octree = cloud.make_octreeVoxelCentroid(0.05)
+        centroids = octree.get_voxel_centroids()
+
+    Where the voxel boundaries fall: unless `define_bounding_box` was
+    called before adding points, PCL aligns the grid on the FIRST point
+    added, which lands exactly on a voxel corner — so points clustered
+    around it are split across up to eight voxels. Construct without a
+    cloud and call `define_bounding_box` first to choose the grid.
+    """
+
+    cdef VoxelCentroidOctree* me
+
+    def __cinit__(self, double resolution, PointCloud pc=None):
+        if resolution <= 0:
+            raise ValueError("resolution must be > 0, got %r" % resolution)
+        self.me = new VoxelCentroidOctree(resolution)
+        if pc is not None:
+            self.set_InputCloud(pc)
+            self.add_points_from_input_cloud()
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def add_points_from_input_cloud(self):
+        self.me.addPointsFromInputCloud()
+
+    def delete_tree(self):
+        self.me.deleteTree()
+
+    def get_resolution(self):
+        return self.me.getResolution()
+
+    def get_tree_depth(self):
+        return self.me.getTreeDepth()
+
+    def get_leaf_count(self):
+        return self.me.getLeafCount()
+
+    def define_bounding_box(self, min_point, max_point):
+        """Fix the octree's extent (and with it the voxel grid) before any
+        points are added. PCL grows it to a power-of-two number of voxels
+        from `min_point`."""
+        cdef double x0, y0, z0, x1, y1, z1
+        x0, y0, z0 = min_point
+        x1, y1, z1 = max_point
+        if not (x1 > x0 and y1 > y0 and z1 > z0):
+            raise ValueError("max_point must exceed min_point on every axis")
+        if self.me.getLeafCount() > 0:
+            raise RuntimeError(
+                "define_bounding_box must come before any points are added")
+        self.me.defineBoundingBox(x0, y0, z0, x1, y1, z1)
+
+    def is_voxel_occupied_at_point(self, point):
+        cdef double x, y, z
+        x, y, z = point
+        return self.me.isVoxelOccupiedAtPoint(x, y, z)
+
+    def get_voxel_centroids(self):
+        """One centroid per occupied voxel, as an ``(n, 3)`` float32
+        array."""
+        cdef vector[PointXYZ] centroids
+        with nogil:
+            voxelCentroids(deref(self.me), centroids)
+        return _points_array(centroids)
+
+    def get_voxel_centroid_at_point(self, point):
+        """Centroid of the voxel containing ``(x, y, z)`` as a tuple, or
+        None when that voxel is empty."""
+        cdef PointXYZ query = _point(point)
+        cdef PointXYZ centroid
+        if not self.me.centroidAtPoint(query, centroid):
+            return None
+        return (centroid.x, centroid.y, centroid.z)
+
+    def get_occupied_voxel_centers(self):
+        """Geometric centre of every occupied voxel, ``(n, 3)``."""
+        cdef vector[PointXYZ] centers
+        occupiedVoxelCentersOf(deref(self.me), centers)
+        return _points_array(centers)
+
+
+cdef class OctreePointCloudDensity:
+    """An octree whose leaves count their points
+    (pcl::octree::OctreePointCloudDensity).
+
+        octree = cloud.make_octreeDensity(0.05)
+        octree.get_voxel_density_at_point((0.1, 0.2, 0.0))
+
+    The grid is aligned on the first point added unless
+    `define_bounding_box` came first; see
+    :class:`OctreePointCloudVoxelCentroid`.
+    """
+
+    cdef cOctreePointCloudDensity[PointXYZ]* me
+
+    def __cinit__(self, double resolution, PointCloud pc=None):
+        if resolution <= 0:
+            raise ValueError("resolution must be > 0, got %r" % resolution)
+        self.me = new cOctreePointCloudDensity[PointXYZ](resolution)
+        if pc is not None:
+            self.set_InputCloud(pc)
+            self.add_points_from_input_cloud()
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def add_points_from_input_cloud(self):
+        self.me.addPointsFromInputCloud()
+
+    def delete_tree(self):
+        self.me.deleteTree()
+
+    def get_resolution(self):
+        return self.me.getResolution()
+
+    def get_tree_depth(self):
+        return self.me.getTreeDepth()
+
+    def get_leaf_count(self):
+        return self.me.getLeafCount()
+
+    def define_bounding_box(self, min_point, max_point):
+        """Fix the octree's extent (and with it the voxel grid) before any
+        points are added. PCL grows it to a power-of-two number of voxels
+        from `min_point`."""
+        cdef double x0, y0, z0, x1, y1, z1
+        x0, y0, z0 = min_point
+        x1, y1, z1 = max_point
+        if not (x1 > x0 and y1 > y0 and z1 > z0):
+            raise ValueError("max_point must exceed min_point on every axis")
+        if self.me.getLeafCount() > 0:
+            raise RuntimeError(
+                "define_bounding_box must come before any points are added")
+        self.me.defineBoundingBox(x0, y0, z0, x1, y1, z1)
+
+    def is_voxel_occupied_at_point(self, point):
+        cdef double x, y, z
+        x, y, z = point
+        return self.me.isVoxelOccupiedAtPoint(x, y, z)
+
+    def get_voxel_density_at_point(self, point):
+        """Number of points in the voxel containing ``(x, y, z)`` (0 when
+        it is empty)."""
+        cdef PointXYZ query = _point(point)
+        return self.me.getVoxelDensityAtPoint(query)
+
+    def get_occupied_voxel_centers(self):
+        """Geometric centre of every occupied voxel, ``(n, 3)``."""
+        cdef vector[PointXYZ] centers
+        occupiedVoxelCentersOf(deref(self.me), centers)
+        return _points_array(centers)

@@ -624,6 +624,50 @@ cdef class PointCloud_PointXYZRGBA:
             p.b = rgba[i, 2]
             p.a = rgba[i, 3]
 
+    @property
+    def is_organized(self):
+        """True for a cloud laid out as an image (height > 1)."""
+        return self.ptr().height > 1
+
+    def from_organized_rgba_array(self, float[:, :, :] xyz not None,
+                                  uint8_t[:, :, :] rgba not None):
+        """Fill from geometry ``(height, width, 3)`` float32 and colour
+        ``(height, width, 4)`` uint8, keeping the pixel grid — what an
+        RGB-D frame looks like, and what `BilateralUpsampling` needs."""
+        if xyz.shape[2] != 3:
+            raise ValueError("xyz must have shape (height, width, 3)")
+        if rgba.shape[2] != 4:
+            raise ValueError("rgba must have shape (height, width, 4)")
+        if xyz.shape[0] != rgba.shape[0] or xyz.shape[1] != rgba.shape[1]:
+            raise ValueError(
+                "xyz and rgba must share (height, width), got (%d, %d) and "
+                "(%d, %d)" % (xyz.shape[0], xyz.shape[1], rgba.shape[0],
+                              rgba.shape[1]))
+        cdef Py_ssize_t height = xyz.shape[0]
+        cdef Py_ssize_t width = xyz.shape[1]
+        cdef cPointCloud[PointXYZRGBA]* c = self.ptr()
+        c.resize(<size_t> (width * height))
+        c.width = <unsigned int> width
+        c.height = <unsigned int> height
+        cdef PointXYZRGBA* p
+        cdef Py_ssize_t row, col
+        for row in range(height):
+            for col in range(width):
+                p = &(deref(c)[<size_t> (row * width + col)])
+                p.x = xyz[row, col, 0]
+                p.y = xyz[row, col, 1]
+                p.z = xyz[row, col, 2]
+                p.r = rgba[row, col, 0]
+                p.g = rgba[row, col, 1]
+                p.b = rgba[row, col, 2]
+                p.a = rgba[row, col, 3]
+
+    def make_BilateralUpsampling(self):
+        """Return a BilateralUpsampling filter with this organized cloud
+        as input."""
+        from pcl._surface import BilateralUpsampling
+        return BilateralUpsampling(self)
+
     def from_list(self, _list):
         pts = list(_list)
         self.resize(len(pts))
@@ -1287,6 +1331,14 @@ cdef class PointCloud_PointWithViewpoint:
 cdef PointCloud_Normal wrap_normal_cloud(shared_ptr[cPointCloud[Normal]] ptr):
     """Adopt an existing pcl::PointCloud<Normal> without copying."""
     cdef PointCloud_Normal pc = PointCloud_Normal()
+    pc.thisptr_shared = ptr
+    return pc
+
+
+cdef PointCloud_PointXYZRGBA wrap_xyzrgba_cloud(
+        shared_ptr[cPointCloud[PointXYZRGBA]] ptr):
+    """Adopt an existing pcl::PointCloud<PointXYZRGBA> without copying."""
+    cdef PointCloud_PointXYZRGBA pc = PointCloud_PointXYZRGBA()
     pc.thisptr_shared = ptr
     return pc
 

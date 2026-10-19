@@ -203,3 +203,47 @@ extra_cimports = [
     "from pcl.pxd.point_cloud cimport PointCloud",
     "from pcl.pxd.point_types cimport PointXYZ, Normal",
 ]
+
+[[headers]]
+path = "headers/pcl/compat/surface_args.h"
+extern_from = "pcl/compat/surface_args.h"
+output = "../src/pcl/pxd/compat/surface_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ, PointXYZRGBA",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.surface.organized_fast_mesh cimport OrganizedFastMesh",
+    "from pcl.pxd.surface.bilateral_upsampling cimport BilateralUpsampling",
+]
+
+[[headers]]
+path = "headers/pcl/compat/octree_args.h"
+extern_from = "pcl/compat/octree_args.h"
+output = "../src/pcl/pxd/compat/octree_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.octree.octree_search cimport OctreePointCloudSearch",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.octree.octree_pointcloud_density cimport OctreePointCloudDensity",
+]
+
+[[headers]]
+path = "headers/pcl/compat/search_args.h"
+extern_from = "pcl/compat/search_args.h"
+output = "../src/pcl/pxd/compat/search_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.search.organized cimport OrganizedNeighbor",
+]
+
+[[headers]]
+path = "headers/pcl/compat/hypotheses_args.h"
+extern_from = "pcl/compat/hypotheses_args.h"
+output = "../src/pcl/pxd/compat/hypotheses_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+]

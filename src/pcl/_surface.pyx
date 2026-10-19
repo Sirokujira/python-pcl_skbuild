@@ -40,6 +40,62 @@ from pcl.pxd.surface.marching_cubes_hoppe cimport (
     MarchingCubesHoppe as cMarchingCubesHoppe)
 from pcl.pxd.surface.marching_cubes_rbf cimport (
     MarchingCubesRBF as cMarchingCubesRBF)
+from pcl.pxd.surface.organized_fast_mesh cimport (
+    OrganizedFastMesh as cOrganizedFastMesh)
+from pcl.pxd.surface.grid_projection cimport (
+    GridProjection as cGridProjection)
+from pcl.pxd.surface.bilateral_upsampling cimport (
+    BilateralUpsampling as cBilateralUpsampling)
+from pcl.pxd.surface.surfel_smoothing cimport (
+    SurfelSmoothing as cSurfelSmoothing)
+from pcl.pxd.point_types cimport PointXYZRGBA
+from pcl.pxd.compat.surface_args cimport (
+    ORGANIZED_MESH_QUAD_MESH, ORGANIZED_MESH_TRIANGLE_ADAPTIVE_CUT,
+    ORGANIZED_MESH_TRIANGLE_LEFT_CUT, ORGANIZED_MESH_TRIANGLE_RIGHT_CUT,
+    earClipping, removeUnusedVertices, setBilateralProjection,
+    setOrganizedMeshTriangulation)
+from pcl._pointtypes cimport (
+    PointCloud_PointXYZRGBA, wrap_normal_cloud, wrap_xyzrgba_cloud)
+
+
+# OrganizedFastMesh::TriangulationType, re-exported through the shim so
+# the values cannot drift from the header.
+TRIANGLE_RIGHT_CUT = ORGANIZED_MESH_TRIANGLE_RIGHT_CUT
+TRIANGLE_LEFT_CUT = ORGANIZED_MESH_TRIANGLE_LEFT_CUT
+TRIANGLE_ADAPTIVE_CUT = ORGANIZED_MESH_TRIANGLE_ADAPTIVE_CUT
+QUAD_MESH = ORGANIZED_MESH_QUAD_MESH
+
+
+cdef _flatten_polygons(polygons, Py_ssize_t n_points, vector[int]& indices,
+                       vector[int]& counts):
+    """An iterable of index tuples as the flat (indices, counts) pair the
+    mesh shims take, refusing indices outside the cloud."""
+    cdef int index
+    indices.clear()
+    counts.clear()
+    for polygon in polygons:
+        counts.push_back(<int> len(polygon))
+        for value in polygon:
+            index = <int> value
+            if index < 0 or index >= n_points:
+                raise IndexError(
+                    "polygon index %d is outside the cloud (%d points)"
+                    % (index, n_points))
+            indices.push_back(index)
+
+
+cdef object _flat_polygon_list(vector[int]& indices, vector[int]& counts):
+    """The flat (indices, counts) pair as a list of index tuples (plain
+    loops: see the Cython traps section of .claude/rules/pipeline.md)."""
+    polygons = []
+    cdef Py_ssize_t i, j, offset = 0
+    for i in range(<Py_ssize_t> counts.size()):
+        polygon = []
+        for j in range(counts[i]):
+            polygon.append(indices[offset + j])
+        offset += counts[i]
+        polygons.append(tuple(polygon))
+    return polygons
 
 
 cdef object _polygon_list(vector[Vertices]& polygons):
@@ -385,7 +441,10 @@ cdef PointCloud_PointNormal _as_pointnormal(cloud, PointCloud_Normal normals):
 
 
 cdef class MarchingCubesHoppe:
-    """Marching cubes over Hoppe's signed distance\n    (pcl::MarchingCubesHoppe): each grid cell takes its distance to the\n    nearest point's tangent plane, so the surface follows the normals\n    closely and the cost is one neighbour search per cell.
+    """Marching cubes over Hoppe's signed distance
+    (pcl::MarchingCubesHoppe): each grid cell takes its distance to the
+    nearest point's tangent plane, so the surface follows the normals
+    closely and the cost is one neighbour search per cell.
 
     Like Poisson it produces a mesh with its OWN vertices, sampled on a
     regular grid: `set_GridResolution(nx, ny, nz)` sets how fine, and
@@ -465,7 +524,10 @@ cdef class MarchingCubesHoppe:
 
 
 cdef class MarchingCubesRBF:
-    """Marching cubes over a radial-basis-function surface\n    (pcl::MarchingCubesRBF): an implicit function is fitted through every\n    point and an off-surface copy of it, which solves a dense system in\n    the number of points -- keep the cloud small (hundreds of points).
+    """Marching cubes over a radial-basis-function surface
+    (pcl::MarchingCubesRBF): an implicit function is fitted through every
+    point and an off-surface copy of it, which solves a dense system in
+    the number of points -- keep the cloud small (hundreds of points).
 
     Like Poisson it produces a mesh with its OWN vertices, sampled on a
     regular grid: `set_GridResolution(nx, ny, nz)` sets how fine, and
@@ -719,17 +781,7 @@ def save_mesh(PointCloud cloud not None, polygons, path, format=None,
 
     cdef vector[int] indices
     cdef vector[int] counts
-    cdef Py_ssize_t n = <Py_ssize_t> cloud.size
-    cdef int index
-    for polygon in polygons:
-        counts.push_back(<int> len(polygon))
-        for value in polygon:
-            index = <int> value
-            if index < 0 or index >= n:
-                raise IndexError(
-                    "polygon index %d is outside the cloud (%d points)"
-                    % (index, n))
-            indices.push_back(index)
+    _flatten_polygons(polygons, cloud.size, indices, counts)
 
     cdef bytes encoded = str(path).encode()
     cdef string target = encoded
@@ -762,14 +814,404 @@ def load_mesh(path, format=None):
     if error:
         raise IOError("error while loading mesh %s (code %d)" % (path, error))
 
-    # Plain loops, not comprehensions: see the Cython traps section of
-    # .claude/rules/pipeline.md.
-    polygons = []
-    cdef Py_ssize_t i, j, offset = 0
-    for i in range(<Py_ssize_t> counts.size()):
-        polygon = []
-        for j in range(counts[i]):
-            polygon.append(indices[offset + j])
-        offset += counts[i]
-        polygons.append(tuple(polygon))
-    return wrap_cloud(holder), polygons
+    return wrap_cloud(holder), _flat_polygon_list(indices, counts)
+
+
+cdef class OrganizedFastMesh:
+    """Mesh an organized cloud by connecting neighbouring pixels
+    (pcl::OrganizedFastMesh).
+
+    No neighbour search, so it runs at sensor frame rate; the price is
+    that it needs the pixel grid (`PointCloud.from_organized_array`). The
+    polygons index the INPUT cloud, NaN pixels included — save them with
+    `pcl.save_mesh(cloud, polygons, path)`. `set_TriangulationType` takes
+    `pcl.TRIANGLE_RIGHT_CUT`, `TRIANGLE_LEFT_CUT`, `TRIANGLE_ADAPTIVE_CUT`
+    or `QUAD_MESH` (PCL's default, four indices per face).
+    """
+
+    cdef cOrganizedFastMesh[PointXYZ]* me
+    cdef bint has_input
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cOrganizedFastMesh[PointXYZ]()
+        self.has_input = False
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        if pc.ptr().height < 2:
+            raise ValueError(
+                "OrganizedFastMesh needs an organized cloud (height > 1); "
+                "build one with PointCloud.from_organized_array")
+        self.me.setInputCloud(pc.thisptr_shared)
+        self.has_input = True
+
+    def set_TriangulationType(self, int kind):
+        if kind not in (TRIANGLE_RIGHT_CUT, TRIANGLE_LEFT_CUT,
+                        TRIANGLE_ADAPTIVE_CUT, QUAD_MESH):
+            raise ValueError("unknown triangulation type %r" % kind)
+        setOrganizedMeshTriangulation(deref(self.me), kind)
+
+    def set_TrianglePixelSize(self, int size):
+        """Pixels along a face's edge, both end pixels counted, on both
+        axes. PCL stores ``max(1, size - 1)`` as the step, so 1 (the
+        default) and 2 both connect neighbouring pixels and 3 is the
+        first value that skips one."""
+        if size < 1:
+            raise ValueError("triangle pixel size must be >= 1")
+        self.me.setTrianglePixelSize(size)
+
+    def set_TrianglePixelSizeRows(self, int size):
+        """`set_TrianglePixelSize` for the vertical edges only."""
+        if size < 1:
+            raise ValueError("triangle pixel size must be >= 1")
+        self.me.setTrianglePixelSizeRows(size)
+
+    def set_TrianglePixelSizeColumns(self, int size):
+        """`set_TrianglePixelSize` for the horizontal edges only."""
+        if size < 1:
+            raise ValueError("triangle pixel size must be >= 1")
+        self.me.setTrianglePixelSizeColumns(size)
+
+    def set_MaxEdgeLength(self, float a, float b=0.0, float c=0.0):
+        """Drop faces with an edge longer than ``a + b*z + c*z**2``
+        (``z`` the depth), which keeps depth discontinuities open."""
+        self.me.setMaxEdgeLength(a, b, c)
+
+    def unset_MaxEdgeLength(self):
+        self.me.unsetMaxEdgeLength()
+
+    def store_ShadowedFaces(self, bint enable):
+        """Keep faces seen at a grazing angle from the viewpoint (dropped
+        by default)."""
+        self.me.storeShadowedFaces(enable)
+
+    def set_AngleTolerance(self, float radians):
+        """Grazing angle below which a face counts as shadowed."""
+        self.me.setAngleTolerance(radians)
+
+    def set_DistanceTolerance(self, float distance,
+                              bint depth_dependent=False):
+        """Distance a shadowed face may still span."""
+        self.me.setDistanceTolerance(distance, depth_dependent)
+
+    def use_DepthAsDistance(self, bint enable):
+        """Use z instead of the distance to the viewpoint (faster, and
+        what an RGB-D camera means by depth)."""
+        self.me.useDepthAsDistance(enable)
+
+    def reconstruct(self):
+        """Return the faces as a list of index tuples into the input."""
+        if not self.has_input:
+            raise RuntimeError(
+                "set_InputCloud(...) is required before reconstruct()")
+        cdef vector[Vertices] polygons
+        cdef cOrganizedFastMesh[PointXYZ]* mesher = self.me
+        with nogil:
+            mesher.reconstruct(polygons)
+        return _polygon_list(polygons)
+
+
+cdef class GridProjection:
+    """Surface reconstruction by grid projection (pcl::GridProjection):
+    the corners of every grid cell near the surface are projected onto
+    it, giving a watertight mesh with its OWN vertices.
+
+    `set_Resolution` is the cell size in the cloud's own units and is the
+    setting that matters: PCL's default, 0.001, is sized for a cloud in
+    metres captured at millimetre detail and turns a unit-scale cloud
+    into millions of cells. Takes a :class:`PointCloud_PointNormal`, or a
+    cloud plus its normals.
+    """
+
+    cdef cGridProjection[PointNormal]* me
+    cdef bint has_input
+
+    def __cinit__(self, pc=None):
+        self.me = new cGridProjection[PointNormal]()
+        self.has_input = False
+        if isinstance(pc, PointCloud_PointNormal):
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, cloud not None, PointCloud_Normal normals=None):
+        """Take a :class:`PointCloud_PointNormal`, or a :class:`PointCloud`
+        together with its normals."""
+        cdef PointCloud_PointNormal joined = _as_pointnormal(cloud, normals)
+        self.me.setInputCloud(joined.thisptr_shared)
+        self.has_input = True
+
+    def set_Resolution(self, double resolution):
+        if resolution <= 0:
+            raise ValueError("resolution must be positive")
+        self.me.setResolution(resolution)
+
+    def get_Resolution(self):
+        return self.me.getResolution()
+
+    def set_PaddingSize(self, int cells):
+        """Cells around each occupied one that are also evaluated."""
+        if cells < 1:
+            raise ValueError("padding size must be >= 1")
+        self.me.setPaddingSize(cells)
+
+    def get_PaddingSize(self):
+        return self.me.getPaddingSize()
+
+    def set_NearestNeighborNum(self, int k):
+        """Neighbours used for the local surface at each corner."""
+        if k < 1:
+            raise ValueError("k must be >= 1")
+        self.me.setNearestNeighborNum(k)
+
+    def get_NearestNeighborNum(self):
+        return self.me.getNearestNeighborNum()
+
+    def set_MaxBinarySearchLevel(self, int levels):
+        """Bisection steps when projecting a corner onto the surface."""
+        if levels < 1:
+            raise ValueError("levels must be >= 1")
+        self.me.setMaxBinarySearchLevel(levels)
+
+    def get_MaxBinarySearchLevel(self):
+        return self.me.getMaxBinarySearchLevel()
+
+    def reconstruct(self):
+        """Return ``(vertices, polygons)``: a :class:`PointCloud_PointNormal`
+        of the mesh's own vertices and index tuples into it."""
+        if not self.has_input:
+            raise RuntimeError(
+                "set_InputCloud(...) is required before reconstruct()")
+        cdef shared_ptr[cPointCloud[PointNormal]] holder
+        holder.reset(new cPointCloud[PointNormal]())
+        cdef cPointCloud[PointNormal]* out = holder.get()
+        cdef vector[Vertices] polygons
+        cdef cGridProjection[PointNormal]* mesher = self.me
+        with nogil:
+            mesher.reconstruct(deref(out), polygons)
+        return wrap_pointnormal_cloud(holder), _polygon_list(polygons)
+
+
+cdef float[9] _KINECT_VGA = [525.0, 0.0, 320.0,
+                             0.0, 525.0, 240.0,
+                             0.0, 0.0, 1.0]
+
+
+cdef class BilateralUpsampling:
+    """Fill the depth holes of an organized RGB-D frame
+    (pcl::BilateralUpsampling): each pixel's depth becomes a bilateral
+    average of its window, weighted by distance in the image AND by
+    colour similarity, so edges in the colour image stay edges in depth.
+    Every pixel is then re-projected through the camera matrix.
+
+    Input and output are :class:`PointCloud_PointXYZRGBA` with the same
+    grid (`from_organized_rgba_array`). `set_ProjectionMatrix` takes the
+    3x3 camera matrix; it defaults to the Kinect VGA intrinsics PCL ships
+    (f = 525, centre 320, 240) because PCL itself leaves the matrix
+    uninitialised. PCL prints the inverted matrix to stdout on every
+    `process()` call; that is PCL's, not this wrapper's.
+    """
+
+    cdef cBilateralUpsampling[PointXYZRGBA, PointXYZRGBA]* me
+    cdef bint has_input
+
+    def __cinit__(self, PointCloud_PointXYZRGBA pc=None):
+        self.me = new cBilateralUpsampling[PointXYZRGBA, PointXYZRGBA]()
+        setBilateralProjection(deref(self.me), _KINECT_VGA)
+        self.has_input = False
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud_PointXYZRGBA pc not None):
+        if pc.ptr().height < 2:
+            raise ValueError(
+                "BilateralUpsampling needs an organized cloud (height > 1); "
+                "build one with from_organized_rgba_array")
+        self.me.setInputCloud(pc.thisptr_shared)
+        self.has_input = True
+
+    def set_ProjectionMatrix(self, matrix):
+        """The 3x3 camera matrix ``[[fx, 0, cx], [0, fy, cy], [0, 0, 1]]``."""
+        import numpy as np
+        arr = np.ascontiguousarray(matrix, dtype=np.float32)
+        if arr.shape != (3, 3):
+            raise ValueError("projection matrix must be 3x3, got %s"
+                             % (arr.shape,))
+        if abs(float(np.linalg.det(arr))) < 1e-12:
+            raise ValueError("projection matrix must be invertible")
+        cdef float buf[9]
+        cdef Py_ssize_t i
+        flat = arr.reshape(9)
+        for i in range(9):
+            buf[i] = flat[i]
+        setBilateralProjection(deref(self.me), buf)
+
+    def set_WindowSize(self, int size):
+        """Half-width of the averaging window, in pixels."""
+        if size < 1:
+            raise ValueError("window size must be >= 1")
+        self.me.setWindowSize(size)
+
+    def get_WindowSize(self):
+        return self.me.getWindowSize()
+
+    def set_SigmaColor(self, float sigma):
+        """Colour difference (sum of |dr|+|dg|+|db|) a neighbour may have
+        and still count."""
+        if sigma <= 0:
+            raise ValueError("sigma must be positive")
+        self.me.setSigmaColor(sigma)
+
+    def get_SigmaColor(self):
+        return self.me.getSigmaColor()
+
+    def set_SigmaDepth(self, float sigma):
+        """Spatial falloff of the window, in pixels."""
+        if sigma <= 0:
+            raise ValueError("sigma must be positive")
+        self.me.setSigmaDepth(sigma)
+
+    def get_SigmaDepth(self):
+        return self.me.getSigmaDepth()
+
+    def process(self):
+        """Return the filled frame as a new organized
+        :class:`PointCloud_PointXYZRGBA`."""
+        if not self.has_input:
+            raise RuntimeError(
+                "set_InputCloud(...) is required before process()")
+        cdef shared_ptr[cPointCloud[PointXYZRGBA]] holder
+        holder.reset(new cPointCloud[PointXYZRGBA]())
+        cdef cPointCloud[PointXYZRGBA]* out = holder.get()
+        cdef cBilateralUpsampling[PointXYZRGBA, PointXYZRGBA]* f = self.me
+        with nogil:
+            f.process(deref(out))
+        return wrap_xyzrgba_cloud(holder)
+
+
+cdef class SurfelSmoothing:
+    """Smooth points and normals together (pcl::SurfelSmoothing): every
+    surfel moves towards the tangent planes of its neighbours, weighted
+    by a Gaussian of width `scale` (in the cloud's own units).
+
+        smoother = pcl.SurfelSmoothing(scale=0.05)
+        points, normals = smoother.compute(cloud, normals)
+    """
+
+    cdef cSurfelSmoothing[PointXYZ, Normal]* me
+    cdef float _scale
+
+    def __cinit__(self, float scale=0.01):
+        if scale <= 0:
+            raise ValueError("scale must be positive")
+        self._scale = scale
+        self.me = new cSurfelSmoothing[PointXYZ, Normal](scale)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    @property
+    def scale(self):
+        return self._scale
+
+    def compute(self, PointCloud cloud not None,
+                PointCloud_Normal normals not None):
+        """Return ``(points, normals)``: a smoothed :class:`PointCloud` and
+        its :class:`PointCloud_Normal`, one entry per input point.
+
+        PCL returns nothing at all (and only logs) when the normals are
+        missing or do not match the cloud; this raises instead.
+        """
+        if cloud.size == 0:
+            raise ValueError("the input cloud is empty")
+        if normals.size != cloud.size:
+            raise ValueError(
+                "normals must match the cloud: %d points, %d normals"
+                % (cloud.size, normals.size))
+        cdef shared_ptr[cPointCloud[PointXYZ]] out_points
+        cdef shared_ptr[cPointCloud[Normal]] out_normals
+        out_points.reset(new cPointCloud[PointXYZ]())
+        out_normals.reset(new cPointCloud[Normal]())
+        cdef shared_ptr[cPointCloud[Normal]] in_normals = normals.thisptr_shared
+        self.me.setInputCloud(cloud.thisptr_shared)
+        self.me.setInputNormals(in_normals)
+        with nogil:
+            self.me.computeSmoothedCloud(out_points, out_normals)
+        return wrap_cloud(out_points), wrap_normal_cloud(out_normals)
+
+
+cdef class EarClipping:
+    """Triangulate simple planar polygons by ear clipping
+    (pcl::EarClipping): a polygon of n vertices becomes n-2 triangles
+    over the same vertices. Triangles pass through unchanged.
+
+        triangles = pcl.EarClipping().process(cloud, polygons)
+
+    PCL 1.14's implementation is correct on every convex polygon but
+    mis-triangulates most concave ones — measured on L, U and C shapes in
+    both windings, it returns triangles that cover area outside the
+    polygon. Each result is therefore checked, and a polygon PCL got
+    wrong raises RuntimeError instead of coming back as a broken mesh.
+    """
+
+    def process(self, PointCloud cloud not None, polygons):
+        """Return the triangles as a list of index triples into *cloud*."""
+        cdef vector[int] indices, counts, out_indices, out_counts
+        _flatten_polygons(polygons, cloud.size, indices, counts)
+        cdef size_t i
+        for i in range(counts.size()):
+            if counts[i] < 3:
+                raise ValueError(
+                    "polygon %d has %d vertices; ear clipping needs at "
+                    "least 3" % (i, counts[i]))
+        cdef cPointCloud[PointXYZ]* src = cloud.ptr()
+        cdef int failed
+        with nogil:
+            failed = earClipping(deref(src), indices, counts, out_indices,
+                                 out_counts)
+        if failed >= 0:
+            raise RuntimeError(
+                "PCL's EarClipping mis-triangulated polygon %d: its "
+                "triangles cover area outside the polygon. PCL 1.14 handles "
+                "convex polygons but gets most concave ones wrong" % failed)
+        return _flat_polygon_list(out_indices, out_counts)
+
+
+cdef class SimplificationRemoveUnusedVertices:
+    """Drop the vertices no polygon uses and renumber the rest
+    (pcl::surface::SimplificationRemoveUnusedVertices) — what a mesh
+    cropped down to a few faces needs before saving."""
+
+    def simplify(self, PointCloud cloud not None, polygons):
+        """Return ``(vertices, polygons, kept)``: the compacted cloud, the
+        polygons renumbered into it, and for each kept vertex its index
+        in the original *cloud*."""
+        import numpy as np
+        cdef vector[int] indices, counts, out_indices, out_counts, kept
+        _flatten_polygons(polygons, cloud.size, indices, counts)
+        cdef shared_ptr[cPointCloud[PointXYZ]] holder
+        holder.reset(new cPointCloud[PointXYZ]())
+        cdef cPointCloud[PointXYZ]* src = cloud.ptr()
+        cdef cPointCloud[PointXYZ]* out = holder.get()
+        with nogil:
+            removeUnusedVertices(deref(src), indices, counts, deref(out),
+                                 out_indices, out_counts, kept)
+        kept_array = np.empty(kept.size(), dtype=np.int32)
+        cdef int[::1] view = kept_array
+        cdef Py_ssize_t i
+        for i in range(<Py_ssize_t> kept.size()):
+            view[i] = kept[i]
+        return (wrap_cloud(holder), _flat_polygon_list(out_indices, out_counts),
+                kept_array)

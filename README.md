@@ -214,17 +214,17 @@ converged, refined, _, _ = icp.icp(source.transform(transform), target)
 | point types | `PointCloud_PointXYZI`, `PointCloud_PointXYZRGB`, `PointCloud_PointXYZRGBA`, `PointCloud_Normal`, `PointCloud_PointNormal`, `PointCloud_PointWithViewpoint` (+ `pcl.load_XYZI` / `load_XYZRGB` / `load_XYZRGBA` / `load_PointNormal` / `load_PointWithViewpoint`) |
 | filters | `VoxelGridFilter`, `ApproximateVoxelGrid`, `PassThroughFilter`, `StatisticalOutlierRemovalFilter`, `RadiusOutlierRemoval`, `ExtractIndices`, `CropBox`, `ProjectInliers`, `RandomSample`, `UniformSampling`, `FastBilateralFilter`, `CropHull`, `ShadowPoints`, `NormalSpaceSampling`, `SamplingSurfaceNormal`, `GridMinimum`, `LocalMaximum`, `FrustumCulling`, `MedianFilter`, `BilateralFilter`, `ModelOutlierRemoval`, `cloud.remove_nan()` |
 | keypoints | `HarrisKeypoint3D`, `ISSKeypoint3D`, `SIFTKeypoint` (RGB), `SUSANKeypoint` (RGB), NARF (via `RangeImage.narf_keypoints`) |
-| range image | `RangeImage` (+ `pcl.CAMERA_FRAME` / `LASER_FRAME`) |
+| range image | `RangeImage`, `RangeImagePlanar` (from a cloud or a depth image), `RangeImageSpherical`, `RangeImageBorderExtractor` (+ `pcl.BORDER_TRAIT__*`), `NarfDescriptor` (+ `pcl.CAMERA_FRAME` / `LASER_FRAME`) |
 | conditions | `ConditionAnd`, `ConditionalRemoval` (+ `pcl.CompareOp_*`) |
 | sample consensus | `SampleConsensus` (RANSAC, LMedS, MSAC, RMSAC, MLESAC, PROSAC via `pcl.SAC_*`; RRANSAC refused, see below) / `RandomSampleConsensus` + `SampleConsensusModel{Plane,Line,Circle2D,Circle3D,Sphere,Stick,Cylinder,Cone,NormalPlane,NormalSphere,ParallelPlane,PerpendicularPlane,NormalParallelPlane,ParallelLine,Registration}` |
-| search | `KdTreeFLANN`, `OctreePointCloudSearch`, `OctreePointCloudChangeDetector` |
+| search | `KdTreeFLANN`, `OrganizedNeighbor`, `OctreePointCloudSearch` (+ ray casting: `get_intersected_voxel_centers` / `_indices`), `OctreePointCloudChangeDetector`, `OctreePointCloudVoxelCentroid`, `OctreePointCloudDensity` |
 | compression | `OctreePointCloudCompression` / `OctreePointCloudCompressionRGB` (bytes in, bytes out; the `pcl.*_COMPRESSION_*` profiles) |
 | features | `NormalEstimation`, `IntegralImageNormalEstimation`, `DifferenceOfNormalsEstimation`, `MomentOfInertiaEstimation`, `VFHEstimation`, `CVFHEstimation`, `ESFEstimation`, `FPFHEstimation`, `PFHEstimation`, `SHOTEstimation`, `BoundaryEstimation`, `PrincipalCurvaturesEstimation`, `RSDEstimation`, `GRSDEstimation`, `SpinImageEstimation`, `GASDEstimation` / `GASDColorEstimation`, `OURCVFHEstimation`, `CRHEstimation`, `MomentInvariantsEstimation`, `NormalEstimationOMP` |
-| surface | `MovingLeastSquares`, `ConcaveHull`, `ConvexHull`, `GreedyProjectionTriangulation`, `Poisson`, `MarchingCubesHoppe`, `MarchingCubesRBF`, `pcl.save_mesh` / `pcl.load_mesh` (PLY, OBJ, VTK) |
+| surface | `MovingLeastSquares`, `ConcaveHull`, `ConvexHull`, `GreedyProjectionTriangulation`, `Poisson`, `MarchingCubesHoppe`, `MarchingCubesRBF`, `GridProjection`, `OrganizedFastMesh` (+ `pcl.TRIANGLE_*` / `QUAD_MESH`), `BilateralUpsampling`, `SurfelSmoothing`, `EarClipping`, `SimplificationRemoveUnusedVertices`, `pcl.save_mesh` / `pcl.load_mesh` (PLY, OBJ, VTK) |
 | registration | `IterativeClosestPoint`, `IterativeClosestPointNonLinear`, `GeneralizedIterativeClosestPoint`, `NormalDistributionsTransform`, `IterativeClosestPointWithNormals`, `SampleConsensusPrerejective` / `SampleConsensusInitialAlignment` / `FPCSInitialAlignment` / `KFPCSInitialAlignment` (global), and the correspondence pipeline as functions: `pcl.estimate_correspondences`, `reject_one_to_one` / `reject_by_distance` / `reject_median_distance` / `reject_trimmed` / `reject_sample_consensus` / `reject_surface_normal`, `estimate_transformation` (SVD, LM), `validate_transformation` |
 | segmentation | `Segmentation` (SAC), `SegmentationNormal`, `EuclideanClusterExtraction`, `ProgressiveMorphologicalFilter`, `MinCutSegmentation`, `ConditionalEuclideanClustering`, `RegionGrowing`, `RegionGrowingRGB`, `ExtractPolygonalPrismData`, `SegmentDifferences`, `ApproximateProgressiveMorphologicalFilter`, `SeededHueSegmentation`, `OrganizedMultiPlaneSegmentation`, `SupervoxelClustering` / `SupervoxelClusteringXYZ` (+ `.lccp()` for LCCP segmentation) |
-| recognition | `GeometricConsistencyGrouping`, `Hough3DGrouping`, `pcl.match_descriptors` (FLANN) |
-| tracking | `ParticleFilterTracker` |
+| recognition | `GeometricConsistencyGrouping`, `Hough3DGrouping`, `GreedyVerification`, `PapazovHV`, `pcl.match_descriptors` (FLANN) |
+| tracking | `ParticleFilterTracker`, `KLDAdaptiveParticleFilterTracker` |
 | people | `pcl.hog` / `pcl.hog_descriptor_size` |
 | sensors | `PCDGrabber`, `HDLGrabber` |
 
@@ -251,6 +251,14 @@ Windows) installed into the `pcl` package.
   consulted (reproduced on a plane with 20% outliers; the process had to
   be killed). `SampleConsensus` and `Segmentation.set_method_type` refuse
   it with that reason. `SAC_RMSAC` shares the pre-test but does stop.
+- **`GlobalHypothesesVerification`** — keeps every hypothesis it is
+  given. Its `addModel` filters the model's points with the NaN check
+  inverted (`if (isNormalFinite(...)) continue;`, still so on PCL master),
+  keeping only the points whose normal could NOT be estimated, so a
+  well-sampled hypothesis is reduced to nothing and every one costs the
+  same. Measured in plain C++ against 1.14: a model floating in empty
+  space is kept; with only that line fixed, it is rejected.
+  `GreedyVerification` and `PapazovHV` are wrapped and get it right.
 - **`OctreePointCloud2Buf`** (python-pcl's double-buffered octree) — its
   one use, finding the voxels that are new since the previous frame, is
   what `OctreePointCloudChangeDetector` wraps; the second buffer is an
