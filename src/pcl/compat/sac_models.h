@@ -33,6 +33,10 @@
 #include <pcl/sample_consensus/sac_model_registration.h>
 #include <pcl/sample_consensus/sac_model_sphere.h>
 #include <pcl/sample_consensus/sac_model_stick.h>
+#include <pcl/pcl_config.h>
+#if PCL_VERSION_COMPARE(>=, 1, 13, 0)
+#include <pcl/sample_consensus/sac_model_ellipse3d.h>
+#endif
 
 namespace pclcompat {
 
@@ -43,6 +47,16 @@ using SacModel = pcl::SampleConsensusModel<Point>;
 using SacModelPtr = SacModel::Ptr;
 using Sac = pcl::SampleConsensus<Point>;
 using SacPtr = std::shared_ptr<Sac>;
+
+/// SACMODEL_ELLIPSE3D and its model class arrived in PCL 1.13. On an
+/// older PCL the constant is -1, which neither makeSacModel nor
+/// SACSegmentation accepts, so the name exists everywhere and works
+/// where PCL has it.
+#if PCL_VERSION_COMPARE(>=, 1, 13, 0)
+const int SAC_MODEL_ELLIPSE3D = pcl::SACMODEL_ELLIPSE3D;
+#else
+const int SAC_MODEL_ELLIPSE3D = -1;
+#endif
 
 inline SacModelPtr makeSacModel(int model_type,
                                 const std::shared_ptr<Cloud>& cloud) {
@@ -88,6 +102,11 @@ inline SacModelPtr makeSacModel(int model_type,
     case pcl::SACMODEL_REGISTRATION:
         return SacModelPtr(
             new pcl::SampleConsensusModelRegistration<Point>(cloud));
+#if PCL_VERSION_COMPARE(>=, 1, 13, 0)
+    case pcl::SACMODEL_ELLIPSE3D:
+        return SacModelPtr(
+            new pcl::SampleConsensusModelEllipse3D<Point>(cloud));
+#endif
     default:
         return SacModelPtr();
     }

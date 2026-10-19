@@ -7,6 +7,7 @@
 // that have to be searched for first.
 #pragma once
 
+#include <cstddef>
 #include <memory>
 #include <vector>
 
@@ -14,6 +15,21 @@
 #include <pcl/point_types.h>
 
 namespace pclcompat {
+
+// pcl::FarthestPointSampling (PCL 1.13+) behind one name; before 1.13
+// filter() throws std::runtime_error.
+class FarthestPointSampler {
+public:
+    FarthestPointSampler();
+    void setInputCloud(
+        const std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>& cloud);
+    void setSample(std::size_t sample);
+    std::size_t getSample() const;
+    void setSeed(unsigned int seed);
+    unsigned int getSeed() const;
+    void filter(pcl::PointCloud<pcl::PointXYZ>& out);
+    void filter(std::vector<int>& indices);
+};
 
 // NormalRefinement over each point's k nearest neighbours.
 void refineNormals(

@@ -64,6 +64,7 @@ from pcl.pxd.compat.supervoxel_args cimport (
 from pcl._pointtypes cimport PointCloud_PointXYZRGBA
 cimport pcl.pxd.sample_consensus.method_types as method_types
 cimport pcl.pxd.sample_consensus.model_types as model_types
+from pcl.pxd.compat.sac_models cimport SAC_MODEL_ELLIPSE3D
 
 from pcl._pointcloud cimport PointCloud
 from pcl._pointtypes cimport (
@@ -204,7 +205,8 @@ SACMODEL_PARALLEL_LINES = model_types.SACMODEL_PARALLEL_LINES
 SACMODEL_REGISTRATION = model_types.SACMODEL_REGISTRATION
 SACMODEL_REGISTRATION_2D = model_types.SACMODEL_REGISTRATION_2D
 SACMODEL_NORMAL_PARALLEL_PLANE = model_types.SACMODEL_NORMAL_PARALLEL_PLANE
-SACMODEL_ELLIPSE3D = model_types.SACMODEL_ELLIPSE3D
+# PCL 1.13+; -1 (refused by every model and segmenter) before that
+SACMODEL_ELLIPSE3D = SAC_MODEL_ELLIPSE3D
 
 
 cdef class SegmentationNormal:

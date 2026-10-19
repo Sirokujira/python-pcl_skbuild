@@ -31,7 +31,7 @@ from pcl.pxd.compat.sac_models cimport (
     makeSac, makeSacModel, sacCoefficients, sacComputeModel, sacInliers,
     sacIsNull, sacModelIsNull, sacModelSetAxis, sacModelSetConeOpeningAngle,
     sacModelSetEpsAngle, sacModelSetNormals, sacModelSetRadiusLimits,
-    sacModelSetTarget)
+    sacModelSetTarget, SAC_MODEL_ELLIPSE3D)
 cimport pcl.pxd.sample_consensus.model_types as model_types
 cimport pcl.pxd.sample_consensus.method_types as method_types
 
@@ -71,6 +71,15 @@ cdef class SampleConsensusModel:
     def __cinit__(self, PointCloud pc not None, int model_type):
         self.model_type = model_type
         self._cloud = pc
+        if model_type in (model_types.SACMODEL_TORUS,
+                          model_types.SACMODEL_PARALLEL_LINES):
+            raise ValueError(
+                "model type %d is declared in PCL's SacModel enum but has no "
+                "implementation in PCL" % model_type)
+        if model_type == model_types.SACMODEL_REGISTRATION_2D:
+            raise ValueError(
+                "SACMODEL_REGISTRATION_2D reads .u and .v from points that "
+                "also need x, y, z -- a point type PCL does not define")
         self.thisptr = makeSacModel(model_type, pc.thisptr_shared)
         if sacModelIsNull(self.thisptr):
             raise ValueError(
@@ -80,7 +89,7 @@ cdef class SampleConsensusModel:
                 "SACMODEL_CONE, SACMODEL_NORMAL_PLANE, SACMODEL_NORMAL_SPHERE, "
                 "SACMODEL_NORMAL_PARALLEL_PLANE, SACMODEL_PARALLEL_PLANE, "
                 "SACMODEL_PERPENDICULAR_PLANE, SACMODEL_PARALLEL_LINE, "
-                "SACMODEL_REGISTRATION" % model_type)
+                "SACMODEL_REGISTRATION, SACMODEL_ELLIPSE3D" % model_type)
 
     def set_InputNormals(self, PointCloud_Normal normals not None,
                          double distance_weight=0.1):
@@ -206,6 +215,15 @@ def SampleConsensusModelNormalParallelPlane(PointCloud pc not None):
 def SampleConsensusModelParallelLine(PointCloud pc not None):
     """A line parallel to `set_Axis` within `set_EpsAngle`."""
     return SampleConsensusModel(pc, model_types.SACMODEL_PARALLEL_LINE)
+
+
+def SampleConsensusModelEllipse3D(PointCloud pc not None):
+    """A 3-D ellipse (pcl::SampleConsensusModelEllipse3D): 11 coefficients
+    -- centre (3), semi-axes a and b (2), plane normal (3) and the
+    direction of the a axis (3). Needs PCL 1.13 or newer."""
+    if SAC_MODEL_ELLIPSE3D < 0:
+        raise ValueError("SampleConsensusModelEllipse3D needs PCL 1.13+")
+    return SampleConsensusModel(pc, SAC_MODEL_ELLIPSE3D)
 
 
 def SampleConsensusModelRegistration(PointCloud pc not None):

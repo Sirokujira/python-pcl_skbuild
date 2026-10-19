@@ -263,3 +263,13 @@ extra_cimports = [
     "from pcl.pxd.point_types cimport PointXYZ, PointXYZRGB, Normal",
     "from pcl.pxd.point_cloud cimport PointCloud",
 ]
+
+[[headers]]
+path = "headers/pcl/compat/registration_extra.h"
+extern_from = "pcl/compat/registration_extra.h"
+output = "../src/pcl/pxd/compat/registration_extra.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ, PointXYZRGBA, PointNormal, Normal",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+]

@@ -17,6 +17,9 @@
 
 namespace pclcompat {
 
+/// pcl::SACMODEL_ELLIPSE3D on PCL 1.13+, -1 before it.
+const int SAC_MODEL_ELLIPSE3D = 18;
+
 std::shared_ptr<pcl::SampleConsensusModel<pcl::PointXYZ>> makeSacModel(
     int model_type,
     const std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>& cloud);

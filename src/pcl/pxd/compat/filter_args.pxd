@@ -9,6 +9,16 @@ from pcl.pxd.point_cloud cimport PointCloud
 from pcl.pxd.point_types cimport PointXYZ, PointXYZRGB, Normal
 
 cdef extern from "pcl/compat/filter_args.h" namespace "pclcompat" nogil:
+    cdef cppclass FarthestPointSampler:
+        FarthestPointSampler() except +
+        void setInputCloud(const shared_ptr[PointCloud[PointXYZ]]& cloud) except +
+        void setSample(size_t sample) except +
+        size_t getSample() except +
+        void setSeed(unsigned int seed) except +
+        unsigned int getSeed() except +
+        void filter(PointCloud[PointXYZ]& out) except +
+        void filter(vector[int]& indices) except +
+
     void refineNormals(const shared_ptr[PointCloud[PointXYZ]]& cloud, const shared_ptr[PointCloud[Normal]]& normals, int k, unsigned int max_iterations, float convergence_threshold, PointCloud[Normal]& out) except +
 
     void voxelGridLabel(const PointCloud[PointXYZ]& cloud, const vector[unsigned int]& labels, float leaf_x, float leaf_y, float leaf_z, PointCloud[PointXYZ]& out_points, vector[unsigned int]& out_labels) except +

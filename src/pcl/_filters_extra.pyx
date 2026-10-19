@@ -16,14 +16,12 @@ from libcpp.vector cimport vector
 
 from pcl.pxd.point_types cimport Normal, PointXYZ, PointXYZRGB
 from pcl.pxd.point_cloud cimport PointCloud as cPointCloud
-from pcl.pxd.filters.farthest_point_sampling cimport (
-    FarthestPointSampling as cFarthestPointSampling)
 from pcl.pxd.filters.covariance_sampling cimport (
     CovarianceSampling as cCovarianceSampling)
 from pcl.pxd.filters.fast_bilateral_omp cimport (
     FastBilateralFilterOMP as cFastBilateralFilterOMP)
 from pcl.pxd.compat.filter_args cimport (
-    clipBox, clipPlane, convolve2D, gaussianConvolution3D,
+    FarthestPointSampler, clipBox, clipPlane, convolve2D, gaussianConvolution3D,
     gaussianConvolution3DRGB, morphologicalOperator, occludedVoxels,
     occlusionStates, refineNormals, voxelGridCovariance, voxelGridLabel)
 cimport pcl.pxd.compat.filter_args as fa
@@ -79,14 +77,15 @@ cdef class FarthestPointSampling:
     random point and keep adding the point farthest from everything
     picked so far -- an even cover of the cloud in `sample` points.
     `filter()` returns the sampled :class:`PointCloud`,
-    `filter_indices()` their indices."""
+    `filter_indices()` their indices. PCL 1.13+: on an older PCL both
+    raise RuntimeError."""
 
-    cdef cFarthestPointSampling[PointXYZ]* me
+    cdef FarthestPointSampler* me
     cdef Py_ssize_t n_input
     cdef bint has_sample
 
     def __cinit__(self, PointCloud pc=None, sample=None, seed=None):
-        self.me = new cFarthestPointSampling[PointXYZ]()
+        self.me = new FarthestPointSampler()
         self.n_input = -1
         self.has_sample = False
         if pc is not None:

@@ -13,8 +13,10 @@
 //   operator an enum.
 #pragma once
 
+#include <cstddef>
 #include <map>
 #include <memory>
+#include <stdexcept>
 #include <vector>
 
 // convolution_3d.h names pcl::search::KdTree without including it, so
@@ -31,10 +33,57 @@
 #include <pcl/filters/voxel_grid_label.h>
 #include <pcl/filters/voxel_grid_occlusion_estimation.h>
 #include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/pcl_config.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+#if PCL_VERSION_COMPARE(>=, 1, 13, 0)
+#include <pcl/filters/farthest_point_sampling.h>
+#endif
 
 namespace pclcompat {
+
+// pcl::FarthestPointSampling arrived in PCL 1.13. This class has the
+// same calls on every supported version; before 1.13 it keeps the
+// settings and filter() throws, so the Python class exists everywhere
+// and raises a RuntimeError naming the version where PCL lacks it.
+class FarthestPointSampler {
+public:
+#if PCL_VERSION_COMPARE(>=, 1, 13, 0)
+    void setInputCloud(
+        const std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>& cloud) {
+        fps_.setInputCloud(cloud);
+    }
+    void setSample(std::size_t sample) { fps_.setSample(sample); }
+    std::size_t getSample() const { return fps_.getSample(); }
+    void setSeed(unsigned int seed) { fps_.setSeed(seed); }
+    unsigned int getSeed() const { return fps_.getSeed(); }
+    void filter(pcl::PointCloud<pcl::PointXYZ>& out) { fps_.filter(out); }
+    void filter(std::vector<int>& indices) {
+        pcl::Indices picked;
+        fps_.filter(picked);
+        indices.assign(picked.begin(), picked.end());
+    }
+
+private:
+    pcl::FarthestPointSampling<pcl::PointXYZ> fps_;
+#else
+    void setInputCloud(
+        const std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>&) {}
+    void setSample(std::size_t sample) { sample_ = sample; }
+    std::size_t getSample() const { return sample_; }
+    void setSeed(unsigned int seed) { seed_ = seed; }
+    unsigned int getSeed() const { return seed_; }
+    void filter(pcl::PointCloud<pcl::PointXYZ>&) { unavailable(); }
+    void filter(std::vector<int>&) { unavailable(); }
+
+private:
+    static void unavailable() {
+        throw std::runtime_error("FarthestPointSampling needs PCL 1.13+");
+    }
+    std::size_t sample_ = 0;
+    unsigned int seed_ = 0;
+#endif
+};
 
 using FPoint = pcl::PointXYZ;
 using FCloud = pcl::PointCloud<FPoint>;

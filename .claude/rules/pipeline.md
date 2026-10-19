@@ -98,6 +98,16 @@ Never use Cython `IF` / `DEF` for version branching (deprecated in Cython
 3.0), and never duplicate a pxd or pyx per version — that is the
 maintenance trap this pipeline exists to avoid.
 
+CI only builds 1.14, so the floor is checked by audit: every PCL header
+an `extern_from` or a shim `#include` names was looked up at the
+`pcl-1.11.0` tag. Two are newer, both 1.13: `farthest_point_sampling.h`
+and `sac_model_ellipse3d.h`. Both sit behind rung 4 —
+`pclcompat::FarthestPointSampler` (`filter()` throws before 1.13) and
+`SAC_MODEL_ELLIPSE3D` (-1 before 1.13) — and both shims were compiled
+with `PCL_VERSION` forced to 1.12 to prove the fallback builds. Re-run
+the audit when a batch adds headers; it checks headers, not every
+symbol in them.
+
 ## C++ shims (src/pcl/compat/)
 
 Shims are the rung-4 escape hatch, and not only for version differences —
@@ -226,6 +236,24 @@ in 1.14 calls a dependent-base member without `this->`, which two-phase
 lookup rejects, and PCL never instantiates the header-only class itself
 so nothing upstream notices. `octree_args.h` subclasses it and does the
 lookup correctly; the broken member is never instantiated.
+
+The registration batch: `PyramidFeatureHistogram` is a DENSE array --
+every level allocates the product of its per-dimension bin counts, so
+FPFH's 33 dimensions need 2^33 counters at two bins an axis (a
+`vector::_M_fill_insert` length error in practice) -- and `at()`
+indexes it with no bounds check, so a value outside the input range
+writes past the end. `compare_pyramid_feature_histograms` takes 1..16
+dimensions, caps the level-0 total and refuses out-of-range values.
+`CorrespondenceRejectorFeatures` does not compile in 1.14 (it calls a
+`getClassName()` its container lacks), the 2-D SAC registration pair
+needs a point type with x, y, z AND u, v that PCL does not define, and
+`SACMODEL_TORUS` / `PARALLEL_LINES` are enum values with no class: all
+four are listed in the README and refused where a constant reaches us.
+Two merely surprising ones are documented in the docstrings instead:
+`CorrespondenceEstimationOrganizedProjection` truncates the projected
+pixel coordinate, and `NormalDistributionsTransform2D` stays at the
+initial pose (reporting convergence) on zero-thickness structure,
+whose near-singular cell Gaussians give no gradient.
 
 Not every quirk is worth absorbing, though. PCL's octree treats the FIRST
 point of a cloud specially: `voxelSearch` can miss it, and

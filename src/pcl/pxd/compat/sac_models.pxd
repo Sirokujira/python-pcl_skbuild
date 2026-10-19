@@ -12,6 +12,8 @@ from pcl.pxd.sample_consensus.sac cimport SampleConsensus
 from pcl.pxd.sample_consensus.sac_model cimport SampleConsensusModel
 
 cdef extern from "pcl/compat/sac_models.h" namespace "pclcompat" nogil:
+    const int SAC_MODEL_ELLIPSE3D
+
     shared_ptr[SampleConsensusModel[PointXYZ]] makeSacModel(int model_type, const shared_ptr[PointCloud[PointXYZ]]& cloud) except +
 
     bool sacModelIsNull(const shared_ptr[SampleConsensusModel[PointXYZ]]& model) except +

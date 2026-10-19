@@ -172,13 +172,6 @@ namespaces = ["pcl"]
 extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
 
 [[headers]]
-path = "headers/pcl/filters/farthest_point_sampling.h"
-extern_from = "pcl/filters/farthest_point_sampling.h"
-output = "../src/pcl/pxd/filters/farthest_point_sampling.pxd"
-namespaces = ["pcl"]
-extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
-
-[[headers]]
 path = "headers/pcl/filters/covariance_sampling.h"
 extern_from = "pcl/filters/covariance_sampling.h"
 output = "../src/pcl/pxd/filters/covariance_sampling.pxd"

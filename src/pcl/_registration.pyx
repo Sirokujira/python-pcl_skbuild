@@ -53,6 +53,15 @@ from pcl._pointtypes cimport (
     PointCloud_Normal, PointCloud_PointNormal, wrap_pointnormal_cloud)
 
 from pcl._pointcloud cimport PointCloud
+from pcl.pxd.point_types cimport PointXYZRGBA
+from pcl.pxd.compat.registration_extra cimport (
+    ELCHLoop, IncrementalICP, LUMGraph, MetaICP,
+    correspondencesBackProjection, correspondencesNormalShooting,
+    correspondencesOrganizedProjection, estimateTransformationExtra,
+    estimateTransformationNormals, gicp6dAlign, jointICPAlign, ndt2dAlign,
+    ppfRegister, pyramidSimilarity, rejectOrganizedBoundary, rejectPoly,
+    rejectVarTrimmed)
+from pcl._pointtypes cimport PointCloud_PointXYZRGBA, wrap_xyzrgba_cloud
 
 
 cdef object _as_matrix(float* buf):
@@ -1014,14 +1023,20 @@ def estimate_transformation(PointCloud source not None,
                             PointCloud target not None, pairs=None,
                             str method="svd"):
     """The rigid transform taking the matched source points onto their
-    target points: `method` ``"svd"``
-    (pcl::registration::TransformationEstimationSVD) or ``"lm"``
-    (TransformationEstimationLM). With no `pairs`, point i matches
+    target points (pcl::registration::TransformationEstimation*):
+    `method` ``"svd"``, ``"lm"`` (Levenberg-Marquardt),
+    ``"dual_quaternion"``, ``"svd_scale"`` (similarity: rotation,
+    translation AND uniform scale), ``"2d"`` (x, y and yaw only) or
+    ``"3point"`` (exactly three pairs). With no `pairs`, point i matches
     point i and the clouds must be the same size. Returns a 4x4 array.
+    For point-to-plane estimation see
+    `estimate_transformation_point_to_plane`.
     """
-    methods = {"svd": 0, "lm": 1}
+    methods = {"svd": 0, "lm": 1, "dual_quaternion": 2, "svd_scale": 3,
+               "2d": 4, "3point": 5}
     if method not in methods:
-        raise ValueError("method must be 'svd' or 'lm', got %r" % method)
+        raise ValueError("method must be one of %s, got %r"
+                         % (", ".join(sorted(methods)), method))
     cdef vector[int] p_in
     cdef vector[float] d_in
     if pairs is None:
@@ -1035,9 +1050,19 @@ def estimate_transformation(PointCloud source not None,
         _pairs_in(pairs, None, p_in, d_in)
         if p_in.size() < 6:
             raise ValueError("at least three pairs are needed")
+    cdef int m = methods[method]
+    if m == 5:
+        n_pairs = (p_in.size() // 2) if pairs is not None else source.size
+        if n_pairs != 3:
+            raise ValueError("method '3point' takes exactly three "
+                             "correspondences, got %d" % n_pairs)
     cdef float buf[16]
-    estimateTransformation(methods[method], source.thisptr_shared,
-                           target.thisptr_shared, p_in, buf)
+    if m < 2:
+        estimateTransformation(m, source.thisptr_shared,
+                               target.thisptr_shared, p_in, buf)
+    else:
+        estimateTransformationExtra(m, source.thisptr_shared,
+                                    target.thisptr_shared, p_in, buf)
     return _as_matrix(buf)
 
 
@@ -1061,3 +1086,778 @@ def validate_transformation(PointCloud source not None,
         raise ValueError("both clouds must have points")
     return validateTransformationEuclidean(
         source.thisptr_shared, target.thisptr_shared, buf, limit)
+
+
+# --- the second registration batch ------------------------------------------
+
+def estimate_transformation_point_to_plane(
+        PointCloud_PointNormal source not None,
+        PointCloud_PointNormal target not None, pairs=None,
+        str method="lls", weights=None):
+    """The rigid transform minimising point-to-PLANE distances: each
+    source point to the tangent plane of its target point
+    (pcl::registration::TransformationEstimationPointToPlane*).
+
+    `method`: ``"lls"`` (linearised least squares, the fast one),
+    ``"lm"`` (Levenberg-Marquardt), ``"symmetric"`` (both clouds'
+    normals), ``"lls_weighted"`` / ``"weighted"`` (one weight per pair in
+    `weights`). With no `pairs`, point i matches point i. Returns 4x4.
+    """
+    import numpy as np
+    methods = {"lm": 0, "lls": 1, "lls_weighted": 2, "symmetric": 3,
+               "weighted": 4}
+    if method not in methods:
+        raise ValueError("method must be one of %s, got %r"
+                         % (", ".join(sorted(methods)), method))
+    cdef vector[int] p_in
+    cdef vector[float] d_in
+    cdef Py_ssize_t n_pairs
+    if pairs is None:
+        if source.size != target.size:
+            raise ValueError("without pairs the clouds must be the same size")
+        n_pairs = source.size
+    else:
+        _pairs_in(pairs, None, p_in, d_in)
+        n_pairs = p_in.size() // 2
+    if n_pairs < 3:
+        raise ValueError("at least three correspondences are needed")
+    cdef vector[double] w
+    if methods[method] in (2, 4):
+        if weights is None:
+            raise ValueError("method %r needs weights, one per pair" % method)
+        warr = np.asarray(weights, dtype=np.float64).ravel()
+        if warr.shape[0] != n_pairs:
+            raise ValueError("weights must have one value per pair (%d), got "
+                             "%d" % (n_pairs, warr.shape[0]))
+        w = warr.tolist()
+    elif weights is not None:
+        raise ValueError("weights only apply to 'lls_weighted' and 'weighted'")
+    cdef float buf[16]
+    estimateTransformationNormals(methods[method], source.thisptr_shared,
+                                  target.thisptr_shared, p_in, w, buf)
+    return _as_matrix(buf)
+
+
+cdef double _max_distance(max_distance) except? -1:
+    if max_distance is None:
+        return 0.0
+    if max_distance <= 0:
+        raise ValueError("max_distance must be positive")
+    return max_distance
+
+
+def estimate_correspondences_normal_shooting(
+        PointCloud source not None, PointCloud_Normal source_normals not None,
+        PointCloud target not None, int k=10, max_distance=None):
+    """Correspondences along the SOURCE normals
+    (pcl::registration::CorrespondenceEstimationNormalShooting): of each
+    source point's `k` nearest target points, the one closest to the line
+    through the point along its normal. Same ``(pairs, distances)`` shape
+    as `estimate_correspondences`."""
+    if source_normals.size != source.size:
+        raise ValueError("source_normals must match the source cloud")
+    if k < 1:
+        raise ValueError("k must be >= 1")
+    cdef double limit = _max_distance(max_distance)
+    cdef vector[int] pairs
+    cdef vector[float] distances
+    with nogil:
+        correspondencesNormalShooting(source.thisptr_shared,
+                                      source_normals.thisptr_shared,
+                                      target.thisptr_shared, k, limit, pairs,
+                                      distances)
+    return _pairs_out(pairs, distances)
+
+
+def estimate_correspondences_back_projection(
+        PointCloud source not None, PointCloud_Normal source_normals not None,
+        PointCloud target not None, PointCloud_Normal target_normals not None,
+        int k=10, max_distance=None):
+    """Back-projection correspondences
+    (pcl::registration::CorrespondenceEstimationBackProjection): of each
+    source point's `k` nearest target points, the one whose normal agrees
+    best with the source normal."""
+    if source_normals.size != source.size:
+        raise ValueError("source_normals must match the source cloud")
+    if target_normals.size != target.size:
+        raise ValueError("target_normals must match the target cloud")
+    if k < 1:
+        raise ValueError("k must be >= 1")
+    cdef double limit = _max_distance(max_distance)
+    cdef vector[int] pairs
+    cdef vector[float] distances
+    with nogil:
+        correspondencesBackProjection(source.thisptr_shared,
+                                      source_normals.thisptr_shared,
+                                      target.thisptr_shared,
+                                      target_normals.thisptr_shared, k, limit,
+                                      pairs, distances)
+    return _pairs_out(pairs, distances)
+
+
+def estimate_correspondences_organized_projection(
+        PointCloud source not None, PointCloud target not None, float fx,
+        float fy, float cx, float cy, float depth_threshold=0.1,
+        max_distance=None):
+    """Projective data association
+    (pcl::registration::CorrespondenceEstimationOrganizedProjection): each
+    source point is projected through the pinhole camera ``(fx, fy, cx,
+    cy)`` into the ORGANIZED target, and matched to the target pixel it
+    lands on when their depths differ by less than `depth_threshold`. No
+    search at all, the reason Kinect fusion pipelines use it.
+
+    PCL truncates the projected coordinate, so pixel ``(u, v)`` covers
+    ``[u, u + 1)``: a target built from pixel corners (``x = (u - cx) *
+    z / fx``) sits on the boundary and float rounding sends some points
+    one pixel to the left. Build it from pixel centres (``u + 0.5``)."""
+    if target.ptr().height < 2:
+        raise ValueError("the target must be an organized cloud")
+    if fx <= 0 or fy <= 0:
+        raise ValueError("focal lengths must be positive")
+    cdef double limit = _max_distance(max_distance)
+    cdef vector[int] pairs
+    cdef vector[float] distances
+    with nogil:
+        correspondencesOrganizedProjection(source.thisptr_shared,
+                                           target.thisptr_shared, fx, fy, cx,
+                                           cy, depth_threshold, limit, pairs,
+                                           distances)
+    return _pairs_out(pairs, distances)
+
+
+def reject_var_trimmed(PointCloud source not None, PointCloud target not None,
+                       pairs, distances, double min_ratio=0.05,
+                       double max_ratio=0.95):
+    """Variable trimming (pcl::registration::CorrespondenceRejectorVarTrimmed,
+    Chetverikov's FRMSD): picks the overlap fraction between `min_ratio`
+    and `max_ratio` that minimises the trimmed error, and keeps that
+    fraction of the closest pairs. Returns ``(pairs, distances,
+    trimmed_distance, trim_factor)``."""
+    if not 0.0 < min_ratio <= max_ratio <= 1.0:
+        raise ValueError("need 0 < min_ratio <= max_ratio <= 1")
+    cdef vector[int] p_in, p_out
+    cdef vector[float] d_in, d_out
+    cdef double trimmed = 0.0, factor = 0.0
+    _pairs_in(pairs, distances, p_in, d_in)
+    with nogil:
+        rejectVarTrimmed(source.thisptr_shared, target.thisptr_shared, p_in,
+                         d_in, min_ratio, max_ratio, p_out, d_out, &trimmed,
+                         &factor)
+    kept, dists = _pairs_out(p_out, d_out)
+    return kept, dists, trimmed, factor
+
+
+def reject_poly(PointCloud source not None, PointCloud target not None,
+                pairs, distances, int cardinality=3,
+                float similarity_threshold=0.75, int iterations=10000):
+    """Polygonal consistency (pcl::registration::CorrespondenceRejectorPoly):
+    random `cardinality`-gons of matched points must have edge lengths
+    that agree between the clouds to within `similarity_threshold` (0..1);
+    pairs that never take part in a consistent polygon are dropped."""
+    if cardinality < 2:
+        raise ValueError("cardinality must be >= 2")
+    if not 0.0 < similarity_threshold < 1.0:
+        raise ValueError("similarity_threshold must be in (0, 1)")
+    if iterations < 1:
+        raise ValueError("iterations must be >= 1")
+    cdef vector[int] p_in, p_out
+    cdef vector[float] d_in, d_out
+    _pairs_in(pairs, distances, p_in, d_in)
+    with nogil:
+        rejectPoly(source.thisptr_shared, target.thisptr_shared, p_in, d_in,
+                   cardinality, similarity_threshold, iterations, p_out, d_out)
+    return _pairs_out(p_out, d_out)
+
+
+def reject_organized_boundary(PointCloud source not None,
+                              PointCloud target not None, pairs, distances,
+                              int boundary_nans=8):
+    """Drop pairs whose TARGET point lies on a depth boundary of the
+    organized target cloud
+    (pcl::registration::CorrespondenceRejectionOrganizedBoundary): a point
+    counts as boundary when the 5 x 5 window around it holds at least
+    `boundary_nans` invalid pixels or depth jumps. The window is clipped
+    at the image border without being rescaled, so a pixel on the top or
+    bottom row next to a hole sees fewer invalid neighbours and may
+    survive where the rows below it do not."""
+    if target.ptr().height < 2:
+        raise ValueError("the target must be an organized cloud")
+    cdef vector[int] p_in, p_out
+    cdef vector[float] d_in, d_out
+    _pairs_in(pairs, distances, p_in, d_in)
+    with nogil:
+        rejectOrganizedBoundary(source.thisptr_shared, target.thisptr_shared,
+                                p_in, d_in, boundary_nans, p_out, d_out)
+    return _pairs_out(p_out, d_out)
+
+
+_PYRAMID_MAX_BINS = 1 << 24
+
+
+def compare_pyramid_feature_histograms(features_a, features_b,
+                                       dimension_range=None,
+                                       target_range=None):
+    """Similarity of two SETS of low-dimensional features
+    (pcl::PyramidFeatureHistogram, Grauman and Darrell's pyramid match):
+    1 for identical distributions, towards 0 for unrelated ones.
+
+    Takes ``(n, d)`` and ``(m, d)`` arrays, ``1 <= d <= 16`` -- PPF's four
+    values are what PCL's own test feeds it. The histogram is DENSE: each
+    pyramid level allocates the product of its per-dimension bin counts,
+    so FPFH's 33 dimensions would need 2^33 counters at two bins per axis
+    (reduce such descriptors first, e.g. with PCA).
+
+    `dimension_range` is one ``(min, max)`` per dimension that the values
+    are mapped from (default: the span of both sets, padded so the
+    maximum is inside it); every value must lie in ``[min, max)``,
+    because PCL indexes its histogram without a bounds check.
+    `target_range` is the ``(min, max)`` each dimension is mapped to, and
+    sets the resolution: level 0 has ``ceil(extent / sqrt(d))`` bins per
+    dimension, each further level half as many (default: about 2^20
+    level-0 bins in total, at most 64 per dimension).
+    """
+    import numpy as np
+    a = np.ascontiguousarray(features_a, dtype=np.float32)
+    b = np.ascontiguousarray(features_b, dtype=np.float32)
+    if a.ndim != 2 or b.ndim != 2 or a.shape[1] != b.shape[1]:
+        raise ValueError("expected two (n, d) arrays with the same d")
+    cdef int d = a.shape[1]
+    if d < 1 or d > 16:
+        raise ValueError(
+            "PyramidFeatureHistogram is dense, so d must be 1..16; this "
+            "is %d -- reduce the descriptor's dimension first" % d)
+    if a.shape[0] == 0 or b.shape[0] == 0:
+        raise ValueError("both feature sets must be non-empty")
+    if not (np.all(np.isfinite(a)) and np.all(np.isfinite(b))):
+        raise ValueError("features must be finite")
+    if dimension_range is None:
+        both = np.vstack([a, b])
+        lo = both.min(axis=0)
+        span = both.max(axis=0) - lo
+        hi = lo + np.maximum(span * 1.001, 1e-3)
+        source = np.column_stack([lo, hi]).astype(np.float32)
+    else:
+        source = np.asarray(dimension_range, dtype=np.float32)
+        if source.shape != (d, 2) or np.any(source[:, 1] <= source[:, 0]):
+            raise ValueError("dimension_range must be %d (min, max) pairs "
+                             "with max > min" % d)
+        for arr in (a, b):
+            if np.any(arr < source[:, 0]) or np.any(arr >= source[:, 1]):
+                raise ValueError(
+                    "every value must lie in its dimension_range [min, max): "
+                    "PCL would index past the end of its histogram")
+    if target_range is None:
+        per_dim = min(64, int(2 ** (20.0 / d)))
+        extent = max(per_dim, 2) * np.sqrt(d)
+        target = np.tile([0.0, extent], (d, 1)).astype(np.float32)
+    else:
+        target = np.asarray(target_range, dtype=np.float32)
+        if target.shape != (d, 2) or np.any(target[:, 1] <= target[:, 0]):
+            raise ValueError("target_range must be %d (min, max) pairs "
+                             "with max > min" % d)
+    extents = (target[:, 1] - target[:, 0]).astype(np.float64)
+    if np.sqrt(np.sum(extents ** 2)) <= 2.0:
+        raise ValueError("target_range is too small for even one pyramid "
+                         "level (its diagonal must exceed 2)")
+    bins = np.prod(np.ceil(extents / np.sqrt(d)))
+    if bins > _PYRAMID_MAX_BINS:
+        raise ValueError(
+            "target_range gives %.3g level-0 bins (limit %d): the pyramid "
+            "is a dense array" % (bins, _PYRAMID_MAX_BINS))
+    cdef vector[float] va = a.ravel().tolist()
+    cdef vector[float] vb = b.ravel().tolist()
+    cdef vector[float] vs = source.ravel().tolist()
+    cdef vector[float] vt = target.ravel().tolist()
+    cdef float similarity
+    with nogil:
+        similarity = pyramidSimilarity(d, va, vb, vs, vt)
+    return float(similarity)
+
+
+cdef class _AlignSettings:
+    """The ICP-style settings the align-function wrappers share."""
+
+    cdef int max_iterations
+    cdef double max_correspondence_distance
+    cdef double transformation_epsilon
+
+    def __cinit__(self, *args, **kwargs):
+        self.max_iterations = 10
+        self.max_correspondence_distance = 0.05
+        self.transformation_epsilon = 1e-8
+
+    def set_MaximumIterations(self, int count):
+        if count < 1:
+            raise ValueError("count must be >= 1")
+        self.max_iterations = count
+
+    def get_MaximumIterations(self):
+        return self.max_iterations
+
+    def set_MaxCorrespondenceDistance(self, double distance):
+        if distance <= 0:
+            raise ValueError("distance must be positive")
+        self.max_correspondence_distance = distance
+
+    def get_MaxCorrespondenceDistance(self):
+        return self.max_correspondence_distance
+
+    def set_TransformationEpsilon(self, double epsilon):
+        self.transformation_epsilon = epsilon
+
+
+cdef class GeneralizedIterativeClosestPoint6D(_AlignSettings):
+    """Generalized ICP in position AND colour
+    (pcl::GeneralizedIterativeClosestPoint6D): correspondences are found
+    in a 6-D space of xyz plus CIELab colour scaled by `lab_weight`, then
+    aligned by GICP. On :class:`PointCloud_PointXYZRGBA`; helps when the
+    geometry alone is ambiguous (a flat wall with a poster on it)."""
+
+    cdef float lab_weight
+
+    def __cinit__(self, float lab_weight=0.032):
+        if lab_weight < 0:
+            raise ValueError("lab_weight must be >= 0")
+        self.lab_weight = lab_weight
+        self.max_iterations = 50
+
+    def gicp(self, PointCloud_PointXYZRGBA source not None,
+             PointCloud_PointXYZRGBA target not None, max_iter=None):
+        """Returns ``(converged, transform, estimate, fitness)`` like
+        `GeneralizedIterativeClosestPoint.gicp`, with `estimate` a
+        :class:`PointCloud_PointXYZRGBA`."""
+        if source.size == 0 or target.size == 0:
+            raise ValueError("both clouds must have points")
+        cdef int iterations = self.max_iterations if max_iter is None else max_iter
+        cdef shared_ptr[cPointCloud[PointXYZRGBA]] holder
+        holder.reset(new cPointCloud[PointXYZRGBA]())
+        cdef float buf[16]
+        cdef double fitness = 0.0
+        cdef bint converged
+        with nogil:
+            converged = gicp6dAlign(source.thisptr_shared, target.thisptr_shared,
+                                    self.lab_weight, iterations,
+                                    self.max_correspondence_distance,
+                                    self.transformation_epsilon,
+                                    deref(holder.get()), buf, &fitness)
+        return converged, _as_matrix(buf), wrap_xyzrgba_cloud(holder), fitness
+
+
+cdef class NormalDistributionsTransform2D(_AlignSettings):
+    """2-D NDT (pcl::NormalDistributionsTransform2D): registers the clouds'
+    x, y projections on a grid of Gaussians -- planar laser scans, a
+    robot on a floor. The result rotates only about z.
+
+    `set_Grid(centre, extent, step)` defines the grid in x, y (default
+    centred on the origin, 20 x 20 with 1-unit cells);
+    `set_OptimizationStepSize(x, y, theta)` scales each Newton step
+    (default 1, PCL's own).
+
+    The basin is the width of the cell Gaussians: a target with no
+    thickness across a structure -- noise-free walls, say -- gives
+    near-singular cells whose likelihood is zero a few millimetres off
+    the line, so the gradient vanishes and the result stays at the
+    initial pose with `has_converged` set.
+    """
+
+    cdef float centre[2]
+    cdef float extent[2]
+    cdef float step[2]
+    cdef double opt_step[3]
+
+    def __cinit__(self):
+        self.centre[0] = 0.0
+        self.centre[1] = 0.0
+        self.extent[0] = 20.0
+        self.extent[1] = 20.0
+        self.step[0] = 1.0
+        self.step[1] = 1.0
+        self.opt_step[0] = 1.0
+        self.opt_step[1] = 1.0
+        self.opt_step[2] = 1.0
+        self.max_iterations = 35
+        self.transformation_epsilon = 1e-6
+
+    def set_Grid(self, centre, extent, step):
+        cx, cy = centre
+        ex, ey = extent
+        sx, sy = step
+        if ex <= 0 or ey <= 0 or sx <= 0 or sy <= 0:
+            raise ValueError("extent and step must be positive")
+        self.centre[0], self.centre[1] = cx, cy
+        self.extent[0], self.extent[1] = ex, ey
+        self.step[0], self.step[1] = sx, sy
+
+    def set_OptimizationStepSize(self, double x, double y, double theta):
+        self.opt_step[0], self.opt_step[1], self.opt_step[2] = x, y, theta
+
+    def ndt(self, PointCloud source not None, PointCloud target not None,
+            max_iter=None):
+        """Returns ``(converged, transform, estimate, fitness)``."""
+        if source.size == 0 or target.size == 0:
+            raise ValueError("both clouds must have points")
+        cdef int iterations = self.max_iterations if max_iter is None else max_iter
+        cdef PointCloud estimate = PointCloud()
+        cdef cPointCloud[PointXYZ]* out = estimate.ptr()
+        cdef float buf[16]
+        cdef double fitness = 0.0
+        cdef bint converged
+        with nogil:
+            converged = ndt2dAlign(source.thisptr_shared, target.thisptr_shared,
+                                   self.centre, self.extent, self.step,
+                                   self.opt_step, iterations,
+                                   self.transformation_epsilon, deref(out),
+                                   buf, &fitness)
+        return converged, _as_matrix(buf), estimate, fitness
+
+
+cdef class JointIterativeClosestPoint(_AlignSettings):
+    """ICP over several source/target pairs at once, solving ONE rigid
+    transform that fits them all (pcl::JointIterativeClosestPoint) --
+    e.g. the same motion seen by several sensors.
+
+        transform = pcl.JointIterativeClosestPoint().icp(
+            [src_a, src_b], [tgt_a, tgt_b])[1]
+    """
+
+    def icp(self, sources, targets, max_iter=None):
+        """Returns ``(converged, transform, fitness)``."""
+        sources = list(sources)
+        targets = list(targets)
+        if not sources or len(sources) != len(targets):
+            raise ValueError("give one target per source, at least one pair")
+        cdef vector[shared_ptr[cPointCloud[PointXYZ]]] src, tgt
+        for cloud in sources:
+            if not isinstance(cloud, PointCloud) or (<PointCloud> cloud).size == 0:
+                raise ValueError("sources must be non-empty PointClouds")
+            src.push_back((<PointCloud> cloud).thisptr_shared)
+        for cloud in targets:
+            if not isinstance(cloud, PointCloud) or (<PointCloud> cloud).size == 0:
+                raise ValueError("targets must be non-empty PointClouds")
+            tgt.push_back((<PointCloud> cloud).thisptr_shared)
+        cdef int iterations = self.max_iterations if max_iter is None else max_iter
+        cdef float buf[16]
+        cdef double fitness = 0.0
+        cdef bint converged
+        with nogil:
+            converged = jointICPAlign(src, tgt, iterations,
+                                      self.max_correspondence_distance,
+                                      self.transformation_epsilon, buf,
+                                      &fitness)
+        return converged, _as_matrix(buf), fitness
+
+
+cdef class PPFRegistration:
+    """Point Pair Feature registration (pcl::PPFRegistration, Drost et
+    al.): the model's point pair features go into a hash table, every
+    scene reference point votes for model poses, and the most voted pose
+    cluster wins. Needs no initial guess; model and scene are
+    :class:`PointCloud_PointNormal`, downsampled first (PPF is quadratic
+    in the model).
+
+    `angle_step` (radians) and `distance_step` (cloud units) discretise
+    the hash table; `scene_sampling_rate` keeps every n-th scene point as
+    a reference point; the clustering thresholds merge nearby poses.
+    """
+
+    cdef float angle_step
+    cdef float distance_step
+    cdef unsigned int sampling_rate
+    cdef float position_threshold
+    cdef float rotation_threshold
+
+    def __cinit__(self, float angle_step=0.20943951, float distance_step=0.01):
+        if angle_step <= 0 or distance_step <= 0:
+            raise ValueError("steps must be positive")
+        self.angle_step = angle_step
+        self.distance_step = distance_step
+        self.sampling_rate = 10
+        self.position_threshold = 0.2
+        self.rotation_threshold = 0.52359878
+
+    def set_SceneReferencePointSamplingRate(self, unsigned int rate):
+        if rate < 1:
+            raise ValueError("rate must be >= 1")
+        self.sampling_rate = rate
+
+    def set_PositionClusteringThreshold(self, float threshold):
+        self.position_threshold = threshold
+
+    def set_RotationClusteringThreshold(self, float radians):
+        self.rotation_threshold = radians
+
+    def align(self, PointCloud_PointNormal model not None,
+              PointCloud_PointNormal scene not None):
+        """Returns ``(converged, transform, estimate, fitness)``; the
+        transform places the model in the scene."""
+        if model.size < 2 or scene.size < 2:
+            raise ValueError("model and scene need at least two points")
+        cdef shared_ptr[cPointCloud[PointNormal]] holder
+        holder.reset(new cPointCloud[PointNormal]())
+        cdef float buf[16]
+        cdef double fitness = 0.0
+        cdef bint converged
+        with nogil:
+            converged = ppfRegister(model.thisptr_shared, scene.thisptr_shared,
+                                    self.angle_step, self.distance_step,
+                                    self.sampling_rate, self.position_threshold,
+                                    self.rotation_threshold,
+                                    deref(holder.get()), buf, &fitness)
+        return (converged, _as_matrix(buf), wrap_pointnormal_cloud(holder),
+                fitness)
+
+
+cdef class IncrementalRegistration:
+    """Chain frame-to-frame ICP into an absolute pose
+    (pcl::registration::IncrementalRegistration): each `register_Cloud`
+    aligns the new frame to the previous one and composes the result.
+
+        reg = pcl.IncrementalRegistration(max_correspondence_distance=0.1)
+        for frame in frames:
+            reg.register_Cloud(frame)
+            pose = reg.get_AbsoluteTransform()
+    """
+
+    cdef IncrementalICP* me
+
+    def __cinit__(self, double max_correspondence_distance=0.05,
+                  int max_iterations=50, double transformation_epsilon=1e-8):
+        if max_correspondence_distance <= 0 or max_iterations < 1:
+            raise ValueError("distance must be positive, iterations >= 1")
+        self.me = new IncrementalICP(max_correspondence_distance,
+                                     max_iterations, transformation_epsilon)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def register_Cloud(self, PointCloud cloud not None, delta_estimate=None):
+        """Align *cloud* to the previous frame (the first one only sets
+        the origin). Returns whether ICP converged."""
+        cdef float buf[16]
+        cdef float* guess = NULL
+        if delta_estimate is not None:
+            _matrix16(delta_estimate, buf)
+            guess = buf
+        return self.me.registerCloud(cloud.thisptr_shared, guess)
+
+    def get_DeltaTransform(self):
+        cdef float buf[16]
+        self.me.deltaTransform(buf)
+        return _as_matrix(buf)
+
+    def get_AbsoluteTransform(self):
+        cdef float buf[16]
+        self.me.absoluteTransform(buf)
+        return _as_matrix(buf)
+
+    def reset(self):
+        self.me.reset()
+
+
+cdef class MetaRegistration:
+    """Register every new frame against the ACCUMULATED map of all
+    previous ones (pcl::registration::MetaRegistration) -- slower than
+    frame-to-frame, but it does not drift the same way.
+    `get_MetaCloud()` returns the map."""
+
+    cdef MetaICP* me
+
+    def __cinit__(self, double max_correspondence_distance=0.05,
+                  int max_iterations=50, double transformation_epsilon=1e-8):
+        if max_correspondence_distance <= 0 or max_iterations < 1:
+            raise ValueError("distance must be positive, iterations >= 1")
+        self.me = new MetaICP(max_correspondence_distance, max_iterations,
+                              transformation_epsilon)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def register_Cloud(self, PointCloud cloud not None, delta_estimate=None):
+        cdef float buf[16]
+        cdef float* guess = NULL
+        if delta_estimate is not None:
+            _matrix16(delta_estimate, buf)
+            guess = buf
+        return self.me.registerCloud(cloud.thisptr_shared, guess)
+
+    def get_AbsoluteTransform(self):
+        cdef float buf[16]
+        self.me.absoluteTransform(buf)
+        return _as_matrix(buf)
+
+    def get_MetaCloud(self):
+        cdef PointCloud out = PointCloud()
+        self.me.metaCloud(deref(out.ptr()))
+        return out
+
+    def reset(self):
+        self.me.reset()
+
+
+cdef class LUM:
+    """Lu and Milios' globally consistent scan matching
+    (pcl::registration::LUM): a graph of clouds, each with a pose, and
+    correspondences between overlapping ones; `compute()` moves all poses
+    at once to minimise the correspondence error. The first cloud is the
+    fixed reference.
+
+        lum = pcl.LUM()
+        a = lum.add_PointCloud(cloud_a)
+        b = lum.add_PointCloud(cloud_b, pose=(x, y, z, roll, pitch, yaw))
+        lum.set_Correspondences(b, a, pairs)     # (m, 2): index in b, in a
+        lum.compute()
+        transform_b = lum.get_Transformation(b)
+    """
+
+    cdef LUMGraph* me
+
+    def __cinit__(self):
+        self.me = new LUMGraph()
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def add_PointCloud(self, PointCloud cloud not None, pose=None):
+        """Add a cloud (in its own frame) with an initial pose ``(x, y, z,
+        roll, pitch, yaw)``; returns its vertex index."""
+        cdef float p[6]
+        cdef float* pp = NULL
+        if pose is not None:
+            values = [float(v) for v in pose]
+            if len(values) != 6:
+                raise ValueError("pose is (x, y, z, roll, pitch, yaw)")
+            for i in range(6):
+                p[i] = values[i]
+            pp = p
+        return self.me.addCloud(cloud.thisptr_shared, pp)
+
+    def get_NumVertices(self):
+        return self.me.size()
+
+    cdef int _vertex(self, int vertex) except -1:
+        if not 0 <= vertex < self.me.size():
+            raise IndexError("vertex %d out of range" % vertex)
+        return vertex
+
+    def set_Correspondences(self, int source, int target, pairs):
+        """``(m, 2)`` index pairs: a point of cloud *source*, its match in
+        cloud *target*."""
+        self._vertex(source)
+        self._vertex(target)
+        if source == target:
+            raise ValueError("source and target must differ")
+        cdef vector[int] p
+        cdef vector[float] d
+        _pairs_in(pairs, None, p, d)
+        if p.size() < 6:
+            raise ValueError("at least three correspondences are needed")
+        self.me.setCorrespondences(source, target, p)
+
+    def set_MaxIterations(self, int count):
+        if count < 1:
+            raise ValueError("count must be >= 1")
+        self.me.setMaxIterations(count)
+
+    def set_ConvergenceThreshold(self, float threshold):
+        self.me.setConvergenceThreshold(threshold)
+
+    def compute(self):
+        if self.me.size() < 2:
+            raise RuntimeError("add at least two clouds first")
+        with nogil:
+            self.me.compute()
+
+    def get_Pose(self, int vertex):
+        import numpy as np
+        cdef float p[6]
+        self.me.pose(self._vertex(vertex), p)
+        return np.array([p[i] for i in range(6)], dtype=np.float32)
+
+    def get_Transformation(self, int vertex):
+        cdef float buf[16]
+        self.me.transformation(self._vertex(vertex), buf)
+        return _as_matrix(buf)
+
+    def get_TransformedCloud(self, int vertex):
+        cdef PointCloud out = PointCloud()
+        self.me.transformedCloud(self._vertex(vertex), deref(out.ptr()))
+        return out
+
+    def get_ConcatenatedCloud(self):
+        cdef PointCloud out = PointCloud()
+        self.me.concatenatedCloud(deref(out.ptr()))
+        return out
+
+
+cdef class ELCH:
+    """Explicit Loop Closing Heuristic (pcl::registration::ELCH): a chain
+    of clouds that comes back to where it started; the loop-closing error
+    between `loop_start` and `loop_end` is spread back along the chain.
+    The closure itself comes from ICP, or from `set_LoopTransform`.
+
+        elch = pcl.ELCH()
+        for cloud in chain:            # already roughly aligned
+            elch.add_PointCloud(cloud)
+        elch.set_LoopStart(0)
+        elch.set_LoopEnd(len(chain) - 1)
+        elch.compute()
+        corrected = [elch.get_PointCloud(i) for i in range(len(chain))]
+    """
+
+    cdef ELCHLoop* me
+    cdef int loop_start
+    cdef int loop_end
+
+    def __cinit__(self, double max_correspondence_distance=0.1,
+                  int max_iterations=50, double transformation_epsilon=1e-8):
+        self.me = new ELCHLoop(max_correspondence_distance, max_iterations,
+                               transformation_epsilon)
+        self.loop_start = -1
+        self.loop_end = -1
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def add_PointCloud(self, PointCloud cloud not None):
+        """Append a cloud to the chain (copied); returns its index."""
+        return self.me.addCloud(cloud.thisptr_shared)
+
+    cdef int _vertex(self, int vertex) except -1:
+        if not 0 <= vertex < self.me.size():
+            raise IndexError("vertex %d out of range" % vertex)
+        return vertex
+
+    def set_LoopStart(self, int vertex):
+        self.me.setLoopStart(self._vertex(vertex))
+        self.loop_start = vertex
+
+    def set_LoopEnd(self, int vertex):
+        self.me.setLoopEnd(self._vertex(vertex))
+        self.loop_end = vertex
+
+    def set_LoopTransform(self, matrix):
+        """The transform that closes the loop, instead of running ICP
+        between the end clouds."""
+        cdef float buf[16]
+        _matrix16(matrix, buf)
+        self.me.setLoopTransform(buf)
+
+    def compute(self):
+        if self.me.size() < 3:
+            raise RuntimeError("a loop needs at least three clouds")
+        if self.loop_start < 0 or self.loop_end < 0:
+            raise RuntimeError("set_LoopStart and set_LoopEnd first")
+        if self.loop_start == self.loop_end:
+            raise ValueError("the loop start and end must differ")
+        with nogil:
+            self.me.compute()
+
+    def get_PointCloud(self, int vertex):
+        """Cloud *vertex* as the loop correction left it."""
+        cdef PointCloud out = PointCloud()
+        self.me.cloud(self._vertex(vertex), deref(out.ptr()))
+        return out

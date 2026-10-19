@@ -1,5 +1,7 @@
 // Mirror header: self-contained stand-in for
-// <pcl/sample_consensus/model_types.h>.
+// <pcl/sample_consensus/model_types.h>. Common subset of the supported
+// PCL versions only: SACMODEL_ELLIPSE3D arrived in 1.13 and comes from
+// the compat/sac_models.h shim instead.
 #pragma once
 
 namespace pcl {
@@ -22,8 +24,7 @@ enum SacModel {
     SACMODEL_REGISTRATION_2D,
     SACMODEL_PARALLEL_PLANE,
     SACMODEL_NORMAL_PARALLEL_PLANE,
-    SACMODEL_STICK,
-    SACMODEL_ELLIPSE3D
+    SACMODEL_STICK
 };
 
 }  // namespace pcl
