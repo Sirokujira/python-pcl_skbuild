@@ -68,8 +68,8 @@ extern_from = "pcl/compat/condition_args.h"
 output = "../src/pcl/pxd/compat/condition_args.pxd"
 namespaces = ["pclcompat"]
 extra_cimports = [
-    "from pcl.pxd.point_types cimport PointXYZ",
-    "from pcl.pxd.filters.conditional_removal cimport ConditionAnd, ConditionalRemoval",
+    "from pcl.pxd.point_types cimport PointXYZ, PointXYZRGB, PointXYZRGBA",
+    "from pcl.pxd.point_cloud cimport PointCloud",
 ]
 
 [[headers]]
@@ -242,6 +242,7 @@ namespaces = ["pclcompat"]
 extra_cimports = [
     "from pcl.pxd.point_types cimport PointXYZ",
     "from pcl.pxd.search.organized cimport OrganizedNeighbor",
+    "from pcl.pxd.search.flann_search cimport FlannSearch",
 ]
 
 [[headers]]

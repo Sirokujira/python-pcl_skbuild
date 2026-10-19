@@ -49,7 +49,18 @@ def _add_windows_dll_directories():
 
 _add_windows_dll_directories()
 
-from ._pointcloud import PointCloud, PointCloudXYZ
+from ._pointcloud import (
+    PointCloud,
+    PointCloudXYZ,
+    L_ALWAYS,
+    L_DEBUG,
+    L_ERROR,
+    L_INFO,
+    L_VERBOSE,
+    L_WARN,
+    get_verbosity_level,
+    set_verbosity_level,
+)
 from ._pointtypes import (
     PointCloud_Normal,
     PointCloud_PointXYZI,
@@ -167,6 +178,7 @@ from ._filters import (
     CompareOp_LE,
     CompareOp_LT,
     ConditionAnd,
+    ConditionOr,
     ConditionalRemoval,
     CropBox,
     CropHull,
@@ -246,7 +258,15 @@ from ._sac import (
     SampleConsensusModelStick,
     SampleConsensusModelEllipse3D,
 )
-from ._kdtree import KdTreeFLANN, OrganizedNeighbor
+from ._kdtree import (
+    BruteForceSearch,
+    FlannSearch,
+    FLANN_INDEX_KDTREE_MULTI,
+    FLANN_INDEX_KDTREE_SINGLE,
+    FLANN_INDEX_KMEANS,
+    KdTreeFLANN,
+    OrganizedNeighbor,
+)
 from ._registration import (
     estimate_transformation_point_to_plane,
     estimate_correspondences_normal_shooting,
@@ -406,6 +426,8 @@ from ._segmentation import (
 
 __all__ = [
     "PointCloud", "PointCloudXYZ", "load", "save",
+    "L_ALWAYS", "L_ERROR", "L_WARN", "L_INFO", "L_DEBUG", "L_VERBOSE",
+    "get_verbosity_level", "set_verbosity_level",
     "PointCloud_Normal",
     "PointCloud_PointXYZI", "PointCloud_PointXYZRGB",
     "PointCloud_PointXYZRGBA",
@@ -416,7 +438,7 @@ __all__ = [
     "StatisticalOutlierRemovalFilter", "RadiusOutlierRemoval",
     "ExtractIndices", "CropBox", "CropHull", "ProjectInliers",
     "RandomSample",
-    "UniformSampling", "ConditionAnd", "ConditionalRemoval",
+    "UniformSampling", "ConditionOr", "ConditionAnd", "ConditionalRemoval",
     "FastBilateralFilter",
     "CompareOp_GT", "CompareOp_GE", "CompareOp_LT", "CompareOp_LE",
     "CompareOp_EQ",
@@ -486,7 +508,8 @@ __all__ = [
     "TRIANGLE_RIGHT_CUT", "TRIANGLE_LEFT_CUT", "TRIANGLE_ADAPTIVE_CUT",
     "QUAD_MESH",
     "OctreePointCloudVoxelCentroid", "OctreePointCloudDensity",
-    "OrganizedNeighbor",
+    "OrganizedNeighbor", "BruteForceSearch", "FlannSearch",
+    "FLANN_INDEX_KDTREE_SINGLE", "FLANN_INDEX_KDTREE_MULTI", "FLANN_INDEX_KMEANS",
     "RangeImagePlanar", "RangeImageSpherical", "RangeImageBorderExtractor",
     "NarfDescriptor",
     "BORDER_TRAIT__OBSTACLE_BORDER", "BORDER_TRAIT__SHADOW_BORDER",

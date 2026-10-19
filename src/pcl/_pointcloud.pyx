@@ -29,6 +29,9 @@ from pcl.pxd.io.ply_io cimport loadPLYFile, savePLYFile
 from pcl.pxd.io.obj_io cimport loadOBJFile
 from pcl.pxd.filters.filter cimport removeNaNFromPointCloud
 from pcl.pxd.compat.transform_args cimport isRigidTransform, transformCloud
+from pcl.pxd.console.print cimport (
+    VERBOSITY_LEVEL, getVerbosityLevel, setVerbosityLevel)
+cimport pcl.pxd.console.print as console
 
 
 cdef string _topath(path):
@@ -871,3 +874,33 @@ cdef PointCloud wrap_cloud(shared_ptr[cPointCloud[PointXYZ]] ptr):
 
 # Backwards-compatible name from the first iteration of this package.
 PointCloudXYZ = PointCloud
+
+
+# --- PCL's own log output --------------------------------------------------
+
+# pcl::console::VERBOSITY_LEVEL: PCL_ERROR / PCL_WARN / PCL_INFO /
+# PCL_DEBUG messages print when their level is at or below the current one.
+L_ALWAYS = console.L_ALWAYS
+L_ERROR = console.L_ERROR
+L_WARN = console.L_WARN
+L_INFO = console.L_INFO
+L_DEBUG = console.L_DEBUG
+L_VERBOSE = console.L_VERBOSE
+
+
+def set_verbosity_level(int level):
+    """How much PCL writes to stderr/stdout
+    (pcl::console::setVerbosityLevel): one of ``pcl.L_ALWAYS``,
+    ``L_ERROR``, ``L_WARN``, ``L_INFO`` (PCL's default), ``L_DEBUG``,
+    ``L_VERBOSE``. ``pcl.set_verbosity_level(pcl.L_WARN)`` silences the
+    progress lines GrabCut, CPC and others print with PCL_INFO. Global
+    to the process, as in PCL."""
+    if not console.L_ALWAYS <= level <= console.L_VERBOSE:
+        raise ValueError("level must be one of pcl.L_ALWAYS .. pcl.L_VERBOSE")
+    setVerbosityLevel(<VERBOSITY_LEVEL> level)
+
+
+def get_verbosity_level():
+    """The current pcl::console verbosity level."""
+    return <int> getVerbosityLevel()
+

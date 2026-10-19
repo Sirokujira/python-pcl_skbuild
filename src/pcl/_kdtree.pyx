@@ -1,8 +1,9 @@
 # distutils: language = c++
 # cython: language_level=3
 """Neighbour search: KdTreeFLANN, named after sirokujira/python-pcl
-(pcl/pxi/KdTree/KdTree_FLANN.pxi), and OrganizedNeighbor
-(pcl::search::OrganizedNeighbor), which python-pcl never had.
+(pcl/pxi/KdTree/KdTree_FLANN.pxi), and the pcl::search back-ends
+python-pcl never had: OrganizedNeighbor, BruteForceSearch and
+FlannSearch.
 
 Reach KdTreeFLANN through `PointCloud.make_kdtree_flann()`, or construct
 either one with the cloud to index.
@@ -22,7 +23,10 @@ from pcl.pxd.point_types cimport PointXYZ
 from pcl.pxd.point_cloud cimport PointCloud as cPointCloud
 from pcl.pxd.kdtree.kdtree_flann cimport KdTreeFLANN as cKdTreeFLANN
 from pcl.pxd.search.organized cimport OrganizedNeighbor as cOrganizedNeighbor
-from pcl.pxd.compat.search_args cimport organizedCameraMatrix
+from pcl.pxd.search.brute_force cimport BruteForce as cBruteForce
+from pcl.pxd.search.flann_search cimport FlannSearch as cFlannSearch
+from pcl.pxd.compat.search_args cimport newFlannSearch, organizedCameraMatrix
+cimport pcl.pxd.compat.search_args as sa
 
 from pcl._pointcloud cimport PointCloud
 
@@ -30,6 +34,14 @@ from pcl._pointcloud cimport PointCloud
 ctypedef fused Searcher:
     cKdTreeFLANN[PointXYZ]
     cOrganizedNeighbor[PointXYZ]
+    cBruteForce[PointXYZ]
+    cFlannSearch[PointXYZ]
+
+
+# FlannSearch index types (pcl::search::FlannSearch's index creators).
+FLANN_INDEX_KDTREE_SINGLE = sa.FLANN_INDEX_KDTREE_SINGLE
+FLANN_INDEX_KDTREE_MULTI = sa.FLANN_INDEX_KDTREE_MULTI
+FLANN_INDEX_KMEANS = sa.FLANN_INDEX_KMEANS
 
 
 cdef object _k_search_cloud(Searcher* tree, PointCloud pc, int k):
@@ -247,3 +259,109 @@ cdef class OrganizedNeighbor:
         """Neighbours within *radius* for every point of *pc*, padded to
         ``(len(pc), max_nn)``."""
         return _radius_search_cloud(self._ready(), pc, radius, max_nn)
+
+
+cdef class BruteForceSearch:
+    """Exhaustive neighbour search (pcl::search::BruteForce): no index,
+    every query scans the whole cloud. Exact, and the cheapest choice
+    for small clouds or a handful of queries. Same search methods and
+    result shapes as :class:`KdTreeFLANN`; `sorted_results` orders each
+    point's neighbours by distance."""
+
+    cdef cBruteForce[PointXYZ]* me
+    cdef bint has_input
+
+    def __cinit__(self, PointCloud pc=None, bint sorted_results=True):
+        self.me = new cBruteForce[PointXYZ](sorted_results)
+        self.has_input = False
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+        self.has_input = True
+
+    cdef cBruteForce[PointXYZ]* _ready(self) except NULL:
+        if not self.has_input:
+            raise RuntimeError("set_InputCloud(...) is required first")
+        return self.me
+
+    def nearest_k_search_for_cloud(self, PointCloud pc not None, int k=1):
+        return _k_search_cloud(self._ready(), pc, k)
+
+    def nearest_k_search_for_point(self, PointCloud pc not None,
+                                   Py_ssize_t index, int k=1):
+        return _k_search_point(self._ready(), pc, index, k)
+
+    def radius_search_for_cloud(self, PointCloud pc not None, double radius,
+                                unsigned int max_nn=0):
+        return _radius_search_cloud(self._ready(), pc, radius, max_nn)
+
+
+cdef class FlannSearch:
+    """pcl::search::Search over a FLANN index (pcl::search::FlannSearch).
+    `index` picks the structure: ``pcl.FLANN_INDEX_KDTREE_SINGLE`` (one
+    kd-tree, PCL's default and exact), ``FLANN_INDEX_KDTREE_MULTI``
+    (`trees` randomized kd-trees, approximate) or ``FLANN_INDEX_KMEANS``
+    (a hierarchical k-means tree, approximate). `set_Checks` bounds the
+    leaves an approximate search visits and `set_Epsilon` the allowed
+    error. Same search methods and result shapes as :class:`KdTreeFLANN`.
+    """
+
+    cdef cFlannSearch[PointXYZ]* me
+    cdef bint has_input
+
+    def __cinit__(self, PointCloud pc=None, int index=0, int trees=4,
+                  bint sorted_results=True):
+        if trees < 1:
+            raise ValueError("trees must be >= 1")
+        self.me = newFlannSearch(index, trees, sorted_results)
+        self.has_input = False
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        with nogil:
+            self.me.setInputCloud(pc.thisptr_shared)
+        self.has_input = True
+
+    def set_Epsilon(self, double eps):
+        if eps < 0:
+            raise ValueError("eps must be >= 0")
+        self.me.setEpsilon(eps)
+
+    def get_Epsilon(self):
+        return self.me.getEpsilon()
+
+    def set_Checks(self, int checks):
+        if checks < 1:
+            raise ValueError("checks must be >= 1")
+        self.me.setChecks(checks)
+
+    def get_Checks(self):
+        return self.me.getChecks()
+
+    cdef cFlannSearch[PointXYZ]* _ready(self) except NULL:
+        if not self.has_input:
+            raise RuntimeError("set_InputCloud(...) is required first")
+        return self.me
+
+    def nearest_k_search_for_cloud(self, PointCloud pc not None, int k=1):
+        return _k_search_cloud(self._ready(), pc, k)
+
+    def nearest_k_search_for_point(self, PointCloud pc not None,
+                                   Py_ssize_t index, int k=1):
+        return _k_search_point(self._ready(), pc, index, k)
+
+    def radius_search_for_cloud(self, PointCloud pc not None, double radius,
+                                unsigned int max_nn=0):
+        return _radius_search_cloud(self._ready(), pc, radius, max_nn)
+

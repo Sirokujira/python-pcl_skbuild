@@ -48,17 +48,16 @@ from pcl.pxd.vertices cimport Vertices
 from libcpp.vector cimport vector
 from pcl.pxd.filters.fast_bilateral cimport (
     FastBilateralFilter as cFastBilateralFilter)
-from pcl.pxd.filters.conditional_removal cimport (
-    ConditionAnd as cConditionAnd,
-    ConditionalRemoval as cConditionalRemoval)
 from pcl.pxd.compat.eigen_args cimport (
     setCropBoxMax, setCropBoxMin, setCropBoxRotation, setCropBoxTranslation)
 from pcl.pxd.compat.condition_args cimport (
     COMPARE_EQ, COMPARE_GE, COMPARE_GT, COMPARE_LE, COMPARE_LT,
-    addFieldComparison, makeConditionAnd, setCondition)
+    conditionalRemoval)
+cimport pcl.pxd.compat.condition_args as ca
 
 from libcpp.memory cimport shared_ptr
-from pcl.pxd.point_types cimport Normal, PointXYZI, PointNormal
+from pcl.pxd.point_types cimport (
+    Normal, PointXYZI, PointNormal, PointXYZRGB, PointXYZRGBA)
 from pcl.pxd.filters.shadowpoints cimport ShadowPoints as cShadowPoints
 from pcl.pxd.filters.normal_space cimport (
     NormalSpaceSampling as cNormalSpaceSampling)
@@ -75,7 +74,9 @@ from pcl.pxd.filters.model_outlier_removal cimport (
 from pcl.pxd.compat.eigen_args cimport setFrustumCameraPose
 cimport pcl.pxd.sample_consensus.model_types as model_types
 from pcl._pointtypes cimport (
-    PointCloud_Normal, PointCloud_PointXYZI, PointCloud_PointNormal)
+    PointCloud_Normal, PointCloud_PointXYZI, PointCloud_PointNormal,
+    PointCloud_PointXYZRGB, PointCloud_PointXYZRGBA, wrap_xyzrgb_cloud,
+    wrap_xyzrgba_cloud)
 
 from pcl._pointcloud cimport PointCloud
 
@@ -552,72 +553,223 @@ CompareOp_LE = COMPARE_LE
 CompareOp_EQ = COMPARE_EQ
 
 
-cdef class ConditionAnd:
-    """A conjunction of field comparisons (pcl::ConditionAnd).
+cdef class _Condition:
+    """A node of ConditionalRemoval's condition tree: comparisons and
+    nested conditions, combined with AND (`ConditionAnd`) or OR
+    (`ConditionOr`).
 
-    Every comparison added must hold for a point to survive
-    `ConditionalRemoval`.
+    The tree lives on the Python side and is rebuilt in
+    pcl/compat/condition_args.h for the point type of the cloud being
+    filtered: PCL's nodes are shared_ptrs to abstract bases, whose
+    derived-to-base conversions Cython cannot perform, and a tree built
+    for one point type cannot filter another.
+    """
+
+    cdef int kind
+    cdef list nodes
+
+    def __cinit__(self, *args, **kwargs):
+        self.nodes = []
+
+    def add_Comparison2(self, field_name, int op, double value):
+        """Add ``field_name <op> value`` (pcl::FieldComparison); *op* is
+        one of the ``pcl.CompareOp_*`` constants."""
+        _check_op(op)
+        self.nodes.append((ca.COMPARISON_FIELD, _tobytes(field_name), op,
+                           (value,)))
+        return self
+
+    def add_TfQuadraticXYZComparison(self, int op, matrix, vector,
+                                     double scalar):
+        """Add ``p'Ap + 2v'p + c <op> 0`` on the point's x, y, z
+        (pcl::TfQuadraticXYZComparison): `matrix` is A (3 x 3), `vector`
+        v (3), `scalar` c. ``A = I, v = -centre, c = |centre|^2 - r^2``
+        with ``LT`` keeps the inside of a sphere."""
+        import numpy as np
+        _check_op(op)
+        a = np.asarray(matrix, dtype=np.float64)
+        v = np.asarray(vector, dtype=np.float64).ravel()
+        if a.shape != (3, 3) or v.shape != (3,):
+            raise ValueError("matrix must be 3 x 3 and vector length 3")
+        self.nodes.append((ca.COMPARISON_TF_QUADRATIC, b"", op,
+                           tuple(a.ravel().tolist() + v.tolist() + [scalar])))
+        return self
+
+    def add_PackedRGBComparison(self, component, int op, double value):
+        """Add ``<component> <op> value`` on the packed colour
+        (pcl::PackedRGBComparison); *component* is ``"r"``, ``"g"`` or
+        ``"b"`` (0..255). Needs a colour cloud."""
+        _check_op(op)
+        if component not in ("r", "g", "b"):
+            raise ValueError('component must be "r", "g" or "b"')
+        self.nodes.append((ca.COMPARISON_PACKED_RGB, _tobytes(component), op,
+                           (value,)))
+        return self
+
+    def add_PackedHSIComparison(self, component, int op, double value):
+        """Add ``<component> <op> value`` on hue / saturation / intensity
+        (pcl::PackedHSIComparison); *component* is ``"h"`` (-128..127),
+        ``"s"`` or ``"i"`` (0..255). Needs a colour cloud."""
+        _check_op(op)
+        if component not in ("h", "s", "i"):
+            raise ValueError('component must be "h", "s" or "i"')
+        self.nodes.append((ca.COMPARISON_PACKED_HSI, _tobytes(component), op,
+                           (value,)))
+        return self
+
+    def add_Condition(self, _Condition condition not None):
+        """Nest another condition: an OR inside an AND, or vice versa."""
+        self.nodes.append((condition.kind, condition, 0, ()))
+        return self
+
+    cdef bint _needs_colour(self, set seen) except -1:
+        if id(self) in seen:
+            raise ValueError("a condition cannot contain itself")
+        seen.add(id(self))
+        for kind, payload, op, values in self.nodes:
+            if kind in (ca.COMPARISON_PACKED_RGB, ca.COMPARISON_PACKED_HSI):
+                return True
+            if kind in (ca.CONDITION_AND, ca.CONDITION_OR):
+                if (<_Condition> payload)._needs_colour(seen):
+                    return True
+        seen.discard(id(self))
+        return False
+
+    cdef int _encode(self, vector[int]& kinds, vector[int]& ints,
+                     vector[double]& numbers, vector[string]& names,
+                     set seen) except -1:
+        if id(self) in seen:
+            raise ValueError("a condition cannot contain itself")
+        seen.add(id(self))
+        kinds.push_back(self.kind)
+        ints.push_back(len(self.nodes))
+        cdef double value
+        for kind, payload, op, values in self.nodes:
+            if kind in (ca.CONDITION_AND, ca.CONDITION_OR):
+                (<_Condition> payload)._encode(kinds, ints, numbers, names,
+                                               seen)
+                continue
+            kinds.push_back(kind)
+            if kind != ca.COMPARISON_TF_QUADRATIC:
+                names.push_back(payload)
+            ints.push_back(op)
+            for value in values:
+                numbers.push_back(value)
+        seen.discard(id(self))
+        return 0
+
+
+cdef int _check_op(int op) except -1:
+    if not COMPARE_GT <= op <= COMPARE_EQ:
+        raise ValueError("op must be one of the pcl.CompareOp_* constants")
+    return 0
+
+
+cdef class ConditionAnd(_Condition):
+    """A conjunction (pcl::ConditionAnd): every comparison and nested
+    condition must hold for a point to survive `ConditionalRemoval`.
 
         cond = cloud.make_ConditionAnd()
         cond.add_Comparison2("z", pcl.CompareOp_GT, 0.0)
         cond.add_Comparison2("z", pcl.CompareOp_LT, 1.0)
-
-    The tree is built through pcl/compat/condition_args.h: its nodes are
-    shared_ptrs to abstract bases, and Cython cannot perform the
-    derived-to-base shared_ptr conversions that assembling one needs.
     """
 
-    cdef shared_ptr[cConditionAnd[PointXYZ]] thisptr
+    def __init__(self):
+        self.kind = ca.CONDITION_AND
 
-    def __cinit__(self):
-        self.thisptr = makeConditionAnd()
 
-    def add_Comparison2(self, field_name, int op, double value):
-        """Add ``field_name <op> value``; *op* is one of the
-        ``pcl.CompareOp_*`` constants."""
-        addFieldComparison(deref(self.thisptr), _tobytes(field_name), op,
-                           value)
-        return self
+cdef class ConditionOr(_Condition):
+    """A disjunction (pcl::ConditionOr): at least one comparison or
+    nested condition must hold. An empty one accepts every point, as in
+    PCL (both empty conditions are true)."""
+
+    def __init__(self):
+        self.kind = ca.CONDITION_OR
 
 
 cdef class ConditionalRemoval:
-    """Keep the points a condition accepts (pcl::ConditionalRemoval)."""
+    """Keep the points a condition accepts (pcl::ConditionalRemoval), on
+    a :class:`PointCloud`, :class:`PointCloud_PointXYZRGB` or
+    :class:`PointCloud_PointXYZRGBA`; `filter()` returns the same type.
+    With `set_KeepOrganized(True)` rejected points are replaced by
+    `set_UserFilterValue` (NaN by default) instead of removed."""
 
-    cdef cConditionalRemoval[PointXYZ]* me
-    # Keeps the condition alive for as long as the filter refers to it.
-    cdef object condition
+    cdef object cloud
+    cdef _Condition condition
+    cdef bint keep_organized
+    cdef float user_value
 
-    def __cinit__(self, ConditionAnd condition=None, PointCloud pc=None):
-        self.me = new cConditionalRemoval[PointXYZ]()
-        self.condition = None
+    def __cinit__(self, _Condition condition=None, pc=None):
+        self.keep_organized = False
+        self.user_value = float("nan")
         if condition is not None:
             self.set_Condition(condition)
         if pc is not None:
             self.set_InputCloud(pc)
 
-    def __dealloc__(self):
-        del self.me
-        self.me = NULL
+    def set_InputCloud(self, pc):
+        if not isinstance(pc, (PointCloud, PointCloud_PointXYZRGB,
+                               PointCloud_PointXYZRGBA)):
+            raise TypeError("expected a PointCloud, PointCloud_PointXYZRGB "
+                            "or PointCloud_PointXYZRGBA")
+        self.cloud = pc
 
-    def set_InputCloud(self, PointCloud pc not None):
-        self.me.setInputCloud(pc.thisptr_shared)
-
-    def set_Condition(self, ConditionAnd condition not None):
+    def set_Condition(self, _Condition condition not None):
         self.condition = condition
-        setCondition(deref(self.me), condition.thisptr)
 
     def set_KeepOrganized(self, bint keep_organized):
-        self.me.setKeepOrganized(keep_organized)
+        self.keep_organized = keep_organized
 
     def get_KeepOrganized(self):
-        return self.me.getKeepOrganized()
+        return self.keep_organized
+
+    def set_UserFilterValue(self, float value):
+        self.user_value = value
 
     def filter(self):
-        cdef PointCloud pc = PointCloud()
-        cdef cPointCloud[PointXYZ]* out = pc.ptr()
+        if self.cloud is None:
+            raise RuntimeError("no input cloud: call set_InputCloud() first")
+        if self.condition is None:
+            raise RuntimeError("no condition: call set_Condition() first")
+        if isinstance(self.cloud, PointCloud) and \
+                self.condition._needs_colour(set()):
+            raise ValueError("colour comparisons need a "
+                             "PointCloud_PointXYZRGB or _PointXYZRGBA")
+        cdef vector[int] kinds
+        cdef vector[int] ints
+        cdef vector[double] numbers
+        cdef vector[string] names
+        self.condition._encode(kinds, ints, numbers, names, set())
+        cdef PointCloud xyz, xyz_out
+        cdef cPointCloud[PointXYZ]* xyz_target
+        cdef PointCloud_PointXYZRGB rgb
+        cdef PointCloud_PointXYZRGBA rgba
+        cdef shared_ptr[cPointCloud[PointXYZRGB]] rgb_out
+        cdef shared_ptr[cPointCloud[PointXYZRGBA]] rgba_out
+        if isinstance(self.cloud, PointCloud):
+            xyz = self.cloud
+            xyz_out = PointCloud()
+            xyz_target = xyz_out.ptr()
+            with nogil:
+                conditionalRemoval(xyz.thisptr_shared, kinds, ints, numbers,
+                                   names, self.keep_organized,
+                                   self.user_value, deref(xyz_target))
+            return xyz_out
+        if isinstance(self.cloud, PointCloud_PointXYZRGB):
+            rgb = self.cloud
+            rgb_out.reset(new cPointCloud[PointXYZRGB]())
+            with nogil:
+                conditionalRemoval(rgb.thisptr_shared, kinds, ints, numbers,
+                                   names, self.keep_organized,
+                                   self.user_value, deref(rgb_out.get()))
+            return wrap_xyzrgb_cloud(rgb_out)
+        rgba = self.cloud
+        rgba_out.reset(new cPointCloud[PointXYZRGBA]())
         with nogil:
-            self.me.filter(deref(out))
-        return pc
+            conditionalRemoval(rgba.thisptr_shared, kinds, ints, numbers,
+                               names, self.keep_organized, self.user_value,
+                               deref(rgba_out.get()))
+        return wrap_xyzrgba_cloud(rgba_out)
 
 
 cdef class FastBilateralFilter:

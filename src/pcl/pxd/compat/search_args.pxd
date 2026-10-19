@@ -3,8 +3,18 @@
 
 # distutils: language = c++
 
+from libcpp cimport bool
 from pcl.pxd.point_types cimport PointXYZ
+from pcl.pxd.search.flann_search cimport FlannSearch
 from pcl.pxd.search.organized cimport OrganizedNeighbor
 
 cdef extern from "pcl/compat/search_args.h" namespace "pclcompat" nogil:
     void organizedCameraMatrix(const OrganizedNeighbor[PointXYZ]& search, float* out_matrix9) except +
+
+    const int FLANN_INDEX_KDTREE_SINGLE
+
+    const int FLANN_INDEX_KDTREE_MULTI
+
+    const int FLANN_INDEX_KMEANS
+
+    FlannSearch[PointXYZ]* newFlannSearch(int index, int trees, bool sorted) except +

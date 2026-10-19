@@ -1,0 +1,8 @@
+# pcl/console — the verbosity switch for PCL's own log output.
+# Only [[headers]] entries belong here; see pxdgen/pcl_headers.toml.
+
+[[headers]]
+path = "headers/pcl/console/print.h"
+extern_from = "pcl/console/print.h"
+output = "../src/pcl/pxd/console/print.pxd"
+namespaces = ["pcl::console"]

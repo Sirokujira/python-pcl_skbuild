@@ -7,3 +7,17 @@ extern_from = "pcl/search/organized.h"
 output = "../src/pcl/pxd/search/organized.pxd"
 namespaces = ["pcl::search"]
 extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/search/brute_force.h"
+extern_from = "pcl/search/brute_force.h"
+output = "../src/pcl/pxd/search/brute_force.pxd"
+namespaces = ["pcl::search"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/search/flann_search.h"
+extern_from = "pcl/search/flann_search.h"
+output = "../src/pcl/pxd/search/flann_search.pxd"
+namespaces = ["pcl::search"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]

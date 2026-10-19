@@ -54,7 +54,8 @@ python-pcl's packed-float column), `PointCloud_PointNormal` (+
 `PointCloud_PointWithViewpoint`, `VoxelGridFilter`, `ApproximateVoxelGrid`,
 `PassThroughFilter`, `StatisticalOutlierRemovalFilter`,
 `RadiusOutlierRemoval`, `ExtractIndices`, `CropBox`, `ProjectInliers`,
-`RandomSample`, `UniformSampling`, `ConditionAnd` / `ConditionalRemoval`,
+`RandomSample`, `UniformSampling`, `ConditionAnd` / `ConditionOr` /
+`ConditionalRemoval` (XYZ, XYZRGB, XYZRGBA), `pcl.set_verbosity_level`,
 `ShadowPoints`, `NormalSpaceSampling`, `SamplingSurfaceNormal`, `GridMinimum`,
 `LocalMaximum`, `FrustumCulling`, `MedianFilter`, `BilateralFilter`,
 `ModelOutlierRemoval`, the samplers / voxel grids / clippers /
@@ -84,7 +85,7 @@ SmoothedSurfacesKeypoint, `HarrisKeypoint6D` (in `_keypoints_serial`),
 `RegionGrowing`, `RegionGrowingRGB`,
 `GreedyProjectionTriangulation` (+ `pcl.save_mesh` / `pcl.load_mesh`),
 `CropHull`, `RangeImage` + NARF keypoints,
-`KdTreeFLANN`, `OctreePointCloudSearch`,
+`KdTreeFLANN`, `BruteForceSearch`, `FlannSearch`, `OctreePointCloudSearch`,
 `OctreePointCloudChangeDetector`, `NormalEstimation`,
 `MomentOfInertiaEstimation`, `MovingLeastSquares`, `ConcaveHull`,
 `ConvexHull`, `IterativeClosestPoint`,
