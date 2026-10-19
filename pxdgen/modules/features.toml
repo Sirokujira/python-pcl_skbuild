@@ -279,3 +279,10 @@ extra_cimports = [
     "from pcl.pxd.point_cloud cimport PointCloud",
     "from pcl.pxd.vertices cimport Vertices",
 ]
+
+[[headers]]
+path = "headers/pcl/features/brisk_2d.h"
+extern_from = "pcl/features/brisk_2d.h"
+output = "../src/pcl/pxd/features/brisk_2d.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]

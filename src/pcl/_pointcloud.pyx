@@ -567,6 +567,26 @@ cdef class PointCloud:
         from pcl._features_extra import MultiscaleFeaturePersistence
         return MultiscaleFeaturePersistence(self, normals)
 
+    def make_FarthestPointSampling(self):
+        """Return a FarthestPointSampling with this cloud as input."""
+        from pcl._filters_extra import FarthestPointSampling
+        return FarthestPointSampling(self)
+
+    def make_CovarianceSampling(self):
+        """Return a CovarianceSampling with this cloud as input."""
+        from pcl._filters_extra import CovarianceSampling
+        return CovarianceSampling(self)
+
+    def make_FastBilateralFilterOMP(self):
+        """Return a FastBilateralFilterOMP with this cloud as input."""
+        from pcl._filters_extra import FastBilateralFilterOMP
+        return FastBilateralFilterOMP(self)
+
+    def make_TrajkovicKeypoint3D(self):
+        """Return a TrajkovicKeypoint3D with this cloud as input."""
+        from pcl._keypoints import TrajkovicKeypoint3D
+        return TrajkovicKeypoint3D(self)
+
     def make_VFHEstimation(self):
         """Return a VFHEstimation with this cloud as input."""
         from pcl._features import VFHEstimation

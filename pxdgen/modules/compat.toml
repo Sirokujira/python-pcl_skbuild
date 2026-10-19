@@ -53,8 +53,13 @@ extern_from = "pcl/compat/keypoint_args.h"
 output = "../src/pcl/pxd/compat/keypoint_args.pxd"
 namespaces = ["pclcompat"]
 extra_cimports = [
-    "from pcl.pxd.point_types cimport PointXYZ, PointXYZI",
+    "from pcl.pxd.point_types cimport PointXYZ, PointXYZI, PointXYZRGBA, Normal",
+    "from pcl.pxd.point_cloud cimport PointCloud",
     "from pcl.pxd.keypoints.harris_3d cimport HarrisKeypoint3D",
+    "from pcl.pxd.keypoints.harris_2d cimport HarrisKeypoint2D",
+    "from pcl.pxd.keypoints.trajkovic_2d cimport TrajkovicKeypoint2D",
+    "from pcl.pxd.keypoints.trajkovic_3d cimport TrajkovicKeypoint3D",
+    "from pcl.pxd.keypoints.smoothed_surfaces_keypoint cimport SmoothedSurfacesKeypoint",
 ]
 
 [[headers]]
@@ -246,5 +251,15 @@ output = "../src/pcl/pxd/compat/hypotheses_args.pxd"
 namespaces = ["pclcompat"]
 extra_cimports = [
     "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+]
+
+[[headers]]
+path = "headers/pcl/compat/filter_args.h"
+extern_from = "pcl/compat/filter_args.h"
+output = "../src/pcl/pxd/compat/filter_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ, PointXYZRGB, Normal",
     "from pcl.pxd.point_cloud cimport PointCloud",
 ]

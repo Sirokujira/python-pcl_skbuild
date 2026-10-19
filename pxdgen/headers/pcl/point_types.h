@@ -348,4 +348,18 @@ struct GFPFHSignature16 {
     float histogram[16];
 };
 
+// A pixel position (AgastKeypoint2D output).
+struct PointUV {
+    float u;
+    float v;
+};
+
+// A BRISK binary descriptor: 512 bits as 64 bytes, plus the keypoint's
+// scale and orientation.
+struct BRISKSignature512 {
+    float scale;
+    float orientation;
+    unsigned char descriptor[64];
+};
+
 }  // namespace pcl

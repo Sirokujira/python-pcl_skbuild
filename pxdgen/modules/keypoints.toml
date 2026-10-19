@@ -21,3 +21,55 @@ extern_from = "pcl/keypoints/sift_keypoint.h"
 output = "../src/pcl/pxd/keypoints/sift_keypoint.pxd"
 namespaces = ["pcl"]
 extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/keypoints/harris_6d.h"
+extern_from = "pcl/keypoints/harris_6d.h"
+output = "../src/pcl/pxd/keypoints/harris_6d.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/keypoints/harris_2d.h"
+extern_from = "pcl/keypoints/harris_2d.h"
+output = "../src/pcl/pxd/keypoints/harris_2d.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/keypoints/trajkovic_2d.h"
+extern_from = "pcl/keypoints/trajkovic_2d.h"
+output = "../src/pcl/pxd/keypoints/trajkovic_2d.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/keypoints/trajkovic_3d.h"
+extern_from = "pcl/keypoints/trajkovic_3d.h"
+output = "../src/pcl/pxd/keypoints/trajkovic_3d.pxd"
+namespaces = ["pcl"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.point_types cimport Normal",
+]
+
+[[headers]]
+path = "headers/pcl/keypoints/agast_2d.h"
+extern_from = "pcl/keypoints/agast_2d.h"
+output = "../src/pcl/pxd/keypoints/agast_2d.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/keypoints/brisk_2d.h"
+extern_from = "pcl/keypoints/brisk_2d.h"
+output = "../src/pcl/pxd/keypoints/brisk_2d.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/keypoints/smoothed_surfaces_keypoint.h"
+extern_from = "pcl/keypoints/smoothed_surfaces_keypoint.h"
+output = "../src/pcl/pxd/keypoints/smoothed_surfaces_keypoint.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]

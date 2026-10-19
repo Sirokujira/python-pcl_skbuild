@@ -9,6 +9,7 @@
 set(PCL_CYTHON_MODULES
     _pointcloud
     _filters
+    _filters_extra
     _kdtree
     _segmentation
     _grabber
@@ -29,6 +30,24 @@ set(PCL_CYTHON_MODULES
 foreach(module ${PCL_CYTHON_MODULES})
     add_cython_target(${module} CXX PY3)
     add_library(${module} MODULE ${${module}})
+    target_link_libraries(${module} ${PCL_LIBRARIES})
+    python_extension_module(${module})
+    install(TARGETS ${module} LIBRARY DESTINATION src/pcl)
+endforeach()
+
+# Modules compiled WITHOUT OpenMP: header-only PCL code whose OpenMP
+# pragmas do not compile on current compilers -- see
+# _keypoints_serial.pyx. The PCL_WITHOUT_OPENMP property switches off the
+# OpenMP compile options the top-level CMakeLists.txt made conditional;
+# the PCL libraries keep their own OpenMP runtime.
+set(PCL_CYTHON_SERIAL_MODULES
+    _keypoints_serial
+)
+
+foreach(module ${PCL_CYTHON_SERIAL_MODULES})
+    add_cython_target(${module} CXX PY3)
+    add_library(${module} MODULE ${${module}})
+    set_target_properties(${module} PROPERTIES PCL_WITHOUT_OPENMP ON)
     target_link_libraries(${module} ${PCL_LIBRARIES})
     python_extension_module(${module})
     install(TARGETS ${module} LIBRARY DESTINATION src/pcl)

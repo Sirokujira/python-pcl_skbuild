@@ -57,7 +57,8 @@ python-pcl's packed-float column), `PointCloud_PointNormal` (+
 `RandomSample`, `UniformSampling`, `ConditionAnd` / `ConditionalRemoval`,
 `ShadowPoints`, `NormalSpaceSampling`, `SamplingSurfaceNormal`, `GridMinimum`,
 `LocalMaximum`, `FrustumCulling`, `MedianFilter`, `BilateralFilter`,
-`ModelOutlierRemoval`, `OctreePointCloudCompression` (+ RGB),
+`ModelOutlierRemoval`, the samplers / voxel grids / clippers /
+convolutions in `_filters_extra`, `OctreePointCloudCompression` (+ RGB),
 `HarrisKeypoint3D`, `SegmentationNormal`, `ProgressiveMorphologicalFilter`,
 `SampleConsensus` (all `pcl.SAC_*` methods) / `RandomSampleConsensus` + the
 `SampleConsensusModel*` builders (incl. cylinder, cone, normal and axis
@@ -73,6 +74,8 @@ models, registration), `ExtractPolygonalPrismData`, `SegmentDifferences`,
 `NormalEstimationOMP`, the OMP / colour / shape-context / point-pair /
 reference-frame / intensity / organized-edge / RoPS / GFPFH / multiscale
 estimators in `_features_extra`, `ISSKeypoint3D`, `SIFTKeypoint`, `SUSANKeypoint`,
+the 2-D image detectors (Harris2D, Trajkovic, AGAST, BRISK), Trajkovic3D,
+SmoothedSurfacesKeypoint, `HarrisKeypoint6D` (in `_keypoints_serial`),
 `Poisson`, `MarchingCubesHoppe`, `MarchingCubesRBF`,
 `ConditionalEuclideanClustering`,
 `RegionGrowing`, `RegionGrowingRGB`,

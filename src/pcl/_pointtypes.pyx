@@ -307,6 +307,11 @@ cdef class PointCloud_PointXYZRGB:
         from pcl._features import GASDColorEstimation
         return GASDColorEstimation(self)
 
+    def make_HarrisKeypoint6D(self):
+        """Return a HarrisKeypoint6D with this cloud as input."""
+        from pcl._keypoints_serial import HarrisKeypoint6D
+        return HarrisKeypoint6D(self)
+
     def make_SIFTKeypoint(self):
         """Return a SIFTKeypoint detector with this cloud as input."""
         from pcl._keypoints import SIFTKeypoint
@@ -711,6 +716,31 @@ cdef class PointCloud_PointXYZRGBA:
         """Return a OrganizedEdgeFromRGBNormals with this cloud as input."""
         from pcl._features_extra import OrganizedEdgeFromRGBNormals
         return OrganizedEdgeFromRGBNormals(self)
+
+    def make_HarrisKeypoint2D(self):
+        """Return a HarrisKeypoint2D with this cloud as input."""
+        from pcl._keypoints import HarrisKeypoint2D
+        return HarrisKeypoint2D(self)
+
+    def make_TrajkovicKeypoint2D(self):
+        """Return a TrajkovicKeypoint2D with this cloud as input."""
+        from pcl._keypoints import TrajkovicKeypoint2D
+        return TrajkovicKeypoint2D(self)
+
+    def make_AgastKeypoint2D(self):
+        """Return a AgastKeypoint2D with this cloud as input."""
+        from pcl._keypoints import AgastKeypoint2D
+        return AgastKeypoint2D(self)
+
+    def make_BriskKeypoint2D(self):
+        """Return a BriskKeypoint2D with this cloud as input."""
+        from pcl._keypoints import BriskKeypoint2D
+        return BriskKeypoint2D(self)
+
+    def make_BRISK2DEstimation(self):
+        """Return a BRISK2DEstimation with this cloud as input."""
+        from pcl._keypoints import BRISK2DEstimation
+        return BRISK2DEstimation(self)
 
     def make_BilateralUpsampling(self):
         """Return a BilateralUpsampling filter with this organized cloud

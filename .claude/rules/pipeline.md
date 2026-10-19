@@ -208,6 +208,19 @@ NaN (0 of 18,000 values finite in plain C++; same on master). And the
 `PPFRGBEstimation` impl calls a function its header never includes,
 which `compat/ppfrgb.h` supplies.
 
+The second keypoint/filter batch: `HarrisKeypoint2D` runs the 3-D
+`Keypoint::initCompute`, which logs "init failed" and returns nothing
+unless a neighbour-search radius or k is set -- a parameter the 2-D
+detector never uses -- so the wrapper sets k = 1. `BRISK2DEstimation`
+erases border keypoints from the cloud it is given; the wrapper returns
+the survivors with the descriptors so the rows still line up.
+`HarrisKeypoint6D` is header-only and its OpenMP loops say
+`default(none)` without listing what they read, which GCC 9+ rejects
+(same on master); it lives in `_keypoints_serial`, built with the
+`PCL_WITHOUT_OPENMP` target property (top-level CMakeLists.txt) so the
+pragmas are ignored. `convolution_3d.h` uses `pcl::search::KdTree`
+without including it; `filter_args.h` includes it first.
+
 Compile-time, too: `OctreePointCloudVoxelCentroid::getVoxelCentroidAtPoint`
 in 1.14 calls a dependent-base member without `this->`, which two-phase
 lookup rejects, and PCL never instantiates the header-only class itself

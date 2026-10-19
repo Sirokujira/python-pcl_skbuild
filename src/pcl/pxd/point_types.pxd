@@ -196,3 +196,12 @@ cdef extern from "pcl/point_types.h" namespace "pcl" nogil:
 
     cdef struct GFPFHSignature16:
         float histogram[16]
+
+    cdef struct PointUV:
+        float u
+        float v
+
+    cdef struct BRISKSignature512:
+        float scale
+        float orientation
+        unsigned char descriptor[64]

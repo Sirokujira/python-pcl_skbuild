@@ -47,6 +47,20 @@ if(PCL_VERSION VERSION_LESS "1.11")
         "at a newer install, or use sirokujira/python-pcl for PCL 1.7/1.8.")
 endif()
 
+# PCL passes OpenMP on as the OpenMP::OpenMP_CXX target, whose compile
+# options (-fopenmp, /openmp) reach every module through the PCL targets'
+# usage requirements. Make them conditional on the CONSUMING target, so a
+# module can opt out with the PCL_WITHOUT_OPENMP property -- needed for
+# header-only PCL code whose OpenMP pragmas do not compile on current
+# compilers (see src/pcl/_keypoints_serial.pyx).
+if(TARGET OpenMP::OpenMP_CXX)
+    get_target_property(_pcl_omp_options OpenMP::OpenMP_CXX INTERFACE_COMPILE_OPTIONS)
+    if(_pcl_omp_options)
+        set_property(TARGET OpenMP::OpenMP_CXX PROPERTY INTERFACE_COMPILE_OPTIONS
+            "$<$<NOT:$<BOOL:$<TARGET_PROPERTY:PCL_WITHOUT_OPENMP>>>:${_pcl_omp_options}>")
+    endif()
+endif()
+
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src ${PCL_INCLUDE_DIRS})
 if(NumPy_FOUND)
     include_directories(${NumPy_INCLUDE_DIRS})
