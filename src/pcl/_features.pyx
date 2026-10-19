@@ -32,6 +32,12 @@ from pcl.pxd.features.shot cimport SHOTEstimation as cSHOTEstimation
 from pcl.pxd.features.moment_of_inertia_estimation cimport (
     MomentOfInertiaEstimation as cMomentOfInertiaEstimation)
 from pcl.pxd.features.vfh cimport VFHEstimation as cVFHEstimation
+from pcl.pxd.point_types cimport Boundary, ESFSignature640
+from pcl.pxd.features.boundary cimport (
+    BoundaryEstimation as cBoundaryEstimation)
+from pcl.pxd.features.esf cimport ESFEstimation as cESFEstimation
+from pcl.pxd.features.cvfh cimport CVFHEstimation as cCVFHEstimation
+from libc.stdint cimport uint8_t
 from pcl.pxd.features.don cimport (
     DifferenceOfNormalsEstimation as cDifferenceOfNormalsEstimation)
 from pcl.pxd.features.integral_image_normal cimport (
@@ -301,6 +307,234 @@ cdef class VFHEstimation:
         cdef Py_ssize_t i
         for i in range(308):
             view[i] = p.histogram[i]
+        return result
+
+
+cdef class BoundaryEstimation:
+    """Flag the points on the edge of a surface (pcl::BoundaryEstimation).
+
+    Each point's neighbours are projected onto its tangent plane; a gap
+    wider than `set_AngleThreshold` (radians, default pi/2) between
+    consecutive neighbours marks the point as a boundary. Needs normals
+    and a neighbourhood size:
+
+        normals = cloud.make_NormalEstimation()
+        normals.set_KSearch(20)
+        edges = cloud.make_BoundaryEstimation()
+        edges.set_InputNormals(normals.compute_cloud())
+        edges.set_KSearch(20)
+        on_edge = edges.compute()        # bool array, one per point
+    """
+
+    cdef cBoundaryEstimation[PointXYZ, Normal, Boundary]* me
+    cdef bint has_normals
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cBoundaryEstimation[PointXYZ, Normal, Boundary]()
+        self.has_normals = False
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_InputNormals(self, PointCloud_Normal normals not None):
+        self.me.setInputNormals(normals.thisptr_shared)
+        self.has_normals = True
+
+    def set_KSearch(self, int k):
+        self.me.setKSearch(k)
+
+    def get_KSearch(self):
+        return self.me.getKSearch()
+
+    def set_RadiusSearch(self, double radius):
+        self.me.setRadiusSearch(radius)
+
+    def get_RadiusSearch(self):
+        return self.me.getRadiusSearch()
+
+    def set_AngleThreshold(self, float angle):
+        """Widest angular gap (radians) still counted as surrounded."""
+        self.me.setAngleThreshold(angle)
+
+    def get_AngleThreshold(self):
+        return self.me.getAngleThreshold()
+
+    def compute(self):
+        """Return a bool array, True where the point lies on a boundary."""
+        import numpy as np
+        if not self.has_normals:
+            raise RuntimeError(
+                "BoundaryEstimation needs normals: call set_InputNormals() "
+                "with a PointCloud_Normal (NormalEstimation.compute_cloud())")
+        cdef cPointCloud[Boundary] out
+        with nogil:
+            self.me.compute(out)
+        cdef Py_ssize_t n = <Py_ssize_t> out.size()
+        flags = np.empty(n, dtype=np.uint8)
+        cdef uint8_t[::1] view = flags
+        cdef Py_ssize_t i
+        for i in range(n):
+            view[i] = out[<size_t> i].boundary_point
+        return flags.astype(np.bool_)
+
+
+cdef class ESFEstimation:
+    """Ensemble of Shape Functions (pcl::ESFEstimation).
+
+    One 640-bin descriptor for the whole cloud, built from the distances,
+    angles and areas of randomly sampled point pairs and triples. Needs
+    neither normals nor a neighbourhood size, so it is the cheapest
+    global descriptor here:
+
+        histogram = cloud.make_ESFEstimation().compute()
+    """
+
+    cdef cESFEstimation[PointXYZ, ESFSignature640]* me
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cESFEstimation[PointXYZ, ESFSignature640]()
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def compute(self):
+        """Return the descriptor as a length-640 float32 array.
+
+        The point samples are drawn at random, so two runs on the same
+        cloud differ slightly.
+        """
+        import numpy as np
+        cdef cPointCloud[ESFSignature640] out
+        with nogil:
+            self.me.compute(out)
+        if out.size() == 0:
+            raise RuntimeError(
+                "ESF produced no descriptor (is the input cloud empty?)")
+        result = np.empty(640, dtype=np.float32)
+        cdef float[::1] view = result
+        cdef ESFSignature640* p = &out[0]
+        cdef Py_ssize_t i
+        for i in range(640):
+            view[i] = p.histogram[i]
+        return result
+
+
+cdef class CVFHEstimation:
+    """Clustered Viewpoint Feature Histogram (pcl::CVFHEstimation).
+
+    VFH computed once per smooth region: regions are grown over points
+    whose normals agree within `set_EPSAngleThreshold` and whose
+    curvature stays below `set_CurvatureThreshold`, within
+    `set_ClusterTolerance` of each other, so a partial view yields one
+    308-bin descriptor per region. When no region reaches
+    `set_MinPoints`, PCL falls back to a single VFH of the whole cloud.
+    Needs normals, and `set_RadiusNormals` / `set_ClusterTolerance` in
+    the cloud's own units (the defaults assume metres):
+
+        normals = cloud.make_NormalEstimation()
+        normals.set_KSearch(20)
+        cvfh = cloud.make_CVFHEstimation()
+        cvfh.set_InputNormals(normals.compute_cloud())
+        cvfh.set_ClusterTolerance(0.2)       # a few point spacings
+        cvfh.set_RadiusNormals(0.2)
+        histograms = cvfh.compute()         # (regions, 308)
+    """
+
+    cdef cCVFHEstimation[PointXYZ, Normal, VFHSignature308]* me
+    # Like VFH, PCL dereferences the normals without checking them.
+    cdef bint has_normals
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cCVFHEstimation[PointXYZ, Normal, VFHSignature308]()
+        self.has_normals = False
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_InputNormals(self, PointCloud_Normal normals not None):
+        self.me.setInputNormals(normals.thisptr_shared)
+        self.has_normals = True
+
+    def set_KSearch(self, int k):
+        self.me.setKSearch(k)
+
+    def set_RadiusSearch(self, double radius):
+        self.me.setRadiusSearch(radius)
+
+    def set_ViewPoint(self, float x, float y, float z):
+        self.me.setViewPoint(x, y, z)
+
+    def set_RadiusNormals(self, float radius):
+        """Radius within which CVFH RE-ESTIMATES normals on the smooth
+        candidates before clustering (PCL's default 0.03 is metre-scale).
+        Below the cloud's point spacing every point ends up alone, no
+        region forms, and the whole-cloud fallback quietly takes over —
+        so set this to a few point spacings."""
+        self.me.setRadiusNormals(radius)
+
+    def set_ClusterTolerance(self, float distance):
+        """How far apart two points may be and still share a region, in
+        the cloud's own units (PCL's default 0.015 suits metre-scale
+        sensor data)."""
+        self.me.setClusterTolerance(distance)
+
+    def set_EPSAngleThreshold(self, float angle):
+        """Largest angle (radians) between neighbouring normals within
+        one region."""
+        self.me.setEPSAngleThreshold(angle)
+
+    def set_CurvatureThreshold(self, float curvature):
+        """Points above this curvature are left out of every region."""
+        self.me.setCurvatureThreshold(curvature)
+
+    def set_MinPoints(self, size_t count):
+        """Smallest region that gets its own descriptor."""
+        self.me.setMinPoints(count)
+
+    def set_NormalizeBins(self, bint normalize):
+        self.me.setNormalizeBins(normalize)
+
+    def compute(self):
+        """Return a ``(regions, 308)`` float32 array, one row per smooth
+        region (a single row when no region was large enough)."""
+        import numpy as np
+        if not self.has_normals:
+            raise RuntimeError(
+                "CVFHEstimation needs normals: call set_InputNormals() with "
+                "a PointCloud_Normal (NormalEstimation.compute_cloud()). "
+                "PCL dereferences them unchecked.")
+        cdef cPointCloud[VFHSignature308] out
+        with nogil:
+            self.me.compute(out)
+        cdef Py_ssize_t n = <Py_ssize_t> out.size()
+        if n == 0:
+            raise RuntimeError("CVFH produced no descriptor")
+        result = np.empty((n, 308), dtype=np.float32)
+        cdef float[:, ::1] view = result
+        cdef VFHSignature308* p
+        cdef Py_ssize_t i, j
+        for i in range(n):
+            p = &out[<size_t> i]
+            for j in range(308):
+                view[i, j] = p.histogram[j]
         return result
 
 

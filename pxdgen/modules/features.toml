@@ -49,3 +49,24 @@ extern_from = "pcl/features/shot.h"
 output = "../src/pcl/pxd/features/shot.pxd"
 namespaces = ["pcl"]
 extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/boundary.h"
+extern_from = "pcl/features/boundary.h"
+output = "../src/pcl/pxd/features/boundary.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/esf.h"
+extern_from = "pcl/features/esf.h"
+output = "../src/pcl/pxd/features/esf.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/features/cvfh.h"
+extern_from = "pcl/features/cvfh.h"
+output = "../src/pcl/pxd/features/cvfh.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]

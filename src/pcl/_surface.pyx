@@ -33,7 +33,9 @@ from pcl.pxd.compat.mesh_args cimport (
     saveMesh)
 
 from pcl._pointcloud cimport PointCloud, wrap_cloud
-from pcl._pointtypes cimport PointCloud_Normal
+from pcl._pointtypes cimport (
+    PointCloud_Normal, PointCloud_PointNormal, wrap_pointnormal_cloud)
+from pcl.pxd.surface.poisson cimport Poisson as cPoisson
 
 
 cdef object _polygon_list(vector[Vertices]& polygons):
@@ -350,6 +352,160 @@ cdef class GreedyProjectionTriangulation:
         with nogil:
             mesher.reconstruct(polygons)
         return _polygon_list(polygons)
+
+
+cdef class Poisson:
+    """Watertight surface from an oriented cloud (pcl::Poisson).
+
+    Where GreedyProjectionTriangulation connects the input points,
+    Poisson fits an implicit surface to them and extracts a NEW mesh from
+    it, so `reconstruct()` returns its own vertices as well as the
+    polygons. Takes a :class:`PointCloud_PointNormal`, or a cloud plus
+    the normals computed for it:
+
+        normals = cloud.make_NormalEstimation()
+        normals.set_KSearch(20)
+        poisson = cloud.make_Poisson()
+        poisson.set_InputCloud(cloud, normals.compute_cloud())
+        poisson.set_Depth(8)
+        vertices, triangles = poisson.reconstruct()
+        pcl.save_mesh(vertices.to_xyz_cloud(), triangles, "surface.ply")
+
+    The normals must be consistently oriented (all outward or all
+    inward); the surface follows them.
+    """
+
+    cdef cPoisson[PointNormal]* me
+    cdef bint has_input
+
+    def __cinit__(self, pc=None):
+        self.me = new cPoisson[PointNormal]()
+        self.has_input = False
+        # A plain PointCloud alone is not enough input (no normals), so
+        # only a PointCloud_PointNormal is taken here; set_InputCloud
+        # does the real work otherwise.
+        if isinstance(pc, PointCloud_PointNormal):
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, cloud not None, PointCloud_Normal normals=None):
+        """Take a :class:`PointCloud_PointNormal`, or a :class:`PointCloud`
+        together with its normals."""
+        cdef PointCloud_PointNormal joined
+        if isinstance(cloud, PointCloud_PointNormal):
+            if normals is not None:
+                raise TypeError(
+                    "a PointCloud_PointNormal already carries its normals")
+            joined = <PointCloud_PointNormal> cloud
+        elif isinstance(cloud, PointCloud):
+            if normals is None:
+                raise TypeError(
+                    "a PointCloud needs its normals too: "
+                    "set_InputCloud(cloud, normals)")
+            joined = PointCloud_PointNormal().from_xyz_and_normals(
+                <PointCloud> cloud, normals)
+        else:
+            raise TypeError(
+                "expected a PointCloud_PointNormal or a PointCloud, got %s"
+                % type(cloud).__name__)
+        if joined.size == 0:
+            raise ValueError("the input cloud is empty")
+        self.me.setInputCloud(joined.thisptr_shared)
+        self.has_input = True
+
+    def set_Depth(self, int depth):
+        """Octree depth bounding the resolution (2^depth cells per axis);
+        PCL's default is 8."""
+        self.me.setDepth(depth)
+
+    def get_Depth(self):
+        return self.me.getDepth()
+
+    def set_MinDepth(self, int depth):
+        self.me.setMinDepth(depth)
+
+    def get_MinDepth(self):
+        return self.me.getMinDepth()
+
+    def set_PointWeight(self, float weight):
+        """How much the surface is pulled towards the samples (0 is the
+        original, unconstrained Poisson fit)."""
+        self.me.setPointWeight(weight)
+
+    def get_PointWeight(self):
+        return self.me.getPointWeight()
+
+    def set_Scale(self, float scale):
+        self.me.setScale(scale)
+
+    def get_Scale(self):
+        return self.me.getScale()
+
+    def set_SolverDivide(self, int depth):
+        self.me.setSolverDivide(depth)
+
+    def get_SolverDivide(self):
+        return self.me.getSolverDivide()
+
+    def set_IsoDivide(self, int depth):
+        self.me.setIsoDivide(depth)
+
+    def get_IsoDivide(self):
+        return self.me.getIsoDivide()
+
+    def set_SamplesPerNode(self, float samples):
+        """Raise (15-20) for noisy clouds to smooth the result."""
+        self.me.setSamplesPerNode(samples)
+
+    def get_SamplesPerNode(self):
+        return self.me.getSamplesPerNode()
+
+    def set_Confidence(self, bint confidence):
+        """Use the normals' lengths as confidence instead of normalising
+        them."""
+        self.me.setConfidence(confidence)
+
+    def get_Confidence(self):
+        return self.me.getConfidence()
+
+    def set_OutputPolygons(self, bint polygons):
+        """Return the marching-cubes polygons as they are instead of
+        triangulating them."""
+        self.me.setOutputPolygons(polygons)
+
+    def get_OutputPolygons(self):
+        return self.me.getOutputPolygons()
+
+    def set_Degree(self, int degree):
+        self.me.setDegree(degree)
+
+    def get_Degree(self):
+        return self.me.getDegree()
+
+    def set_Manifold(self, bint manifold):
+        self.me.setManifold(manifold)
+
+    def get_Manifold(self):
+        return self.me.getManifold()
+
+    def reconstruct(self):
+        """Return ``(vertices, polygons)``: a :class:`PointCloud_PointNormal`
+        of the mesh's own vertices and index tuples into it (triangles
+        unless `set_OutputPolygons(True)`)."""
+        if not self.has_input:
+            raise RuntimeError(
+                "set_InputCloud(...) is required before reconstruct()")
+        cdef shared_ptr[cPointCloud[PointNormal]] holder
+        holder.reset(new cPointCloud[PointNormal]())
+        cdef cPointCloud[PointNormal]* out = holder.get()
+        cdef vector[Vertices] polygons
+        cdef cPoisson[PointNormal]* mesher = self.me
+        with nogil:
+            mesher.reconstruct(deref(out), polygons)
+        return wrap_pointnormal_cloud(holder), _polygon_list(polygons)
 
 
 # Mesh file formats, by extension. VTK is write-only: PCL's VTK-format

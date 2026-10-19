@@ -59,6 +59,9 @@ from ._pointtypes import (
     PointCloud_PointWithViewpoint,
 )
 from ._features import (
+    BoundaryEstimation,
+    CVFHEstimation,
+    ESFEstimation,
     AVERAGE_3D_GRADIENT,
     AVERAGE_DEPTH_CHANGE,
     COVARIANCE_MATRIX,
@@ -80,6 +83,7 @@ from ._registration import (
     SampleConsensusPrerejective,
 )
 from ._surface import (
+    Poisson,
     ConcaveHull,
     ConvexHull,
     GreedyProjectionTriangulation,
@@ -220,6 +224,7 @@ __all__ = [
     "Segmentation", "SegmentationNormal", "EuclideanClusterExtraction",
     "ProgressiveMorphologicalFilter", "MinCutSegmentation",
     "RegionGrowing", "RegionGrowingRGB",
+    "BoundaryEstimation", "ESFEstimation", "CVFHEstimation", "Poisson",
     "ConditionalEuclideanClustering",
     "SAC_RANSAC", "SAC_LMEDS", "SAC_MSAC", "SAC_RRANSAC", "SAC_RMSAC",
     "SAC_MLESAC", "SAC_PROSAC",

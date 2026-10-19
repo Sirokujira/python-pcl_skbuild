@@ -158,6 +158,18 @@ struct VFHSignature308 {
     float histogram[308];
 };
 
+// One flag per point (BoundaryEstimation output): 1 on the edge of the
+// surface, 0 inside it.
+struct Boundary {
+    std::uint8_t boundary_point;
+};
+
+// A 640-bin Ensemble of Shape Functions: one descriptor for a whole
+// cloud, computed from point pairs and triples -- no normals needed.
+struct ESFSignature640 {
+    float histogram[640];
+};
+
 // A Fast Point Feature Histogram: 3 angular features x 11 bins, one
 // descriptor per point.
 struct FPFHSignature33 {

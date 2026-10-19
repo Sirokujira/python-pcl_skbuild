@@ -481,6 +481,27 @@ cdef class PointCloud:
         from pcl._segmentation import RegionGrowing
         return RegionGrowing(self)
 
+    def make_BoundaryEstimation(self):
+        """Return a BoundaryEstimation with this cloud as input."""
+        from pcl._features import BoundaryEstimation
+        return BoundaryEstimation(self)
+
+    def make_ESFEstimation(self):
+        """Return an ESFEstimation with this cloud as input."""
+        from pcl._features import ESFEstimation
+        return ESFEstimation(self)
+
+    def make_CVFHEstimation(self):
+        """Return a CVFHEstimation with this cloud as input."""
+        from pcl._features import CVFHEstimation
+        return CVFHEstimation(self)
+
+    def make_Poisson(self):
+        """Return a Poisson reconstructor; feed it with
+        `set_InputCloud(cloud, normals)`."""
+        from pcl._surface import Poisson
+        return Poisson(self)
+
     def make_NormalEstimation(self):
         """Return a NormalEstimation with this cloud as input."""
         from pcl._features import NormalEstimation

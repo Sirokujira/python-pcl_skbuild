@@ -986,6 +986,11 @@ cdef class PointCloud_PointNormal:
             q.z = p.z
         return result
 
+    def make_Poisson(self):
+        """Return a Poisson reconstructor with this cloud as input."""
+        from pcl._surface import Poisson
+        return Poisson(self)
+
     def to_normal_cloud(self):
         """Return the normals alone as a :class:`PointCloud_Normal`."""
         cdef PointCloud_Normal result = PointCloud_Normal()
