@@ -69,10 +69,10 @@ extern_from = "pcl/compat/sac_models.h"
 output = "../src/pcl/pxd/compat/sac_models.pxd"
 namespaces = ["pclcompat"]
 extra_cimports = [
-    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.point_types cimport PointXYZ, Normal",
     "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.sample_consensus.sac cimport SampleConsensus",
     "from pcl.pxd.sample_consensus.sac_model cimport SampleConsensusModel",
-    "from pcl.pxd.sample_consensus.ransac cimport RandomSampleConsensus",
 ]
 
 [[headers]]
@@ -178,4 +178,14 @@ extra_cimports = [
     "from pcl.pxd.point_cloud cimport PointCloud",
     "from pcl.pxd.point_types cimport PointXYZ, PointXYZRGB, Normal",
     "from pcl.pxd.features.crh cimport CRHEstimation",
+]
+
+[[headers]]
+path = "headers/pcl/compat/supervoxel_args.h"
+extern_from = "pcl/compat/supervoxel_args.h"
+output = "../src/pcl/pxd/compat/supervoxel_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.segmentation.supervoxel_clustering cimport SupervoxelClustering",
 ]

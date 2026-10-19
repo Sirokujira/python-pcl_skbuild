@@ -115,6 +115,16 @@ cdef extern from "pcl/point_types.h" namespace "pcl" nogil:
         int octave
         float data_c[4]
 
+    cdef struct Label:
+        uint32_t label
+
+    cdef struct PointXYZL:
+        float x
+        float y
+        float z
+        float data[4]
+        uint32_t label
+
     cdef struct VFHSignature308:
         float histogram[308]
 

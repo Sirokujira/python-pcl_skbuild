@@ -81,3 +81,48 @@ extra_cimports = [
     "from pcl.pxd.point_indices cimport PointIndices",
     "from pcl.pxd.point_types cimport PointXYZRGB",
 ]
+
+[[headers]]
+path = "headers/pcl/segmentation/extract_polygonal_prism_data.h"
+extern_from = "pcl/segmentation/extract_polygonal_prism_data.h"
+output = "../src/pcl/pxd/segmentation/extract_polygonal_prism_data.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud", "from pcl.pxd.point_indices cimport PointIndices"]
+
+[[headers]]
+path = "headers/pcl/segmentation/segment_differences.h"
+extern_from = "pcl/segmentation/segment_differences.h"
+output = "../src/pcl/pxd/segmentation/segment_differences.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/segmentation/approximate_progressive_morphological_filter.h"
+extern_from = "pcl/segmentation/approximate_progressive_morphological_filter.h"
+output = "../src/pcl/pxd/segmentation/approximate_progressive_morphological_filter.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/segmentation/seeded_hue_segmentation.h"
+extern_from = "pcl/segmentation/seeded_hue_segmentation.h"
+output = "../src/pcl/pxd/segmentation/seeded_hue_segmentation.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud", "from pcl.pxd.point_indices cimport PointIndices", "from pcl.pxd.point_types cimport PointXYZRGB"]
+
+[[headers]]
+path = "headers/pcl/segmentation/organized_multi_plane_segmentation.h"
+extern_from = "pcl/segmentation/organized_multi_plane_segmentation.h"
+output = "../src/pcl/pxd/segmentation/organized_multi_plane_segmentation.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud", "from pcl.pxd.point_indices cimport PointIndices", "from pcl.pxd.model_coefficients cimport ModelCoefficients"]
+
+[[headers]]
+path = "headers/pcl/segmentation/supervoxel_clustering.h"
+extern_from = "pcl/segmentation/supervoxel_clustering.h"
+output = "../src/pcl/pxd/segmentation/supervoxel_clustering.pxd"
+namespaces = ["pcl"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.point_types cimport Normal",
+]

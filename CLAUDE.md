@@ -59,7 +59,11 @@ python-pcl's packed-float column), `PointCloud_PointNormal` (+
 `LocalMaximum`, `FrustumCulling`, `MedianFilter`, `BilateralFilter`,
 `ModelOutlierRemoval`, `OctreePointCloudCompression` (+ RGB),
 `HarrisKeypoint3D`, `SegmentationNormal`, `ProgressiveMorphologicalFilter`,
-`RandomSampleConsensus` + the `SampleConsensusModel*` builders,
+`SampleConsensus` (all `pcl.SAC_*` methods) / `RandomSampleConsensus` + the
+`SampleConsensusModel*` builders (incl. cylinder, cone, normal and axis
+models, registration), `ExtractPolygonalPrismData`, `SegmentDifferences`,
+`ApproximateProgressiveMorphologicalFilter`, `SeededHueSegmentation`,
+`OrganizedMultiPlaneSegmentation`, `SupervoxelClustering` (+ LCCP),
 `pcl.match_descriptors` (FLANN),
 `IntegralImageNormalEstimation`, `DifferenceOfNormalsEstimation`,
 `FPFHEstimation`, `SHOTEstimation`, `CVFHEstimation`, `ESFEstimation`,

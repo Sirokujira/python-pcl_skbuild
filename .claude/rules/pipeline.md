@@ -156,6 +156,16 @@ wrapper tracks `ParticleFilterOMPTracker` instead. Verified in plain C++
 against 1.14: the base reports (0,0,0) for a moving object, the OMP one
 follows it.
 
+`RandomizedRandomSampleConsensus` (`SAC_RRANSAC`) is a fourth, and a
+hang rather than a crash: its loop runs while `iterations_ < k` with `k`
+initialised to the largest double and only lowered once a candidate
+passes the pre-test, and the pre-test rejects a candidate as soon as ONE
+point of a random 10% subset is an outlier — so with any real outlier
+fraction no candidate ever passes and `max_iterations` is never
+consulted (read in `impl/rransac.hpp`; a plane with 20% outliers ran
+for ten minutes before being killed). `SampleConsensus` and
+`Segmentation.set_method_type` refuse the constant with that reason.
+
 Not every quirk is worth absorbing, though. PCL's octree treats the FIRST
 point of a cloud specially: `voxelSearch` can miss it, and
 `getPointIndicesFromNewVoxels` reports index 0 as new even for an

@@ -223,6 +223,24 @@ struct PointWithScale {
     };
 };
 
+// A per-point label (OrganizedMultiPlaneSegmentation output).
+struct Label {
+    std::uint32_t label;
+};
+
+// A point with a label (supervoxel / LCCP output).
+struct PointXYZL {
+    union {
+        struct {
+            float x;
+            float y;
+            float z;
+        };
+        float data[4];
+    };
+    std::uint32_t label;
+};
+
 // A 308-bin Viewpoint Feature Histogram: one descriptor for a whole
 // cloud, which is why VFHEstimation's output cloud holds a single point.
 struct VFHSignature308 {

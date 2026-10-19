@@ -302,6 +302,11 @@ cdef class PointCloud_PointXYZRGB:
         from pcl._keypoints import SUSANKeypoint
         return SUSANKeypoint(self)
 
+    def make_SeededHueSegmentation(self):
+        """Return a SeededHueSegmentation with this cloud as input."""
+        from pcl._segmentation import SeededHueSegmentation
+        return SeededHueSegmentation(self)
+
     def from_array(self, float[:, :] arr not None):
         """Fill from an ``(n, 4)`` float32 array: x, y, z, packed rgb."""
         if arr.shape[1] != 4:
@@ -528,6 +533,12 @@ cdef class PointCloud_PointXYZRGBA:
         c.resize(<size_t> count)
         c.width = count
         c.height = 1
+
+    def make_SupervoxelClustering(self, float voxel_resolution,
+                                  float seed_resolution):
+        """Return a SupervoxelClustering with this cloud as input."""
+        from pcl._segmentation import SupervoxelClustering
+        return SupervoxelClustering(voxel_resolution, seed_resolution, self)
 
     def from_array(self, float[:, :] arr not None):
         """Fill from an ``(n, 4)`` float32 array: x, y, z, packed rgb."""

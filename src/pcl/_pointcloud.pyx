@@ -588,6 +588,32 @@ cdef class PointCloud:
         from pcl._filters import ModelOutlierRemoval
         return ModelOutlierRemoval(self)
 
+    def make_ExtractPolygonalPrismData(self):
+        """Return a ExtractPolygonalPrismData with this cloud as input."""
+        from pcl._segmentation import ExtractPolygonalPrismData
+        return ExtractPolygonalPrismData(self)
+
+    def make_SegmentDifferences(self):
+        """Return a SegmentDifferences with this cloud as input."""
+        from pcl._segmentation import SegmentDifferences
+        return SegmentDifferences(self)
+
+    def make_ApproximateProgressiveMorphologicalFilter(self):
+        """Return a ApproximateProgressiveMorphologicalFilter with this cloud as input."""
+        from pcl._segmentation import ApproximateProgressiveMorphologicalFilter
+        return ApproximateProgressiveMorphologicalFilter(self)
+
+    def make_OrganizedMultiPlaneSegmentation(self):
+        """Return a OrganizedMultiPlaneSegmentation with this cloud as input."""
+        from pcl._segmentation import OrganizedMultiPlaneSegmentation
+        return OrganizedMultiPlaneSegmentation(self)
+
+    def make_SupervoxelClustering(self, float voxel_resolution,
+                                  float seed_resolution):
+        """Return a SupervoxelClusteringXYZ with this cloud as input."""
+        from pcl._segmentation import SupervoxelClusteringXYZ
+        return SupervoxelClusteringXYZ(voxel_resolution, seed_resolution, self)
+
     def make_PrincipalCurvaturesEstimation(self):
         """Return a PrincipalCurvaturesEstimation with this cloud as input."""
         from pcl._features import PrincipalCurvaturesEstimation

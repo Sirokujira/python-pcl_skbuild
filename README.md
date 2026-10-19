@@ -216,13 +216,13 @@ converged, refined, _, _ = icp.icp(source.transform(transform), target)
 | keypoints | `HarrisKeypoint3D`, `ISSKeypoint3D`, `SIFTKeypoint` (RGB), `SUSANKeypoint` (RGB), NARF (via `RangeImage.narf_keypoints`) |
 | range image | `RangeImage` (+ `pcl.CAMERA_FRAME` / `LASER_FRAME`) |
 | conditions | `ConditionAnd`, `ConditionalRemoval` (+ `pcl.CompareOp_*`) |
-| sample consensus | `RandomSampleConsensus` + `SampleConsensusModel{Plane,Line,Circle2D,Circle3D,Sphere,Stick}` |
+| sample consensus | `SampleConsensus` (RANSAC, LMedS, MSAC, RMSAC, MLESAC, PROSAC via `pcl.SAC_*`; RRANSAC refused, see below) / `RandomSampleConsensus` + `SampleConsensusModel{Plane,Line,Circle2D,Circle3D,Sphere,Stick,Cylinder,Cone,NormalPlane,NormalSphere,ParallelPlane,PerpendicularPlane,NormalParallelPlane,ParallelLine,Registration}` |
 | search | `KdTreeFLANN`, `OctreePointCloudSearch`, `OctreePointCloudChangeDetector` |
 | compression | `OctreePointCloudCompression` / `OctreePointCloudCompressionRGB` (bytes in, bytes out; the `pcl.*_COMPRESSION_*` profiles) |
 | features | `NormalEstimation`, `IntegralImageNormalEstimation`, `DifferenceOfNormalsEstimation`, `MomentOfInertiaEstimation`, `VFHEstimation`, `CVFHEstimation`, `ESFEstimation`, `FPFHEstimation`, `PFHEstimation`, `SHOTEstimation`, `BoundaryEstimation`, `PrincipalCurvaturesEstimation`, `RSDEstimation`, `GRSDEstimation`, `SpinImageEstimation`, `GASDEstimation` / `GASDColorEstimation`, `OURCVFHEstimation`, `CRHEstimation`, `MomentInvariantsEstimation`, `NormalEstimationOMP` |
 | surface | `MovingLeastSquares`, `ConcaveHull`, `ConvexHull`, `GreedyProjectionTriangulation`, `Poisson`, `MarchingCubesHoppe`, `MarchingCubesRBF`, `pcl.save_mesh` / `pcl.load_mesh` (PLY, OBJ, VTK) |
 | registration | `IterativeClosestPoint`, `IterativeClosestPointNonLinear`, `GeneralizedIterativeClosestPoint`, `NormalDistributionsTransform`, `SampleConsensusPrerejective` (global) |
-| segmentation | `Segmentation` (SAC), `SegmentationNormal`, `EuclideanClusterExtraction`, `ProgressiveMorphologicalFilter`, `MinCutSegmentation`, `ConditionalEuclideanClustering`, `RegionGrowing`, `RegionGrowingRGB` |
+| segmentation | `Segmentation` (SAC), `SegmentationNormal`, `EuclideanClusterExtraction`, `ProgressiveMorphologicalFilter`, `MinCutSegmentation`, `ConditionalEuclideanClustering`, `RegionGrowing`, `RegionGrowingRGB`, `ExtractPolygonalPrismData`, `SegmentDifferences`, `ApproximateProgressiveMorphologicalFilter`, `SeededHueSegmentation`, `OrganizedMultiPlaneSegmentation`, `SupervoxelClustering` / `SupervoxelClusteringXYZ` (+ `.lccp()` for LCCP segmentation) |
 | recognition | `GeometricConsistencyGrouping`, `Hough3DGrouping`, `pcl.match_descriptors` (FLANN) |
 | tracking | `ParticleFilterTracker` |
 | people | `pcl.hog` / `pcl.hog_descriptor_size` |
@@ -244,6 +244,13 @@ Windows) installed into the `pcl` package.
   `GroundBasedPeopleDetectionApp` additionally needs a trained SVM file
   that this package cannot ship. `HOG` includes only `point_types.h`, so
   it is wrapped.
+- **`SAC_RRANSAC`** — PCL 1.14's `RandomizedRandomSampleConsensus` never
+  returns on data with outliers: its pre-test rejects a candidate as soon
+  as one point of a random 10% subset is an outlier, and the loop bound
+  is only lowered once a candidate passes, so `max_iterations` is never
+  consulted (reproduced on a plane with 20% outliers; the process had to
+  be killed). `SampleConsensus` and `Segmentation.set_method_type` refuse
+  it with that reason. `SAC_RMSAC` shares the pre-test but does stop.
 - **`OctreePointCloud2Buf`** (python-pcl's double-buffered octree) — its
   one use, finding the voxels that are new since the previous frame, is
   what `OctreePointCloudChangeDetector` wraps; the second buffer is an
