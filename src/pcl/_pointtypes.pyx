@@ -991,6 +991,18 @@ cdef class PointCloud_PointNormal:
         from pcl._surface import Poisson
         return Poisson(self)
 
+    def make_MarchingCubesHoppe(self):
+        """Return a MarchingCubesHoppe reconstructor with this cloud as
+        input."""
+        from pcl._surface import MarchingCubesHoppe
+        return MarchingCubesHoppe(self)
+
+    def make_MarchingCubesRBF(self):
+        """Return a MarchingCubesRBF reconstructor with this cloud as
+        input."""
+        from pcl._surface import MarchingCubesRBF
+        return MarchingCubesRBF(self)
+
     def to_normal_cloud(self):
         """Return the normals alone as a :class:`PointCloud_Normal`."""
         cdef PointCloud_Normal result = PointCloud_Normal()

@@ -84,6 +84,8 @@ from ._registration import (
 )
 from ._surface import (
     Poisson,
+    MarchingCubesHoppe,
+    MarchingCubesRBF,
     ConcaveHull,
     ConvexHull,
     GreedyProjectionTriangulation,
@@ -225,6 +227,7 @@ __all__ = [
     "ProgressiveMorphologicalFilter", "MinCutSegmentation",
     "RegionGrowing", "RegionGrowingRGB",
     "BoundaryEstimation", "ESFEstimation", "CVFHEstimation", "Poisson",
+    "MarchingCubesHoppe", "MarchingCubesRBF",
     "ConditionalEuclideanClustering",
     "SAC_RANSAC", "SAC_LMEDS", "SAC_MSAC", "SAC_RRANSAC", "SAC_RMSAC",
     "SAC_MLESAC", "SAC_PROSAC",

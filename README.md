@@ -219,7 +219,7 @@ converged, refined, _, _ = icp.icp(source.transform(transform), target)
 | sample consensus | `RandomSampleConsensus` + `SampleConsensusModel{Plane,Line,Circle2D,Circle3D,Sphere,Stick}` |
 | search | `KdTreeFLANN`, `OctreePointCloudSearch`, `OctreePointCloudChangeDetector` |
 | features | `NormalEstimation`, `IntegralImageNormalEstimation`, `DifferenceOfNormalsEstimation`, `MomentOfInertiaEstimation`, `VFHEstimation`, `CVFHEstimation`, `ESFEstimation`, `FPFHEstimation`, `SHOTEstimation`, `BoundaryEstimation` |
-| surface | `MovingLeastSquares`, `ConcaveHull`, `ConvexHull`, `GreedyProjectionTriangulation`, `Poisson`, `pcl.save_mesh` / `pcl.load_mesh` (PLY, OBJ, VTK) |
+| surface | `MovingLeastSquares`, `ConcaveHull`, `ConvexHull`, `GreedyProjectionTriangulation`, `Poisson`, `MarchingCubesHoppe`, `MarchingCubesRBF`, `pcl.save_mesh` / `pcl.load_mesh` (PLY, OBJ, VTK) |
 | registration | `IterativeClosestPoint`, `IterativeClosestPointNonLinear`, `GeneralizedIterativeClosestPoint`, `NormalDistributionsTransform`, `SampleConsensusPrerejective` (global) |
 | segmentation | `Segmentation` (SAC), `SegmentationNormal`, `EuclideanClusterExtraction`, `ProgressiveMorphologicalFilter`, `MinCutSegmentation`, `ConditionalEuclideanClustering`, `RegionGrowing`, `RegionGrowingRGB` |
 | recognition | `GeometricConsistencyGrouping`, `Hough3DGrouping`, `pcl.match_descriptors` (FLANN) |
@@ -243,6 +243,13 @@ Windows) installed into the `pcl` package.
   `GroundBasedPeopleDetectionApp` additionally needs a trained SVM file
   that this package cannot ship. `HOG` includes only `point_types.h`, so
   it is wrapped.
+- **`OctreePointCloud2Buf`** (python-pcl's double-buffered octree) — its
+  one use, finding the voxels that are new since the previous frame, is
+  what `OctreePointCloudChangeDetector` wraps; the second buffer is an
+  implementation detail of that. The base `OctreePointCloud` methods
+  python-pcl exposes (`is_voxel_occupied_at_point`,
+  `delete_voxel_at_point`, `get_occupied_voxel_centers`, ...) live on
+  `OctreePointCloudSearch` here.
 
 ## Performance
 

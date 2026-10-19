@@ -502,6 +502,18 @@ cdef class PointCloud:
         from pcl._surface import Poisson
         return Poisson(self)
 
+    def make_MarchingCubesHoppe(self):
+        """Return a MarchingCubesHoppe reconstructor; feed it with
+        `set_InputCloud(cloud, normals)`."""
+        from pcl._surface import MarchingCubesHoppe
+        return MarchingCubesHoppe(self)
+
+    def make_MarchingCubesRBF(self):
+        """Return a MarchingCubesRBF reconstructor; feed it with
+        `set_InputCloud(cloud, normals)`."""
+        from pcl._surface import MarchingCubesRBF
+        return MarchingCubesRBF(self)
+
     def make_NormalEstimation(self):
         """Return a NormalEstimation with this cloud as input."""
         from pcl._features import NormalEstimation

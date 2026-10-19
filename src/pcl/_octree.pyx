@@ -151,6 +151,23 @@ cdef class OctreePointCloudSearch:
         return [(centers[i].x, centers[i].y, centers[i].z)
                 for i in range(centers.size())]
 
+    def is_voxel_occupied_at_point(self, point):
+        """True when the voxel containing ``(x, y, z)`` holds any point."""
+        cdef double x, y, z
+        x, y, z = point
+        return self.me.isVoxelOccupiedAtPoint(x, y, z)
+
+    def delete_voxel_at_point(self, point):
+        """Drop the voxel containing ``(x, y, z)``, and the points it
+        indexed, from the tree. The input cloud itself is untouched."""
+        cdef float x, y, z
+        x, y, z = point
+        cdef PointXYZ p
+        p.x = x
+        p.y = y
+        p.z = z
+        self.me.deleteVoxelAtPoint(p)
+
 
 cdef class OctreePointCloudChangeDetector:
     """Spatial change detection between two clouds

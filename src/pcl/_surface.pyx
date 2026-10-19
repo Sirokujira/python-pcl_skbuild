@@ -36,6 +36,10 @@ from pcl._pointcloud cimport PointCloud, wrap_cloud
 from pcl._pointtypes cimport (
     PointCloud_Normal, PointCloud_PointNormal, wrap_pointnormal_cloud)
 from pcl.pxd.surface.poisson cimport Poisson as cPoisson
+from pcl.pxd.surface.marching_cubes_hoppe cimport (
+    MarchingCubesHoppe as cMarchingCubesHoppe)
+from pcl.pxd.surface.marching_cubes_rbf cimport (
+    MarchingCubesRBF as cMarchingCubesRBF)
 
 
 cdef object _polygon_list(vector[Vertices]& polygons):
@@ -354,6 +358,192 @@ cdef class GreedyProjectionTriangulation:
         return _polygon_list(polygons)
 
 
+cdef PointCloud_PointNormal _as_pointnormal(cloud, PointCloud_Normal normals):
+    """The oriented input the grid reconstructions share: a
+    PointCloud_PointNormal as is, or a PointCloud joined with its
+    normals. Refuses the shapes that cannot work."""
+    cdef PointCloud_PointNormal joined
+    if isinstance(cloud, PointCloud_PointNormal):
+        if normals is not None:
+            raise TypeError(
+                "a PointCloud_PointNormal already carries its normals")
+        joined = <PointCloud_PointNormal> cloud
+    elif isinstance(cloud, PointCloud):
+        if normals is None:
+            raise TypeError(
+                "a PointCloud needs its normals too: "
+                "set_InputCloud(cloud, normals)")
+        joined = PointCloud_PointNormal().from_xyz_and_normals(
+            <PointCloud> cloud, normals)
+    else:
+        raise TypeError(
+            "expected a PointCloud_PointNormal or a PointCloud, got %s"
+            % type(cloud).__name__)
+    if joined.size == 0:
+        raise ValueError("the input cloud is empty")
+    return joined
+
+
+cdef class MarchingCubesHoppe:
+    """Marching cubes over Hoppe's signed distance\n    (pcl::MarchingCubesHoppe): each grid cell takes its distance to the\n    nearest point's tangent plane, so the surface follows the normals\n    closely and the cost is one neighbour search per cell.
+
+    Like Poisson it produces a mesh with its OWN vertices, sampled on a
+    regular grid: `set_GridResolution(nx, ny, nz)` sets how fine, and
+    `set_PercentageExtendGrid` how far past the cloud's bounding box it
+    reaches. Takes a :class:`PointCloud_PointNormal`, or a cloud plus
+    the normals computed for it:
+
+        mc = cloud.make_MarchingCubesHoppe()
+        mc.set_InputCloud(cloud, normals.compute_cloud())
+        mc.set_GridResolution(32, 32, 32)
+        vertices, triangles = mc.reconstruct()
+    """
+
+    cdef cMarchingCubesHoppe[PointNormal]* me
+    cdef bint has_input
+
+    def __cinit__(self, pc=None):
+        self.me = new cMarchingCubesHoppe[PointNormal]()
+        self.has_input = False
+        if isinstance(pc, PointCloud_PointNormal):
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, cloud not None, PointCloud_Normal normals=None):
+        """Take a :class:`PointCloud_PointNormal`, or a :class:`PointCloud`
+        together with its normals."""
+        cdef PointCloud_PointNormal joined = _as_pointnormal(cloud, normals)
+        self.me.setInputCloud(joined.thisptr_shared)
+        self.has_input = True
+
+    def set_IsoLevel(self, float level):
+        """Implicit-function value the surface is drawn at (0 = on the
+        points)."""
+        self.me.setIsoLevel(level)
+
+    def get_IsoLevel(self):
+        return self.me.getIsoLevel()
+
+    def set_GridResolution(self, int nx, int ny, int nz):
+        """Grid cells along each axis (PCL's default is 32 each)."""
+        if nx < 1 or ny < 1 or nz < 1:
+            raise ValueError("grid resolution must be at least 1 per axis")
+        self.me.setGridResolution(nx, ny, nz)
+
+    def set_PercentageExtendGrid(self, float percentage):
+        """Margin around the bounding box, as a fraction of its size."""
+        self.me.setPercentageExtendGrid(percentage)
+
+    def get_PercentageExtendGrid(self):
+        return self.me.getPercentageExtendGrid()
+
+    def set_DistanceIgnore(self, float distance):
+        """Grid cells farther than this from any point are left empty
+        (negative, the default, means no limit)."""
+        self.me.setDistanceIgnore(distance)
+
+    def get_DistanceIgnore(self):
+        return self.me.getDistanceIgnore()
+
+    def reconstruct(self):
+        """Return ``(vertices, triangles)``: a :class:`PointCloud_PointNormal`
+        of the mesh's own vertices and index triples into it."""
+        if not self.has_input:
+            raise RuntimeError(
+                "set_InputCloud(...) is required before reconstruct()")
+        cdef shared_ptr[cPointCloud[PointNormal]] holder
+        holder.reset(new cPointCloud[PointNormal]())
+        cdef cPointCloud[PointNormal]* out = holder.get()
+        cdef vector[Vertices] polygons
+        cdef cMarchingCubesHoppe[PointNormal]* mesher = self.me
+        with nogil:
+            mesher.reconstruct(deref(out), polygons)
+        return wrap_pointnormal_cloud(holder), _polygon_list(polygons)
+
+
+cdef class MarchingCubesRBF:
+    """Marching cubes over a radial-basis-function surface\n    (pcl::MarchingCubesRBF): an implicit function is fitted through every\n    point and an off-surface copy of it, which solves a dense system in\n    the number of points -- keep the cloud small (hundreds of points).
+
+    Like Poisson it produces a mesh with its OWN vertices, sampled on a
+    regular grid: `set_GridResolution(nx, ny, nz)` sets how fine, and
+    `set_PercentageExtendGrid` how far past the cloud's bounding box it
+    reaches. Takes a :class:`PointCloud_PointNormal`, or a cloud plus
+    the normals computed for it:
+
+        mc = cloud.make_MarchingCubesRBF()
+        mc.set_InputCloud(cloud, normals.compute_cloud())
+        mc.set_GridResolution(32, 32, 32)
+        vertices, triangles = mc.reconstruct()
+    """
+
+    cdef cMarchingCubesRBF[PointNormal]* me
+    cdef bint has_input
+
+    def __cinit__(self, pc=None):
+        self.me = new cMarchingCubesRBF[PointNormal]()
+        self.has_input = False
+        if isinstance(pc, PointCloud_PointNormal):
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, cloud not None, PointCloud_Normal normals=None):
+        """Take a :class:`PointCloud_PointNormal`, or a :class:`PointCloud`
+        together with its normals."""
+        cdef PointCloud_PointNormal joined = _as_pointnormal(cloud, normals)
+        self.me.setInputCloud(joined.thisptr_shared)
+        self.has_input = True
+
+    def set_IsoLevel(self, float level):
+        """Implicit-function value the surface is drawn at (0 = on the
+        points)."""
+        self.me.setIsoLevel(level)
+
+    def get_IsoLevel(self):
+        return self.me.getIsoLevel()
+
+    def set_GridResolution(self, int nx, int ny, int nz):
+        """Grid cells along each axis (PCL's default is 32 each)."""
+        if nx < 1 or ny < 1 or nz < 1:
+            raise ValueError("grid resolution must be at least 1 per axis")
+        self.me.setGridResolution(nx, ny, nz)
+
+    def set_PercentageExtendGrid(self, float percentage):
+        """Margin around the bounding box, as a fraction of its size."""
+        self.me.setPercentageExtendGrid(percentage)
+
+    def get_PercentageExtendGrid(self):
+        return self.me.getPercentageExtendGrid()
+
+    def set_OffSurfaceDisplacement(self, float epsilon):
+        """How far along each normal the off-surface constraint points
+        are placed (PCL's default 0.1)."""
+        self.me.setOffSurfaceDisplacement(epsilon)
+
+    def get_OffSurfaceDisplacement(self):
+        return self.me.getOffSurfaceDisplacement()
+
+    def reconstruct(self):
+        """Return ``(vertices, triangles)``: a :class:`PointCloud_PointNormal`
+        of the mesh's own vertices and index triples into it."""
+        if not self.has_input:
+            raise RuntimeError(
+                "set_InputCloud(...) is required before reconstruct()")
+        cdef shared_ptr[cPointCloud[PointNormal]] holder
+        holder.reset(new cPointCloud[PointNormal]())
+        cdef cPointCloud[PointNormal]* out = holder.get()
+        cdef vector[Vertices] polygons
+        cdef cMarchingCubesRBF[PointNormal]* mesher = self.me
+        with nogil:
+            mesher.reconstruct(deref(out), polygons)
+        return wrap_pointnormal_cloud(holder), _polygon_list(polygons)
+
+
 cdef class Poisson:
     """Watertight surface from an oriented cloud (pcl::Poisson).
 
@@ -394,25 +584,7 @@ cdef class Poisson:
     def set_InputCloud(self, cloud not None, PointCloud_Normal normals=None):
         """Take a :class:`PointCloud_PointNormal`, or a :class:`PointCloud`
         together with its normals."""
-        cdef PointCloud_PointNormal joined
-        if isinstance(cloud, PointCloud_PointNormal):
-            if normals is not None:
-                raise TypeError(
-                    "a PointCloud_PointNormal already carries its normals")
-            joined = <PointCloud_PointNormal> cloud
-        elif isinstance(cloud, PointCloud):
-            if normals is None:
-                raise TypeError(
-                    "a PointCloud needs its normals too: "
-                    "set_InputCloud(cloud, normals)")
-            joined = PointCloud_PointNormal().from_xyz_and_normals(
-                <PointCloud> cloud, normals)
-        else:
-            raise TypeError(
-                "expected a PointCloud_PointNormal or a PointCloud, got %s"
-                % type(cloud).__name__)
-        if joined.size == 0:
-            raise ValueError("the input cloud is empty")
+        cdef PointCloud_PointNormal joined = _as_pointnormal(cloud, normals)
         self.me.setInputCloud(joined.thisptr_shared)
         self.has_input = True
 

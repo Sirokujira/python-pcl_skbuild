@@ -139,6 +139,61 @@ def test_poisson_settings_roundtrip(sphere):
     assert poisson.get_Manifold() is False
 
 
+# --- marching cubes -----------------------------------------------------
+
+def test_marching_cubes_hoppe_rebuilds_the_sphere(sphere, sphere_normals):
+    mc = sphere.make_MarchingCubesHoppe()
+    mc.set_InputCloud(sphere, sphere_normals)
+    mc.set_GridResolution(32, 32, 32)
+    mc.set_PercentageExtendGrid(0.1)
+    vertices, triangles = mc.reconstruct()
+    assert isinstance(vertices, pcl.PointCloud_PointNormal)
+    assert vertices.size > 100 and len(triangles) > 100
+    radii = np.linalg.norm(vertices.to_array()[:, :3], axis=1)
+    assert np.abs(radii - 1.0).mean() < 0.1
+    assert all(len(t) == 3 for t in triangles)
+    flat = np.concatenate([np.asarray(t) for t in triangles])
+    assert flat.min() >= 0 and flat.max() < vertices.size
+
+
+def test_marching_cubes_rbf_rebuilds_a_small_sphere(sphere, sphere_normals):
+    """RBF solves a dense n x n system, so use a few hundred points."""
+    keep = np.arange(0, sphere.size, 10)
+    small = pcl.PointCloud(sphere.to_array()[keep])
+    small_normals = pcl.PointCloud_Normal(sphere_normals.to_array()[keep])
+    joined = pcl.PointCloud_PointNormal().from_xyz_and_normals(
+        small, small_normals)
+    mc = joined.make_MarchingCubesRBF()
+    assert isinstance(mc, pcl.MarchingCubesRBF)
+    mc.set_GridResolution(24, 24, 24)
+    mc.set_PercentageExtendGrid(0.1)
+    vertices, triangles = mc.reconstruct()
+    assert vertices.size > 50 and len(triangles) > 50
+    radii = np.linalg.norm(vertices.to_array()[:, :3], axis=1)
+    assert np.abs(radii - 1.0).mean() < 0.15
+
+
+def test_marching_cubes_settings_and_input_checks(sphere):
+    for mc in (sphere.make_MarchingCubesHoppe(),
+               sphere.make_MarchingCubesRBF()):
+        mc.set_IsoLevel(0.25)
+        mc.set_PercentageExtendGrid(0.3)
+        assert mc.get_IsoLevel() == pytest.approx(0.25)
+        assert mc.get_PercentageExtendGrid() == pytest.approx(0.3)
+        with pytest.raises(ValueError):
+            mc.set_GridResolution(0, 10, 10)
+        with pytest.raises(RuntimeError, match="set_InputCloud"):
+            mc.reconstruct()
+        with pytest.raises(TypeError, match="normals"):
+            mc.set_InputCloud(sphere)
+    hoppe = sphere.make_MarchingCubesHoppe()
+    hoppe.set_DistanceIgnore(0.05)
+    assert hoppe.get_DistanceIgnore() == pytest.approx(0.05)
+    rbf = sphere.make_MarchingCubesRBF()
+    rbf.set_OffSurfaceDisplacement(0.2)
+    assert rbf.get_OffSurfaceDisplacement() == pytest.approx(0.2)
+
+
 # --- BoundaryEstimation -------------------------------------------------
 
 def test_boundary_flags_the_rim_of_a_grid(grid):
