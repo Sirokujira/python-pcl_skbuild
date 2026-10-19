@@ -241,7 +241,8 @@ from ._recognition import (
     Hough3DGrouping,
     match_descriptors,
 )
-from ._tracking import ParticleFilterTracker, KLDAdaptiveParticleFilterTracker
+from ._tracking import (ParticleFilterTracker, KLDAdaptiveParticleFilterTracker,
+                        PyramidalKLTTracker)
 from ._rangeimage import (
     bearing_angle,
     bearing_angle_image,
@@ -581,6 +582,7 @@ __all__ = [
     "BORDER_TRAIT__VEIL_POINT_LEFT",
     "GreedyVerification", "PapazovHV",
     "KLDAdaptiveParticleFilterTracker",
+    "PyramidalKLTTracker",
     "estimate_transformation_point_to_plane",
     "estimate_correspondences_normal_shooting",
     "estimate_correspondences_back_projection",

@@ -302,6 +302,22 @@ The same class resets its bounding box from the points on every
 fills the cloud with `push_back`, which resets the height to 1;
 `compression_args.h` restores the size from the stream header.
 
+The tracking batch: the OMP particle trackers set `changed_` only on
+their no-normals path, so `setUseNormal(true)` -- which normal coherence
+needs -- brings back the base class's dropped updates (plain C++: a box
+moved 8 cm reads 0.0000; 1.11 through master). `WeighingNormals` in
+`tracking_args.h` sets the flag after `weight()`. `PyramidalKLTTracker`
+had three faults, all in its two virtual stages (1.11 through master):
+level 0's gradients are padded twice and so read with the wrong stride,
+the Scharr gradients keep their 32x gain so every Lucas-Kanade step is
+1/32 long, and `track()` places windows at unpadded coordinates in
+padded images, `track_width * 2^level` pixels off. Stock PCL reports
+0.5-0.9 px for a 2 px shift; `CorrectedKLT` overrides `computePyramids`
+and `track` (PCL's code with those three fixed, plus a NaN guard on the
+3-D pairs) and is exact on whole-pixel shifts. `pyramidal_klt.h` also
+uses `InterpolationType` without including `pcl/common/io.h`; the shim
+includes it first.
+
 Not every quirk is worth absorbing, though. PCL's octree treats the FIRST
 point of a cloud specially: `voxelSearch` can miss it, and
 `getPointIndicesFromNewVoxels` reports index 0 as new even for an

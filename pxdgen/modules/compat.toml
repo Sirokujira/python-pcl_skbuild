@@ -122,7 +122,7 @@ extern_from = "pcl/compat/tracking_args.h"
 output = "../src/pcl/pxd/compat/tracking_args.pxd"
 namespaces = ["pclcompat"]
 extra_cimports = [
-    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.point_types cimport PointXYZ, PointXYZRGBA, PointNormal",
     "from pcl.pxd.point_cloud cimport PointCloud",
 ]
 
