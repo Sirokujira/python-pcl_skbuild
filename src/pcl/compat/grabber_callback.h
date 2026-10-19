@@ -31,12 +31,14 @@
 
 #include <functional>
 #include <memory>
+#include <string>
 
 #include <boost/signals2/connection.hpp>
 
 #include <pcl/io/grabber.h>
 #include <pcl/io/hdl_grabber.h>
 #include <pcl/io/pcd_grabber.h>
+#include <pcl/io/vlp_grabber.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 
@@ -94,5 +96,14 @@ private:
 
     boost::signals2::connection connection_;
 };
+
+/// A VLPGrabber replaying `pcap_file`, handed back as its HDLGrabber
+/// base: VLP-16 packets differ only in how toPointClouds reads them, and
+/// every call the wrapper makes (start, stop, the sweep signal) is on the
+/// base. The live-network constructor takes a boost::asio address, the
+/// same reason HDLGrabber's is not wrapped.
+inline pcl::HDLGrabber* newVLPGrabber(const std::string& pcap_file) {
+    return new pcl::VLPGrabber(pcap_file);
+}
 
 }  // namespace pclcompat

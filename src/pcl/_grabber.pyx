@@ -36,7 +36,8 @@ from pcl.pxd.point_types cimport PointXYZ
 from pcl.pxd.point_cloud cimport PointCloud as cPointCloud
 from pcl.pxd.io.pcd_grabber cimport PCDGrabber as cPCDGrabber
 from pcl.pxd.io.hdl_grabber cimport HDLGrabber as cHDLGrabber
-from pcl.pxd.compat.grabber_callback cimport CloudCallback, CloudCallbackFn
+from pcl.pxd.compat.grabber_callback cimport (
+    CloudCallback, CloudCallbackFn, newVLPGrabber)
 
 from pcl._pointcloud cimport PointCloud, wrap_cloud
 
@@ -230,7 +231,7 @@ cdef class PCDGrabber:
 
 
 cdef class HDLGrabber:
-    """Velodyne HDL / VLP LiDAR (pcl::HDLGrabber), replaying a .pcap.
+    """Velodyne HDL LiDAR (pcl::HDLGrabber), replaying a .pcap.
 
     Only the file-backed constructor is wrapped. The live-network one
     takes a ``boost::asio::ip::address``, which neither a mirror header
@@ -242,11 +243,15 @@ cdef class HDLGrabber:
     cdef CloudCallback* registration
     cdef object handler
 
-    def __cinit__(self, corrections_file="", pcap_file=""):
-        self.me = new cHDLGrabber(
-            _tobytes(corrections_file), _tobytes(pcap_file))
+    def __cinit__(self, *args, **kwargs):
+        # Built in __init__, so VLPGrabber can construct its own kind.
+        self.me = NULL
         self.registration = new CloudCallback()
         self.handler = None
+
+    def __init__(self, corrections_file="", pcap_file=""):
+        self.me = new cHDLGrabber(
+            _tobytes(corrections_file), _tobytes(pcap_file))
 
     def __dealloc__(self):
         if self.registration is not NULL:
@@ -322,3 +327,14 @@ cdef class HDLGrabber:
     RegisterCallback = register_callback
     Start = start
     Stop = stop
+
+
+cdef class VLPGrabber(HDLGrabber):
+    """Velodyne VLP-16 (Puck) LiDAR (pcl::VLPGrabber), replaying a .pcap;
+    the same callback, start / stop and thresholds as
+    :class:`HDLGrabber`, with the VLP-16's built-in laser corrections and
+    dual-return packets understood."""
+
+    def __init__(self, pcap_file=""):
+        self.me = newVLPGrabber(_tobytes(pcap_file))
+

@@ -20,7 +20,13 @@
 
 #include <vector>
 
+#include <map>
+
+#include <pcl/octree/octree_pointcloud_adjacency.h>
 #include <pcl/octree/octree_pointcloud_density.h>
+#include <pcl/octree/octree_pointcloud_occupancy.h>
+#include <pcl/octree/octree_pointcloud_pointvector.h>
+#include <pcl/octree/octree_pointcloud_singlepoint.h>
 #include <pcl/octree/octree_pointcloud_voxelcentroid.h>
 #include <pcl/octree/octree_search.h>
 #include <pcl/point_cloud.h>
@@ -107,6 +113,73 @@ inline void occupiedVoxelCentersOf(const Octree& octree,
     typename Octree::AlignedPointTVector centers;
     octree.getOccupiedVoxelCenters(centers);
     out.assign(centers.begin(), centers.end());
+}
+
+// --- occupancy / point-vector / single-point / adjacency octrees --------
+
+using OccupancyOctree = pcl::octree::OctreePointCloudOccupancy<pcl::PointXYZ>;
+using PointVectorOctree =
+    pcl::octree::OctreePointCloudPointVector<pcl::PointXYZ>;
+using SinglePointOctree =
+    pcl::octree::OctreePointCloudSinglePoint<pcl::PointXYZ>;
+using AdjacencyOctree = pcl::octree::OctreePointCloudAdjacency<pcl::PointXYZ>;
+
+/// Centre of every leaf (3 floats each), in the iterator's order.
+template <typename Octree>
+inline void leafCenters(Octree& octree, std::vector<float>& centers) {
+    centers.clear();
+    for (auto it = octree.leaf_depth_begin(); it != octree.leaf_depth_end();
+         ++it) {
+        Eigen::Vector3f lo, hi;
+        octree.getVoxelBounds(it, lo, hi);
+        const Eigen::Vector3f c = 0.5f * (lo + hi);
+        centers.insert(centers.end(), {c[0], c[1], c[2]});
+    }
+}
+
+/// The point indices every leaf holds: `counts[i]` of them for leaf i,
+/// taken in order from `flat`; `centers` as leafCenters.
+template <typename Octree>
+inline void leafIndices(Octree& octree, std::vector<int>& flat,
+                        std::vector<int>& counts, std::vector<float>& centers) {
+    flat.clear();
+    counts.clear();
+    for (auto it = octree.leaf_depth_begin(); it != octree.leaf_depth_end();
+         ++it) {
+        pcl::Indices indices;
+        it.getLeafContainer().getPointIndices(indices);
+        counts.push_back(static_cast<int>(indices.size()));
+        flat.insert(flat.end(), indices.begin(), indices.end());
+    }
+    leafCenters(octree, centers);
+}
+
+/// The voxel adjacency OctreePointCloudAdjacency computed: one entry per
+/// leaf (its centre and point count) and each neighbour pair once.
+inline void adjacencyGraph(AdjacencyOctree& octree, std::vector<float>& centers,
+                           std::vector<int>& counts, std::vector<int>& edges) {
+    using Container = AdjacencyOctree::LeafContainer;
+    std::map<const Container*, int> ids;
+    std::vector<const Container*> leaves;
+    counts.clear();
+    edges.clear();
+    for (auto it = octree.leaf_depth_begin(); it != octree.leaf_depth_end();
+         ++it) {
+        const Container* leaf = &it.getLeafContainer();
+        ids[leaf] = static_cast<int>(leaves.size());
+        leaves.push_back(leaf);
+        counts.push_back(static_cast<int>(leaf->getPointCounter()));
+    }
+    leafCenters(octree, centers);
+    for (std::size_t i = 0; i < leaves.size(); ++i) {
+        for (auto nb = leaves[i]->cbegin(); nb != leaves[i]->cend(); ++nb) {
+            const auto found = ids.find(*nb);
+            if (found != ids.end() && static_cast<int>(i) < found->second) {
+                edges.push_back(static_cast<int>(i));
+                edges.push_back(found->second);
+            }
+        }
+    }
 }
 
 }  // namespace pclcompat

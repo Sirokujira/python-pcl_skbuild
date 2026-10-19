@@ -70,3 +70,7 @@ cdef extern from "pcl/compat/range_image_args.h" namespace "pclcompat" nogil:
     void rangeImageBorderTraits(RangeImage& image, int pixel_radius_borders, float minimum_border_probability, vector[unsigned int]& out) except +
 
     int narfDescriptors(RangeImage& image, const vector[int]& indices, float support_size, bool rotation_invariant, vector[float]& out) except +
+
+    void bearingAngleImage(PointCloud[PointXYZ]& cloud, vector[unsigned char]& grey, unsigned int& width, unsigned int& height) except +
+
+    double bearingAngle(const PointXYZ& a, const PointXYZ& b) except +

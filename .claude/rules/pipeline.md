@@ -277,6 +277,18 @@ it with a duplicate centre of the same set. `CrfSegmentation` is not
 wrapped: its unary potentials land in the wrong slots and its output
 labels were wrong in every C++ run.
 
+The io batch: `saveIFSFile<PointXYZ>` writes `PCLPointCloud2::data`
+verbatim, PointXYZ's padding float included, while the reader takes 12
+bytes per vertex -- every point after the first comes back shifted
+(plain C++; same on master); `io_args.h` writes a packed blob through
+`IFSWriter` instead. `ImageGrabberBase::getCloudPCLZF` bounds-checks
+with `>` instead of `>=`; the shim checks first. And `ImageGrabber`
+projects each indexed frame with that frame's XML but never updates the
+intrinsics `getCameraIntrinsics` reports -- documented, not absorbed.
+PNG writing goes through VTK inside PCL and `png_io.h` is only installed
+when PCL had VTK, so the shim tests `__has_include` rather than the
+private `PCL_BUILT_WITH_VTK`.
+
 Not every quirk is worth absorbing, though. PCL's octree treats the FIRST
 point of a cloud specially: `voxelSearch` can miss it, and
 `getPointIndicesFromNewVoxels` reports index 0 as new even for an

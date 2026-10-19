@@ -6,7 +6,11 @@
 from libcpp cimport bool
 from libcpp.memory cimport shared_ptr
 from libcpp.vector cimport vector
+from pcl.pxd.octree.octree_pointcloud_adjacency cimport OctreePointCloudAdjacency
 from pcl.pxd.octree.octree_pointcloud_density cimport OctreePointCloudDensity
+from pcl.pxd.octree.octree_pointcloud_occupancy cimport OctreePointCloudOccupancy
+from pcl.pxd.octree.octree_pointcloud_pointvector cimport OctreePointCloudPointVector
+from pcl.pxd.octree.octree_pointcloud_singlepoint cimport OctreePointCloudSinglePoint
 from pcl.pxd.octree.octree_search cimport OctreePointCloudSearch
 from pcl.pxd.point_cloud cimport PointCloud
 from pcl.pxd.point_types cimport PointXYZ
@@ -33,3 +37,11 @@ cdef extern from "pcl/compat/octree_args.h" namespace "pclcompat" nogil:
     void occupiedVoxelCentersOf(const VoxelCentroidOctree& octree, vector[PointXYZ]& out) except +
 
     void occupiedVoxelCentersOf(const OctreePointCloudDensity[PointXYZ]& octree, vector[PointXYZ]& out) except +
+
+    void leafCenters(OctreePointCloudOccupancy[PointXYZ]& octree, vector[float]& centers) except +
+
+    void leafIndices(OctreePointCloudPointVector[PointXYZ]& octree, vector[int]& flat, vector[int]& counts, vector[float]& centers) except +
+
+    void leafIndices(OctreePointCloudSinglePoint[PointXYZ]& octree, vector[int]& flat, vector[int]& counts, vector[float]& centers) except +
+
+    void adjacencyGraph(OctreePointCloudAdjacency[PointXYZ]& octree, vector[float]& centers, vector[int]& counts, vector[int]& edges) except +

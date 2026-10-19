@@ -14,6 +14,7 @@ set(PCL_CYTHON_MODULES
     _segmentation
     _segmentation_extra
     _grabber
+    _io
     _octree
     _features
     _features_extra

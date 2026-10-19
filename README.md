@@ -227,7 +227,8 @@ converged, refined, _, _ = icp.icp(source.transform(transform), target)
 | recognition | `GeometricConsistencyGrouping`, `Hough3DGrouping`, `GreedyVerification`, `PapazovHV`, `pcl.match_descriptors` (FLANN) |
 | tracking | `ParticleFilterTracker`, `KLDAdaptiveParticleFilterTracker` |
 | people | `pcl.hog` / `pcl.hog_descriptor_size` |
-| sensors | `PCDGrabber`, `HDLGrabber` |
+| sensors | `PCDGrabber`, `HDLGrabber`, `VLPGrabber` (both replaying a .pcap), `ImageGrabber` (a directory of depth + colour images, PNG / TIFF or .pclzf, read by index) |
+| io | `pcl.load` / `pcl.save` for PCD, PLY, OBJ (vertices), IFS and x-y-z text (`pcl.load_ascii` for other separators); `pcl.load_mesh` for PLY, OBJ, IFS; `pcl.save_png`, `pcl.extract_image` (z / rgb / normal / curvature / intensity of an organized cloud), `pcl.label_image`, `pcl.lzf_compress` / `lzf_decompress`, `.pclzf` files (`write_pclzf_depth` / `_rgb` / `_parameters`, `read_pclzf_depth`, `read_pclzf`), `pcl.debayer` |
 
 The built artifacts are native extension modules (`_pointcloud`,
 `_filters`, `_kdtree`, `_segmentation`; `.so` on Linux/macOS, `.pyd` on
@@ -278,6 +279,19 @@ Windows) installed into the `pcl` package.
 - **`SACMODEL_TORUS`, `SACMODEL_PARALLEL_LINES`** — values of PCL's
   `SacModel` enum with no model class behind them anywhere in PCL.
   `SampleConsensusModel` refuses both with that reason.
+- **Live sensors** — `OpenNIGrabber`, `OpenNI2Grabber`, `ONIGrabber`,
+  `RealSenseGrabber`, `DinastGrabber`, `EnsensoGrabber`,
+  `DavidSDKGrabber`, `FotonicGrabber`, `RobotEyeGrabber`, `TimGrabber`
+  and the live-network `HDLGrabber` / `VLPGrabber` constructors each
+  need a device (or its vendor SDK at build time), so nothing here could
+  test them; `ONIGrabber` replays `.oni` files but only through the
+  OpenNI 1 runtime. Recorded data is covered: `.pcap` through
+  `HDLGrabber` / `VLPGrabber` (tested on a synthetic VLP-16 capture),
+  depth + colour images and `.pclzf` through `ImageGrabber`, PCD
+  sequences through `PCDGrabber`.
+- **`pcl/io/vtk_lib_io.h`** (`loadPolygonFile`, STL, VTK XML meshes) —
+  needs the VTK headers, like `pcl/visualization`; PLY, OBJ, IFS and
+  the legacy VTK writer cover meshes without them.
 - **`RangeImageSpherical` on Windows** — its constructor is inline, so
   its vtable is built in the caller's module, and that vtable needs
   `RangeImage::getSubImage` / `getHalfImage` (not exported from

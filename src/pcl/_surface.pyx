@@ -29,7 +29,8 @@ from pcl.pxd.surface.gp3 cimport (
     GreedyProjectionTriangulation as cGreedyProjectionTriangulation)
 from pcl.pxd.vertices cimport Vertices
 from pcl.pxd.compat.mesh_args cimport (
-    MESH_FORMAT_OBJ, MESH_FORMAT_PLY, MESH_FORMAT_VTK, loadMesh,
+    MESH_FORMAT_IFS, MESH_FORMAT_OBJ, MESH_FORMAT_PLY, MESH_FORMAT_VTK,
+    loadMesh,
     saveMesh)
 
 from pcl._pointcloud cimport PointCloud, wrap_cloud
@@ -746,15 +747,16 @@ cdef class Poisson:
 # reader lives in pcl/io/vtk_lib_io.h, which needs the VTK libraries —
 # the same dependency that keeps pcl/visualization out of this package.
 _MESH_FORMATS = {"ply": MESH_FORMAT_PLY, "obj": MESH_FORMAT_OBJ,
-                 "vtk": MESH_FORMAT_VTK}
-_MESH_READABLE = ("ply", "obj")
+                 "vtk": MESH_FORMAT_VTK, "ifs": MESH_FORMAT_IFS}
+_MESH_READABLE = ("ifs", "obj", "ply")
+_MESH_WRITABLE = ("obj", "ply", "vtk")
 
 
 cdef _mesh_format(path, format, readable):
     import os.path
     name = format if format is not None else os.path.splitext(str(path))[1][1:]
     name = name.lower()
-    allowed = _MESH_READABLE if readable else tuple(sorted(_MESH_FORMATS))
+    allowed = _MESH_READABLE if readable else _MESH_WRITABLE
     if name not in allowed:
         raise ValueError(
             "unsupported mesh format %r (%s: %s)"
@@ -794,7 +796,7 @@ def save_mesh(PointCloud cloud not None, polygons, path, format=None,
 
 
 def load_mesh(path, format=None):
-    """Read a mesh from *path* (.ply or .obj).
+    """Read a mesh from *path* (.ply, .obj or .ifs).
 
     Returns ``(cloud, polygons)`` in the same shape `save_mesh` takes and
     `reconstruct_with_polygons()` returns.

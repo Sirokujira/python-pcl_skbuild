@@ -176,6 +176,7 @@ namespaces = ["pclcompat"]
 extra_cimports = [
     "from pcl.pxd.point_cloud cimport PointCloud",
     "from pcl.pxd.compression.octree_pointcloud_compression cimport OctreePointCloudCompression",
+    "from pcl.pxd.point_types cimport PointXYZ, PointXYZRGBA",
 ]
 
 [[headers]]
@@ -232,6 +233,10 @@ extra_cimports = [
     "from pcl.pxd.octree.octree_search cimport OctreePointCloudSearch",
     "from pcl.pxd.point_cloud cimport PointCloud",
     "from pcl.pxd.octree.octree_pointcloud_density cimport OctreePointCloudDensity",
+    "from pcl.pxd.octree.octree_pointcloud_occupancy cimport OctreePointCloudOccupancy",
+    "from pcl.pxd.octree.octree_pointcloud_pointvector cimport OctreePointCloudPointVector",
+    "from pcl.pxd.octree.octree_pointcloud_singlepoint cimport OctreePointCloudSinglePoint",
+    "from pcl.pxd.octree.octree_pointcloud_adjacency cimport OctreePointCloudAdjacency",
 ]
 
 [[headers]]
@@ -286,4 +291,14 @@ extra_cimports = [
     "from pcl.pxd.point_indices cimport PointIndices",
     "from pcl.pxd.model_coefficients cimport ModelCoefficients",
     "from pcl.pxd.segmentation.organized_multi_plane_segmentation cimport OrganizedMultiPlaneSegmentation",
+]
+
+[[headers]]
+path = "headers/pcl/compat/io_args.h"
+extern_from = "pcl/compat/io_args.h"
+output = "../src/pcl/pxd/compat/io_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ, PointXYZRGB, PointXYZRGBA, PointXYZI, Normal",
+    "from pcl.pxd.point_cloud cimport PointCloud",
 ]

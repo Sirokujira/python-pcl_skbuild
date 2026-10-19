@@ -16,6 +16,8 @@ cdef extern from "pcl/compat/mesh_args.h" namespace "pclcompat" nogil:
 
     const int MESH_FORMAT_VTK
 
+    const int MESH_FORMAT_IFS
+
     int saveMesh(const string& path, const PointCloud[PointXYZ]& cloud, const vector[int]& indices, const vector[int]& counts, int format, bool binary) except +
 
     int loadMesh(const string& path, int format, PointCloud[PointXYZ]& out_cloud, vector[int]& out_indices, vector[int]& out_counts) except +

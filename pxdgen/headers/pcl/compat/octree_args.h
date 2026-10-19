@@ -15,7 +15,11 @@
 #include <memory>
 #include <vector>
 
+#include <pcl/octree/octree_pointcloud_adjacency.h>
 #include <pcl/octree/octree_pointcloud_density.h>
+#include <pcl/octree/octree_pointcloud_occupancy.h>
+#include <pcl/octree/octree_pointcloud_pointvector.h>
+#include <pcl/octree/octree_pointcloud_singlepoint.h>
 #include <pcl/octree/octree_search.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -61,5 +65,24 @@ void occupiedVoxelCentersOf(const VoxelCentroidOctree& octree,
 void occupiedVoxelCentersOf(
     const pcl::octree::OctreePointCloudDensity<pcl::PointXYZ>& octree,
     std::vector<pcl::PointXYZ>& out);
+
+// Leaf centres (3 floats each), and the point indices of every leaf:
+// counts[i] for leaf i, in order from flat. One overload per octree.
+void leafCenters(pcl::octree::OctreePointCloudOccupancy<pcl::PointXYZ>& octree,
+                 std::vector<float>& centers);
+void leafIndices(
+    pcl::octree::OctreePointCloudPointVector<pcl::PointXYZ>& octree,
+    std::vector<int>& flat, std::vector<int>& counts,
+    std::vector<float>& centers);
+void leafIndices(
+    pcl::octree::OctreePointCloudSinglePoint<pcl::PointXYZ>& octree,
+    std::vector<int>& flat, std::vector<int>& counts,
+    std::vector<float>& centers);
+
+// Leaf centres and point counts, and each neighbouring pair once.
+void adjacencyGraph(
+    pcl::octree::OctreePointCloudAdjacency<pcl::PointXYZ>& octree,
+    std::vector<float>& centers, std::vector<int>& counts,
+    std::vector<int>& edges);
 
 }  // namespace pclcompat

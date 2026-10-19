@@ -74,4 +74,10 @@ int narfDescriptors(pcl::RangeImage& image, const std::vector<int>& indices,
                     float support_size, bool rotation_invariant,
                     std::vector<float>& out);
 
+// pcl::BearingAngleImage grey levels (0..255 for 0..180 degrees).
+void bearingAngleImage(pcl::PointCloud<pcl::PointXYZ>& cloud,
+                       std::vector<unsigned char>& grey, unsigned int& width,
+                       unsigned int& height);
+double bearingAngle(const pcl::PointXYZ& a, const pcl::PointXYZ& b);
+
 }  // namespace pclcompat

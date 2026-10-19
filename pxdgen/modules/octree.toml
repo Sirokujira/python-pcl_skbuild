@@ -21,3 +21,34 @@ extern_from = "pcl/octree/octree_pointcloud_density.h"
 output = "../src/pcl/pxd/octree/octree_pointcloud_density.pxd"
 namespaces = ["pcl::octree"]
 extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/octree/octree_pointcloud_occupancy.h"
+extern_from = "pcl/octree/octree_pointcloud_occupancy.h"
+output = "../src/pcl/pxd/octree/octree_pointcloud_occupancy.pxd"
+namespaces = ["pcl::octree"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/octree/octree_pointcloud_pointvector.h"
+extern_from = "pcl/octree/octree_pointcloud_pointvector.h"
+output = "../src/pcl/pxd/octree/octree_pointcloud_pointvector.pxd"
+namespaces = ["pcl::octree"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/octree/octree_pointcloud_singlepoint.h"
+extern_from = "pcl/octree/octree_pointcloud_singlepoint.h"
+output = "../src/pcl/pxd/octree/octree_pointcloud_singlepoint.pxd"
+namespaces = ["pcl::octree"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/octree/octree_pointcloud_adjacency.h"
+extern_from = "pcl/octree/octree_pointcloud_adjacency.h"
+output = "../src/pcl/pxd/octree/octree_pointcloud_adjacency.pxd"
+namespaces = ["pcl::octree"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.point_types cimport PointXYZ",
+]

@@ -3,12 +3,22 @@
 
 # distutils: language = c++
 
+from libcpp cimport bool
 from libcpp.memory cimport shared_ptr
 from libcpp.string cimport string
 from pcl.pxd.compression.octree_pointcloud_compression cimport OctreePointCloudCompression
 from pcl.pxd.point_cloud cimport PointCloud
+from pcl.pxd.point_types cimport PointXYZ, PointXYZRGBA
 
 cdef extern from "pcl/compat/compression_args.h" namespace "pclcompat" nogil:
     string compressCloud[PointT](OctreePointCloudCompression[PointT]& codec, const shared_ptr[PointCloud[PointT]]& cloud) except +
 
     void decompressCloud[PointT](OctreePointCloudCompression[PointT]& codec, const string& data, PointCloud[PointT]& out) except +
+
+    string compressOrganized(const shared_ptr[PointCloud[PointXYZ]]& cloud, bool colour, bool mono, int png_level) except +
+
+    string compressOrganized(const shared_ptr[PointCloud[PointXYZRGBA]]& cloud, bool colour, bool mono, int png_level) except +
+
+    bool decompressOrganized(const string& data, PointCloud[PointXYZ]& out) except +
+
+    bool decompressOrganized(const string& data, PointCloud[PointXYZRGBA]& out) except +

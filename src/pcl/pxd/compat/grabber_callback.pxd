@@ -5,6 +5,7 @@
 
 from libcpp cimport bool
 from libcpp.memory cimport shared_ptr
+from libcpp.string cimport string
 from pcl.pxd.io.hdl_grabber cimport HDLGrabber
 from pcl.pxd.io.pcd_grabber cimport PCDGrabber
 from pcl.pxd.point_cloud cimport PointCloud
@@ -19,3 +20,5 @@ cdef extern from "pcl/compat/grabber_callback.h" namespace "pclcompat" nogil:
         void connect(HDLGrabber* grabber, CloudCallbackFn fn, void* user_data) except +
         void disconnect() except +
         bool connected() except +
+
+    HDLGrabber* newVLPGrabber(const string& pcap_file) except +

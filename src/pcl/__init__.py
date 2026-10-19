@@ -6,6 +6,7 @@ hand-written. The API follows sirokujira/python-pcl.
 """
 
 import contextlib
+import functools
 import gzip
 import os
 import os.path
@@ -203,7 +204,30 @@ from ._keypoints import (
     TOMASI,
     HarrisKeypoint3D,
 )
-from ._grabber import HDLGrabber, PCDGrabber
+from ._grabber import HDLGrabber, PCDGrabber, VLPGrabber
+from . import _io
+from ._io import (
+    IMAGE_COLORS_MONO,
+    IMAGE_COLORS_RGB_GLASBEY,
+    IMAGE_COLORS_RGB_RANDOM,
+    IMAGE_SCALING_FIXED_FACTOR,
+    IMAGE_SCALING_FULL_RANGE,
+    IMAGE_SCALING_NO,
+    ImageGrabber,
+    debayer,
+    extract_image,
+    have_png,
+    label_image,
+    load_ascii,
+    lzf_compress,
+    lzf_decompress,
+    read_pclzf,
+    read_pclzf_depth,
+    save_png,
+    write_pclzf_depth,
+    write_pclzf_parameters,
+    write_pclzf_rgb,
+)
 from ._people import hog, hog_descriptor_size
 from ._recognition import (
     GreedyVerification,
@@ -425,6 +449,26 @@ from ._segmentation import (
 )
 
 __all__ = [
+    "ImageGrabber",
+    "debayer",
+    "extract_image",
+    "have_png",
+    "label_image",
+    "load_ascii",
+    "lzf_compress",
+    "lzf_decompress",
+    "read_pclzf",
+    "read_pclzf_depth",
+    "save_png",
+    "write_pclzf_depth",
+    "write_pclzf_parameters",
+    "write_pclzf_rgb",
+    "IMAGE_COLORS_MONO",
+    "IMAGE_COLORS_RGB_GLASBEY",
+    "IMAGE_COLORS_RGB_RANDOM",
+    "IMAGE_SCALING_FIXED_FACTOR",
+    "IMAGE_SCALING_FULL_RANGE",
+    "IMAGE_SCALING_NO",
     "PointCloud", "PointCloudXYZ", "load", "save",
     "L_ALWAYS", "L_ERROR", "L_WARN", "L_INFO", "L_DEBUG", "L_VERBOSE",
     "get_verbosity_level", "set_verbosity_level",
@@ -456,7 +500,7 @@ __all__ = [
     "IterativeClosestPoint", "IterativeClosestPointNonLinear",
     "GeneralizedIterativeClosestPoint", "NormalDistributionsTransform",
     "SampleConsensusPrerejective",
-    "PCDGrabber", "HDLGrabber",
+    "PCDGrabber", "HDLGrabber", "VLPGrabber",
     "RangeImage", "CAMERA_FRAME", "LASER_FRAME",
     "GeometricConsistencyGrouping", "Hough3DGrouping", "match_descriptors",
     "transform_cloud",
@@ -600,11 +644,17 @@ __version__ = "0.1.0"
 _LOADERS = {"pcd": "_from_pcd_file", "ply": "_from_ply_file",
             "obj": "_from_obj_file"}
 _SAVERS = {"pcd": "_to_pcd_file", "ply": "_to_ply_file"}
+# Formats that hold x, y, z only: read into / written from a PointCloud
+# by a function in pcl._io.
+_XYZ_LOADERS = {"ifs": _io._read_ifs, "txt": _io._read_ascii,
+                "xyz": _io._read_ascii}
+_XYZ_SAVERS = {"ifs": _io._write_ifs}
 
 
 def load(path, format=None):
-    """Load a point cloud from *path* (.pcd, .ply or the vertices of an
-    .obj; ``format`` overrides the extension). Returns a :class:`PointCloud`.
+    """Load a point cloud from *path* (.pcd, .ply, the vertices of an
+    .obj or an .ifs, or x y z text in .txt / .xyz; ``format`` overrides
+    the extension). Returns a :class:`PointCloud`.
 
     A ``.gz`` suffix is decompressed transparently — PCL's readers take a
     filename and open it themselves, so a gzipped cloud is unreadable
@@ -640,36 +690,50 @@ def load_PointWithViewpoint(path, format=None):
 
 def _load(cls, path, format):
     fmt = _infer_format(path, format)
-    if fmt not in _LOADERS:
+    if fmt in _XYZ_LOADERS:
+        if cls is not PointCloud:
+            raise ValueError("%s files hold x, y, z only: load them with "
+                             "pcl.load" % fmt)
+        cloud = PointCloud()
+        reader = functools.partial(_XYZ_LOADERS[fmt], cloud)
+    elif fmt in _LOADERS:
+        cloud = cls()
+        reader = getattr(cloud, _LOADERS[fmt])
+    else:
         raise ValueError(
             "unsupported format %r (wrapped: %s)"
-            % (fmt, ", ".join(sorted(_LOADERS)))
+            % (fmt, ", ".join(sorted(set(_LOADERS) | set(_XYZ_LOADERS))))
         )
 
-    cloud = cls()
     if _is_gzipped(path, format):
         with _decompressed(path, fmt) as plain:
-            error = getattr(cloud, _LOADERS[fmt])(plain)
+            error = reader(plain)
     else:
-        error = getattr(cloud, _LOADERS[fmt])(path)
+        error = reader(path)
     if error:
         raise IOError("error while loading %s (code %d)" % (path, error))
     return cloud
 
 
 def save(cloud, path, format=None, binary=False):
-    """Save a cloud of any wrapped point type to *path* (.pcd or .ply;
-    ``format`` overrides the extension).
+    """Save a cloud of any wrapped point type to *path* (.pcd or .ply, or
+    .ifs for a :class:`PointCloud`; ``format`` overrides the extension).
 
     A ``.gz`` suffix compresses, mirroring :func:`load`.
     """
     fmt = _infer_format(path, format)
-    if fmt not in _SAVERS:
+    if fmt in _XYZ_SAVERS:
+        if not isinstance(cloud, PointCloud):
+            raise ValueError("%s files hold x, y, z only: save a PointCloud"
+                             % fmt)
+        writer = functools.partial(_XYZ_SAVERS[fmt], cloud)
+    elif fmt in _SAVERS:
+        writer = getattr(cloud, _SAVERS[fmt])
+    else:
         raise ValueError(
             "unsupported format %r (wrapped: %s)"
-            % (fmt, ", ".join(sorted(_SAVERS)))
+            % (fmt, ", ".join(sorted(set(_SAVERS) | set(_XYZ_SAVERS))))
         )
-    writer = getattr(cloud, _SAVERS[fmt])
     if _is_gzipped(path, format):
         error = _save_gzipped(writer, path, fmt, binary)
     else:

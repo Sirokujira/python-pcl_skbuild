@@ -24,6 +24,7 @@
 #include <pcl/keypoints/narf_keypoint.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+#include <pcl/range_image/bearing_angle_image.h>
 #include <pcl/range_image/range_image.h>
 #include <pcl/range_image/range_image_planar.h>
 #include <pcl/range_image/range_image_spherical.h>
@@ -262,6 +263,30 @@ inline int narfDescriptors(pcl::RangeImage& image,
         }
     }
     return static_cast<int>(features.size());
+}
+
+// --- bearing angle images ---------------------------------------------------
+
+/// pcl::BearingAngleImage of an organized cloud: per pixel, the angle
+/// between the laser beam and the surface step to its neighbour, as a
+/// grey level (0..255 for 0..180 degrees), one byte per pixel.
+inline void bearingAngleImage(pcl::PointCloud<pcl::PointXYZ>& cloud,
+                              std::vector<unsigned char>& grey,
+                              unsigned int& width, unsigned int& height) {
+    pcl::BearingAngleImage image;
+    image.generateBAImage(cloud);
+    width = image.width;
+    height = image.height;
+    grey.resize(image.size());
+    for (std::size_t i = 0; i < image.size(); ++i) {
+        grey[i] = image[i].r;
+    }
+}
+
+/// BearingAngleImage::getAngle, in degrees.
+inline double bearingAngle(const pcl::PointXYZ& a, const pcl::PointXYZ& b) {
+    pcl::BearingAngleImage image;
+    return image.getAngle(a, b);
 }
 
 }  // namespace pclcompat

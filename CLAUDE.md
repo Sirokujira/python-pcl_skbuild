@@ -107,7 +107,9 @@ pipeline functions (`pcl.estimate_correspondences*`, `reject_*`,
 `OrganizedNeighbor`, octree ray casting, `OctreePointCloudVoxelCentroid`,
 `OctreePointCloudDensity`, `RangeImagePlanar`, `RangeImageSpherical`,
 `RangeImageBorderExtractor`, `NarfDescriptor`, `pcl.hog`, and the sensor
-side: `PCDGrabber`, `HDLGrabber`. Names follow
+side: `PCDGrabber`, `HDLGrabber`, `VLPGrabber`, `ImageGrabber`; plus the
+file formats and image helpers in `_io` (IFS, ASCII, PNG, image
+extraction, LZF / .pclzf, debayering). Names follow
 [sirokujira/python-pcl](https://github.com/sirokujira/python-pcl),
 including the `cloud.make_*()` factory methods.
 

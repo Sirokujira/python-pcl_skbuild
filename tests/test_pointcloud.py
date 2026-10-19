@@ -169,6 +169,6 @@ def test_load_missing_file_raises(tmp_path):
 
 def test_unsupported_format_raises(tmp_path):
     with pytest.raises(ValueError):
-        pcl.load(str(tmp_path / "cloud.xyz"))
+        pcl.load(str(tmp_path / "cloud.abc"))
     with pytest.raises(ValueError):
         pcl.save(pcl.PointCloud(1), str(tmp_path / "cloud.obj"))
