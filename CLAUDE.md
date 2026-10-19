@@ -81,7 +81,11 @@ models, registration), `ExtractPolygonalPrismData`, `SegmentDifferences`,
 `MomentOfInertiaEstimation`, `MovingLeastSquares`, `ConcaveHull`,
 `ConvexHull`, `IterativeClosestPoint`,
 `IterativeClosestPointNonLinear`, `GeneralizedIterativeClosestPoint`,
-`NormalDistributionsTransform`, `SampleConsensusPrerejective`,
+`NormalDistributionsTransform`, `IterativeClosestPointWithNormals`,
+`SampleConsensusPrerejective`, `SampleConsensusInitialAlignment`,
+`FPCSInitialAlignment`, `KFPCSInitialAlignment`, the correspondence
+pipeline functions (`pcl.estimate_correspondences`, `reject_*`,
+`estimate_transformation`, `validate_transformation`),
 `Segmentation` (SAC),
 `EuclideanClusterExtraction`, `GeometricConsistencyGrouping`,
 `Hough3DGrouping`, `ParticleFilterTracker`, `pcl.hog`, and the sensor

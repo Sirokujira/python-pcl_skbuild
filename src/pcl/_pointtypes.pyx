@@ -1072,6 +1072,11 @@ cdef class PointCloud_PointNormal:
         from pcl._filters import SamplingSurfaceNormal
         return SamplingSurfaceNormal(self)
 
+    def make_IterativeClosestPointWithNormals(self):
+        """Return an IterativeClosestPointWithNormals."""
+        from pcl._registration import IterativeClosestPointWithNormals
+        return IterativeClosestPointWithNormals()
+
     def to_normal_cloud(self):
         """Return the normals alone as a :class:`PointCloud_Normal`."""
         cdef PointCloud_Normal result = PointCloud_Normal()

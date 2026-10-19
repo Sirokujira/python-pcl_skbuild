@@ -22,6 +22,10 @@ extern_from = "pcl/compat/eigen_results.h"
 output = "../src/pcl/pxd/compat/eigen_results.pxd"
 namespaces = ["pclcompat"]
 extra_cimports = [
+    "from pcl.pxd.point_types cimport PointNormal",
+    "from pcl.pxd.registration.icp cimport IterativeClosestPointWithNormals",
+    "from pcl.pxd.registration.ia_fpcs cimport FPCSInitialAlignment",
+    "from pcl.pxd.registration.ia_kfpcs cimport KFPCSInitialAlignment",
     "from pcl.pxd.point_types cimport PointXYZ",
     "from pcl.pxd.registration.icp cimport IterativeClosestPoint",
     "from pcl.pxd.registration.icp_nl cimport IterativeClosestPointNonLinear",
@@ -188,4 +192,14 @@ namespaces = ["pclcompat"]
 extra_cimports = [
     "from pcl.pxd.point_cloud cimport PointCloud",
     "from pcl.pxd.segmentation.supervoxel_clustering cimport SupervoxelClustering",
+]
+
+[[headers]]
+path = "headers/pcl/compat/registration_args.h"
+extern_from = "pcl/compat/registration_args.h"
+output = "../src/pcl/pxd/compat/registration_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.point_types cimport PointXYZ, Normal",
 ]

@@ -614,6 +614,21 @@ cdef class PointCloud:
         from pcl._segmentation import SupervoxelClusteringXYZ
         return SupervoxelClusteringXYZ(voxel_resolution, seed_resolution, self)
 
+    def make_SampleConsensusInitialAlignment(self):
+        """Return a SampleConsensusInitialAlignment (SAC-IA)."""
+        from pcl._registration import SampleConsensusInitialAlignment
+        return SampleConsensusInitialAlignment()
+
+    def make_FPCSInitialAlignment(self):
+        """Return an FPCSInitialAlignment."""
+        from pcl._registration import FPCSInitialAlignment
+        return FPCSInitialAlignment()
+
+    def make_KFPCSInitialAlignment(self):
+        """Return a KFPCSInitialAlignment."""
+        from pcl._registration import KFPCSInitialAlignment
+        return KFPCSInitialAlignment()
+
     def make_PrincipalCurvaturesEstimation(self):
         """Return a PrincipalCurvaturesEstimation with this cloud as input."""
         from pcl._features import PrincipalCurvaturesEstimation

@@ -105,7 +105,7 @@ extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
 
 [[headers]]
 path = "headers/pcl/segmentation/seeded_hue_segmentation.h"
-extern_from = "pcl/segmentation/seeded_hue_segmentation.h"
+extern_from = "pcl/compat/seeded_hue.h"
 output = "../src/pcl/pxd/segmentation/seeded_hue_segmentation.pxd"
 namespaces = ["pcl"]
 extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud", "from pcl.pxd.point_indices cimport PointIndices", "from pcl.pxd.point_types cimport PointXYZRGB"]

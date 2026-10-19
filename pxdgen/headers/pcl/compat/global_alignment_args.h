@@ -31,4 +31,16 @@ bool globalAlignment(const std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>& sour
                      std::vector<int>& out_inliers,
                      double* out_fitness);
 
+// SampleConsensusInitialAlignment (SAC-IA) on the same FPFH currency.
+bool initialAlignment(const std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>& source,
+                      const std::vector<float>& source_features,
+                      const std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>& target,
+                      const std::vector<float>& target_features,
+                      float min_sample_distance,
+                      float max_correspondence_distance,
+                      int max_iterations, int number_of_samples,
+                      int correspondence_randomness,
+                      pcl::PointCloud<pcl::PointXYZ>& out_aligned,
+                      float* out_matrix16, double* out_fitness);
+
 }  // namespace pclcompat

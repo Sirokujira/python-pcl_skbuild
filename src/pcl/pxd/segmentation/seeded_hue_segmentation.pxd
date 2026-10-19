@@ -8,7 +8,7 @@ from pcl.pxd.point_cloud cimport PointCloud
 from pcl.pxd.point_indices cimport PointIndices
 from pcl.pxd.point_types cimport PointXYZRGB
 
-cdef extern from "pcl/segmentation/seeded_hue_segmentation.h" namespace "pcl" nogil:
+cdef extern from "pcl/compat/seeded_hue.h" namespace "pcl" nogil:
     cdef cppclass SeededHueSegmentation:
         SeededHueSegmentation() except +
         void setInputCloud(const shared_ptr[PointCloud[PointXYZRGB]]& cloud) except +

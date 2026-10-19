@@ -21,6 +21,7 @@
 #include <pcl/features/fpfh.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+#include <pcl/registration/ia_ransac.h>
 #include <pcl/registration/sample_consensus_prerejective.h>
 
 namespace pclcompat {
@@ -91,6 +92,36 @@ inline bool globalAlignment(const std::shared_ptr<Cloud>& source,
     // getFitnessScore() searches the target tree, so it is only
     // meaningful once something converged; PCL returns a huge number
     // otherwise and the wrapper passes that through unchanged.
+    *out_fitness = align.getFitnessScore();
+    return align.hasConverged();
+}
+
+inline bool initialAlignment(const std::shared_ptr<Cloud>& source,
+                             const std::vector<float>& source_features,
+                             const std::shared_ptr<Cloud>& target,
+                             const std::vector<float>& target_features,
+                             float min_sample_distance,
+                             float max_correspondence_distance,
+                             int max_iterations, int number_of_samples,
+                             int correspondence_randomness,
+                             Cloud& out_aligned, float* out_matrix16,
+                             double* out_fitness) {
+    pcl::SampleConsensusInitialAlignment<Point, Point, pcl::FPFHSignature33> align;
+    align.setInputSource(source);
+    align.setSourceFeatures(featureCloud(source_features));
+    align.setInputTarget(target);
+    align.setTargetFeatures(featureCloud(target_features));
+    align.setMinSampleDistance(min_sample_distance);
+    align.setMaxCorrespondenceDistance(max_correspondence_distance);
+    align.setMaximumIterations(max_iterations);
+    align.setNumberOfSamples(number_of_samples);
+    align.setCorrespondenceRandomness(correspondence_randomness);
+    align.align(out_aligned);
+    const Eigen::Matrix4f m = align.getFinalTransformation();
+    const float* data = m.data();
+    for (int i = 0; i < 16; ++i) {
+        out_matrix16[i] = data[i];
+    }
     *out_fitness = align.getFitnessScore();
     return align.hasConverged();
 }

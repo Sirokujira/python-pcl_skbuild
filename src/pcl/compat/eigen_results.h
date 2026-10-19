@@ -25,6 +25,8 @@
 #include <pcl/registration/icp.h>
 #include <pcl/registration/icp_nl.h>
 #include <pcl/registration/ndt.h>
+#include <pcl/registration/ia_fpcs.h>
+#include <pcl/registration/ia_kfpcs.h>
 
 #include <vector>
 
@@ -64,6 +66,22 @@ inline void finalTransformation(
 
 inline void finalTransformation(
         pcl::NormalDistributionsTransform<Point, Point>& reg, float* out16) {
+    copyTransform(reg, out16);
+}
+
+inline void finalTransformation(
+        pcl::IterativeClosestPointWithNormals<pcl::PointNormal, pcl::PointNormal>& reg,
+        float* out16) {
+    copyTransform(reg, out16);
+}
+
+inline void finalTransformation(
+        pcl::registration::FPCSInitialAlignment<Point, Point>& reg, float* out16) {
+    copyTransform(reg, out16);
+}
+
+inline void finalTransformation(
+        pcl::registration::KFPCSInitialAlignment<Point, Point>& reg, float* out16) {
     copyTransform(reg, out16);
 }
 
