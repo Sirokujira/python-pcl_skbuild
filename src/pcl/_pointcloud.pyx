@@ -20,11 +20,14 @@ from cython.operator cimport dereference as deref
 from libcpp cimport bool as cbool
 from libcpp.memory cimport shared_ptr
 from libcpp.string cimport string
+from libcpp.vector cimport vector
 
 from pcl.pxd.point_types cimport PointXYZ
 from pcl.pxd.point_cloud cimport PointCloud as cPointCloud
 from pcl.pxd.io.pcd_io cimport loadPCDFile, savePCDFile
 from pcl.pxd.io.ply_io cimport loadPLYFile, savePLYFile
+from pcl.pxd.io.obj_io cimport loadOBJFile
+from pcl.pxd.filters.filter cimport removeNaNFromPointCloud
 from pcl.pxd.compat.transform_args cimport isRigidTransform, transformCloud
 
 
@@ -315,6 +318,42 @@ cdef class PointCloud:
             error = loadPLYFile[PointXYZ](s, deref(c))
         return error
 
+    def _from_obj_file(self, path):
+        """Fill this cloud from the vertices of an .obj file; returns
+        PCL's error code."""
+        cdef string s = _topath(path)
+        cdef cPointCloud[PointXYZ]* c = self.ptr()
+        cdef int error
+        with nogil:
+            error = loadOBJFile[PointXYZ](s, deref(c))
+        return error
+
+    def remove_nan(self):
+        """Return ``(cloud, indices)``: a copy without the NaN points and
+        the original index of every point kept
+        (pcl::removeNaNFromPointCloud).
+
+        PCL skips the check entirely for a cloud flagged `is_dense`, the
+        flag `from_array` sets, so the flag is cleared for the duration
+        of the call; the copy comes back flagged dense, as PCL leaves it.
+        """
+        cdef PointCloud result = PointCloud()
+        cdef vector[int] kept
+        cdef cPointCloud[PointXYZ]* src = self.ptr()
+        cdef cPointCloud[PointXYZ]* dst = result.ptr()
+        cdef bint was_dense = src.is_dense
+        src.is_dense = False
+        try:
+            with nogil:
+                removeNaNFromPointCloud[PointXYZ](deref(src), deref(dst), kept)
+        finally:
+            src.is_dense = was_dense
+        cdef list indices = []
+        cdef size_t i
+        for i in range(kept.size()):
+            indices.append(kept[i])
+        return result, indices
+
     def _to_ply_file(self, path, cbool binary=False):
         """Write this cloud to a .ply file; returns PCL's error code."""
         cdef string s = _topath(path)
@@ -513,6 +552,41 @@ cdef class PointCloud:
         `set_InputCloud(cloud, normals)`."""
         from pcl._surface import MarchingCubesRBF
         return MarchingCubesRBF(self)
+
+    def make_ShadowPoints(self):
+        """Return a ShadowPoints filter with this cloud as input."""
+        from pcl._filters import ShadowPoints
+        return ShadowPoints(self)
+
+    def make_NormalSpaceSampling(self):
+        """Return a NormalSpaceSampling filter with this cloud as input."""
+        from pcl._filters import NormalSpaceSampling
+        return NormalSpaceSampling(self)
+
+    def make_GridMinimum(self, float resolution):
+        """Return a GridMinimum filter with this cloud as input."""
+        from pcl._filters import GridMinimum
+        return GridMinimum(resolution, self)
+
+    def make_LocalMaximum(self):
+        """Return a LocalMaximum filter with this cloud as input."""
+        from pcl._filters import LocalMaximum
+        return LocalMaximum(self)
+
+    def make_FrustumCulling(self):
+        """Return a FrustumCulling filter with this cloud as input."""
+        from pcl._filters import FrustumCulling
+        return FrustumCulling(self)
+
+    def make_MedianFilter(self):
+        """Return a MedianFilter with this (organized) cloud as input."""
+        from pcl._filters import MedianFilter
+        return MedianFilter(self)
+
+    def make_ModelOutlierRemoval(self):
+        """Return a ModelOutlierRemoval filter with this cloud as input."""
+        from pcl._filters import ModelOutlierRemoval
+        return ModelOutlierRemoval(self)
 
     def make_NormalEstimation(self):
         """Return a NormalEstimation with this cloud as input."""

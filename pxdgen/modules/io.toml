@@ -32,3 +32,10 @@ path = "headers/pcl/io/hdl_grabber.h"
 extern_from = "pcl/io/hdl_grabber.h"
 output = "../src/pcl/pxd/io/hdl_grabber.pxd"
 namespaces = ["pcl"]
+
+[[headers]]
+path = "headers/pcl/io/obj_io.h"
+extern_from = "pcl/io/obj_io.h"
+output = "../src/pcl/pxd/io/obj_io.pxd"
+namespaces = ["pcl::io"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]

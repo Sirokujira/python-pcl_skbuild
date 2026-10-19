@@ -28,6 +28,13 @@ from pcl.pxd.octree.octree_pointcloud_changedetector cimport (
 from pcl.pxd.compat.eigen_results cimport occupiedVoxelCenters
 
 from pcl._pointcloud cimport PointCloud
+from libcpp.string cimport string
+from pcl.pxd.point_types cimport PointXYZRGB
+from pcl.pxd.compression.octree_pointcloud_compression cimport (
+    OctreePointCloudCompression as cOctreePointCloudCompression)
+cimport pcl.pxd.compression.compression_profiles as profiles
+from pcl.pxd.compat.compression_args cimport compressCloud, decompressCloud
+from pcl._pointtypes cimport PointCloud_PointXYZRGB
 
 
 cdef class OctreePointCloudSearch:
@@ -214,3 +221,152 @@ cdef class OctreePointCloudChangeDetector:
         cdef vector[int] indices
         self.me.getPointIndicesFromNewVoxels(indices, min_points_per_leaf)
         return [indices[i] for i in range(indices.size())]
+
+
+# Compression profiles, re-exported from the header so the values
+# cannot drift.
+LOW_RES_ONLINE_COMPRESSION_WITHOUT_COLOR = profiles.LOW_RES_ONLINE_COMPRESSION_WITHOUT_COLOR
+LOW_RES_ONLINE_COMPRESSION_WITH_COLOR = profiles.LOW_RES_ONLINE_COMPRESSION_WITH_COLOR
+MED_RES_ONLINE_COMPRESSION_WITHOUT_COLOR = profiles.MED_RES_ONLINE_COMPRESSION_WITHOUT_COLOR
+MED_RES_ONLINE_COMPRESSION_WITH_COLOR = profiles.MED_RES_ONLINE_COMPRESSION_WITH_COLOR
+HIGH_RES_ONLINE_COMPRESSION_WITHOUT_COLOR = profiles.HIGH_RES_ONLINE_COMPRESSION_WITHOUT_COLOR
+HIGH_RES_ONLINE_COMPRESSION_WITH_COLOR = profiles.HIGH_RES_ONLINE_COMPRESSION_WITH_COLOR
+LOW_RES_OFFLINE_COMPRESSION_WITHOUT_COLOR = profiles.LOW_RES_OFFLINE_COMPRESSION_WITHOUT_COLOR
+LOW_RES_OFFLINE_COMPRESSION_WITH_COLOR = profiles.LOW_RES_OFFLINE_COMPRESSION_WITH_COLOR
+MED_RES_OFFLINE_COMPRESSION_WITHOUT_COLOR = profiles.MED_RES_OFFLINE_COMPRESSION_WITHOUT_COLOR
+MED_RES_OFFLINE_COMPRESSION_WITH_COLOR = profiles.MED_RES_OFFLINE_COMPRESSION_WITH_COLOR
+HIGH_RES_OFFLINE_COMPRESSION_WITHOUT_COLOR = profiles.HIGH_RES_OFFLINE_COMPRESSION_WITHOUT_COLOR
+HIGH_RES_OFFLINE_COMPRESSION_WITH_COLOR = profiles.HIGH_RES_OFFLINE_COMPRESSION_WITH_COLOR
+MANUAL_CONFIGURATION = profiles.MANUAL_CONFIGURATION
+
+cdef class OctreePointCloudCompression:
+    """Octree point cloud compression (pcl::io::OctreePointCloudCompression)
+    for :class:`PointCloud`.
+
+    `encode()` turns a cloud into bytes and `decode()` turns them back.
+    The codec is STATEFUL -- frames after the first are coded as
+    differences every `iframe_rate` frames -- so use one instance to
+    encode a stream and a separate one to decode it, in order. Positions
+    come back quantised to `point_resolution`.
+
+    Profiles (`pcl.MED_RES_ONLINE_COMPRESSION_WITHOUT_COLOR`, ...) fix the
+    resolutions; `pcl.MANUAL_CONFIGURATION` uses the arguments instead.
+    """
+
+    cdef cOctreePointCloudCompression[PointXYZ]* me
+
+    def __cinit__(self, int profile=-1, bint show_statistics=False,
+                  double point_resolution=0.001,
+                  double octree_resolution=0.01,
+                  bint voxel_grid_downsampling=False,
+                  unsigned int iframe_rate=30, bint color_encoding=True,
+                  int color_bit_resolution=6):
+        if profile == -1:
+            profile = profiles.MED_RES_ONLINE_COMPRESSION_WITHOUT_COLOR
+        # COMPRESSION_PROFILE_COUNT sits between the profiles and
+        # MANUAL_CONFIGURATION; PCL indexes its profile table with any
+        # other value unchecked.
+        if (not profiles.LOW_RES_ONLINE_COMPRESSION_WITHOUT_COLOR <= profile
+                <= profiles.MANUAL_CONFIGURATION
+                or profile == profiles.COMPRESSION_PROFILE_COUNT):
+            raise ValueError("unknown compression profile %d" % profile)
+        if point_resolution <= 0 or octree_resolution <= 0:
+            raise ValueError("resolutions must be positive")
+        if not 1 <= color_bit_resolution <= 8:
+            raise ValueError("color_bit_resolution must be 1..8")
+        self.me = new cOctreePointCloudCompression[PointXYZ](
+            <profiles.compression_Profiles_e> profile, show_statistics,
+            point_resolution, octree_resolution, voxel_grid_downsampling,
+            iframe_rate, color_encoding,
+            <unsigned char> color_bit_resolution)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def encode(self, PointCloud cloud not None):
+        """Return the cloud compressed, as bytes."""
+        if cloud.size == 0:
+            raise ValueError("cannot encode an empty cloud")
+        cdef string data
+        data = compressCloud[PointXYZ](deref(self.me), cloud.thisptr_shared)
+        return <bytes> data
+
+    def decode(self, data):
+        """Return the cloud `encode()` produced from *data* (bytes)."""
+        if not isinstance(data, (bytes, bytearray)):
+            raise TypeError("expected bytes, got %s" % type(data).__name__)
+        cdef string s = bytes(data)
+        if s.empty():
+            raise ValueError("cannot decode an empty buffer")
+        cdef PointCloud cloud = PointCloud()
+        cdef cPointCloud[PointXYZ]* out = cloud.ptr()
+        decompressCloud[PointXYZ](deref(self.me), s, deref(out))
+        return cloud
+
+
+cdef class OctreePointCloudCompressionRGB:
+    """Octree point cloud compression (pcl::io::OctreePointCloudCompression)
+    for :class:`PointCloud_PointXYZRGB`, colour included
+    (`color_bit_resolution` bits per channel).
+
+    `encode()` turns a cloud into bytes and `decode()` turns them back.
+    The codec is STATEFUL -- frames after the first are coded as
+    differences every `iframe_rate` frames -- so use one instance to
+    encode a stream and a separate one to decode it, in order. Positions
+    come back quantised to `point_resolution`.
+
+    Profiles (`pcl.MED_RES_ONLINE_COMPRESSION_WITHOUT_COLOR`, ...) fix the
+    resolutions; `pcl.MANUAL_CONFIGURATION` uses the arguments instead.
+    """
+
+    cdef cOctreePointCloudCompression[PointXYZRGB]* me
+
+    def __cinit__(self, int profile=-1, bint show_statistics=False,
+                  double point_resolution=0.001,
+                  double octree_resolution=0.01,
+                  bint voxel_grid_downsampling=False,
+                  unsigned int iframe_rate=30, bint color_encoding=True,
+                  int color_bit_resolution=6):
+        if profile == -1:
+            profile = profiles.MED_RES_ONLINE_COMPRESSION_WITH_COLOR
+        # COMPRESSION_PROFILE_COUNT sits between the profiles and
+        # MANUAL_CONFIGURATION; PCL indexes its profile table with any
+        # other value unchecked.
+        if (not profiles.LOW_RES_ONLINE_COMPRESSION_WITHOUT_COLOR <= profile
+                <= profiles.MANUAL_CONFIGURATION
+                or profile == profiles.COMPRESSION_PROFILE_COUNT):
+            raise ValueError("unknown compression profile %d" % profile)
+        if point_resolution <= 0 or octree_resolution <= 0:
+            raise ValueError("resolutions must be positive")
+        if not 1 <= color_bit_resolution <= 8:
+            raise ValueError("color_bit_resolution must be 1..8")
+        self.me = new cOctreePointCloudCompression[PointXYZRGB](
+            <profiles.compression_Profiles_e> profile, show_statistics,
+            point_resolution, octree_resolution, voxel_grid_downsampling,
+            iframe_rate, color_encoding,
+            <unsigned char> color_bit_resolution)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def encode(self, PointCloud_PointXYZRGB cloud not None):
+        """Return the cloud compressed, as bytes."""
+        if cloud.size == 0:
+            raise ValueError("cannot encode an empty cloud")
+        cdef string data
+        data = compressCloud[PointXYZRGB](deref(self.me), cloud.thisptr_shared)
+        return <bytes> data
+
+    def decode(self, data):
+        """Return the cloud `encode()` produced from *data* (bytes)."""
+        if not isinstance(data, (bytes, bytearray)):
+            raise TypeError("expected bytes, got %s" % type(data).__name__)
+        cdef string s = bytes(data)
+        if s.empty():
+            raise ValueError("cannot decode an empty buffer")
+        cdef PointCloud_PointXYZRGB cloud = PointCloud_PointXYZRGB()
+        cdef cPointCloud[PointXYZRGB]* out = cloud.ptr()
+        decompressCloud[PointXYZRGB](deref(self.me), s, deref(out))
+        return cloud

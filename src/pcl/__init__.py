@@ -74,7 +74,25 @@ from ._features import (
     NormalEstimation,
     VFHEstimation,
 )
-from ._octree import OctreePointCloudChangeDetector, OctreePointCloudSearch
+from ._octree import (
+    OctreePointCloudChangeDetector,
+    OctreePointCloudSearch,
+    OctreePointCloudCompression,
+    OctreePointCloudCompressionRGB,
+    LOW_RES_ONLINE_COMPRESSION_WITHOUT_COLOR,
+    LOW_RES_ONLINE_COMPRESSION_WITH_COLOR,
+    MED_RES_ONLINE_COMPRESSION_WITHOUT_COLOR,
+    MED_RES_ONLINE_COMPRESSION_WITH_COLOR,
+    HIGH_RES_ONLINE_COMPRESSION_WITHOUT_COLOR,
+    HIGH_RES_ONLINE_COMPRESSION_WITH_COLOR,
+    LOW_RES_OFFLINE_COMPRESSION_WITHOUT_COLOR,
+    LOW_RES_OFFLINE_COMPRESSION_WITH_COLOR,
+    MED_RES_OFFLINE_COMPRESSION_WITHOUT_COLOR,
+    MED_RES_OFFLINE_COMPRESSION_WITH_COLOR,
+    HIGH_RES_OFFLINE_COMPRESSION_WITHOUT_COLOR,
+    HIGH_RES_OFFLINE_COMPRESSION_WITH_COLOR,
+    MANUAL_CONFIGURATION,
+)
 from ._registration import (
     GeneralizedIterativeClosestPoint,
     IterativeClosestPoint,
@@ -94,6 +112,15 @@ from ._surface import (
     save_mesh,
 )
 from ._filters import (
+    BilateralFilter,
+    FrustumCulling,
+    GridMinimum,
+    LocalMaximum,
+    MedianFilter,
+    ModelOutlierRemoval,
+    NormalSpaceSampling,
+    SamplingSurfaceNormal,
+    ShadowPoints,
     ApproximateVoxelGrid,
     CompareOp_EQ,
     CompareOp_GE,
@@ -228,6 +255,23 @@ __all__ = [
     "RegionGrowing", "RegionGrowingRGB",
     "BoundaryEstimation", "ESFEstimation", "CVFHEstimation", "Poisson",
     "MarchingCubesHoppe", "MarchingCubesRBF",
+    "ShadowPoints", "NormalSpaceSampling", "SamplingSurfaceNormal",
+    "GridMinimum", "LocalMaximum", "FrustumCulling", "MedianFilter",
+    "BilateralFilter", "ModelOutlierRemoval",
+    "OctreePointCloudCompression", "OctreePointCloudCompressionRGB",
+    "LOW_RES_ONLINE_COMPRESSION_WITHOUT_COLOR",
+    "LOW_RES_ONLINE_COMPRESSION_WITH_COLOR",
+    "MED_RES_ONLINE_COMPRESSION_WITHOUT_COLOR",
+    "MED_RES_ONLINE_COMPRESSION_WITH_COLOR",
+    "HIGH_RES_ONLINE_COMPRESSION_WITHOUT_COLOR",
+    "HIGH_RES_ONLINE_COMPRESSION_WITH_COLOR",
+    "LOW_RES_OFFLINE_COMPRESSION_WITHOUT_COLOR",
+    "LOW_RES_OFFLINE_COMPRESSION_WITH_COLOR",
+    "MED_RES_OFFLINE_COMPRESSION_WITHOUT_COLOR",
+    "MED_RES_OFFLINE_COMPRESSION_WITH_COLOR",
+    "HIGH_RES_OFFLINE_COMPRESSION_WITHOUT_COLOR",
+    "HIGH_RES_OFFLINE_COMPRESSION_WITH_COLOR",
+    "MANUAL_CONFIGURATION",
     "ConditionalEuclideanClustering",
     "SAC_RANSAC", "SAC_LMEDS", "SAC_MSAC", "SAC_RRANSAC", "SAC_RMSAC",
     "SAC_MLESAC", "SAC_PROSAC",
@@ -244,13 +288,14 @@ __all__ = [
 __version__ = "0.1.0"
 
 
-_LOADERS = {"pcd": "_from_pcd_file", "ply": "_from_ply_file"}
+_LOADERS = {"pcd": "_from_pcd_file", "ply": "_from_ply_file",
+            "obj": "_from_obj_file"}
 _SAVERS = {"pcd": "_to_pcd_file", "ply": "_to_ply_file"}
 
 
 def load(path, format=None):
-    """Load a point cloud from *path* (.pcd or .ply; ``format`` overrides
-    the extension). Returns a :class:`PointCloud`.
+    """Load a point cloud from *path* (.pcd, .ply or the vertices of an
+    .obj; ``format`` overrides the extension). Returns a :class:`PointCloud`.
 
     A ``.gz`` suffix is decompressed transparently — PCL's readers take a
     filename and open it themselves, so a gzipped cloud is unreadable

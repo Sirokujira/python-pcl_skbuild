@@ -38,6 +38,7 @@ from pcl._pointcloud cimport PointCloud
 from pcl.pxd.point_cloud cimport PointCloud as cPointCloud
 from pcl.pxd.io.pcd_io cimport loadPCDFile, savePCDFile
 from pcl.pxd.io.ply_io cimport loadPLYFile, savePLYFile
+from pcl.pxd.io.obj_io cimport loadOBJFile
 from pcl.pxd.compat.transform_args cimport (
     isRigidTransform, transformCloud)
 
@@ -99,6 +100,11 @@ cdef class PointCloud_PointXYZI:
         c.resize(<size_t> count)
         c.width = count
         c.height = 1
+
+    def make_BilateralFilter(self):
+        """Return a BilateralFilter with this cloud as input."""
+        from pcl._filters import BilateralFilter
+        return BilateralFilter(self)
 
     def from_array(self, float[:, :] arr not None):
         """Fill from an ``(n, 4)`` float32 array: x, y, z, intensity."""
@@ -186,6 +192,14 @@ cdef class PointCloud_PointXYZI:
         cdef int error
         with nogil:
             error = loadPLYFile[PointXYZI](s, deref(c))
+        return error
+
+    def _from_obj_file(self, path):
+        cdef string s = _topath(path)
+        cdef cPointCloud[PointXYZI]* c = self.ptr()
+        cdef int error
+        with nogil:
+            error = loadOBJFile[PointXYZI](s, deref(c))
         return error
 
     def _to_ply_file(self, path, cbool binary=False):
@@ -412,6 +426,14 @@ cdef class PointCloud_PointXYZRGB:
             error = loadPLYFile[PointXYZRGB](s, deref(c))
         return error
 
+    def _from_obj_file(self, path):
+        cdef string s = _topath(path)
+        cdef cPointCloud[PointXYZRGB]* c = self.ptr()
+        cdef int error
+        with nogil:
+            error = loadOBJFile[PointXYZRGB](s, deref(c))
+        return error
+
     def _to_ply_file(self, path, cbool binary=False):
         cdef string s = _topath(path)
         cdef cPointCloud[PointXYZRGB]* c = self.ptr()
@@ -627,6 +649,14 @@ cdef class PointCloud_PointXYZRGBA:
         cdef int error
         with nogil:
             error = loadPLYFile[PointXYZRGBA](s, deref(c))
+        return error
+
+    def _from_obj_file(self, path):
+        cdef string s = _topath(path)
+        cdef cPointCloud[PointXYZRGBA]* c = self.ptr()
+        cdef int error
+        with nogil:
+            error = loadOBJFile[PointXYZRGBA](s, deref(c))
         return error
 
     def _to_ply_file(self, path, cbool binary=False):
@@ -916,6 +946,14 @@ cdef class PointCloud_PointNormal:
             error = loadPLYFile[PointNormal](s, deref(c))
         return error
 
+    def _from_obj_file(self, path):
+        cdef string s = _topath(path)
+        cdef cPointCloud[PointNormal]* c = self.ptr()
+        cdef int error
+        with nogil:
+            error = loadOBJFile[PointNormal](s, deref(c))
+        return error
+
     def _to_ply_file(self, path, cbool binary=False):
         cdef string s = _topath(path)
         cdef cPointCloud[PointNormal]* c = self.ptr()
@@ -1002,6 +1040,11 @@ cdef class PointCloud_PointNormal:
         input."""
         from pcl._surface import MarchingCubesRBF
         return MarchingCubesRBF(self)
+
+    def make_SamplingSurfaceNormal(self):
+        """Return a SamplingSurfaceNormal filter with this cloud as input."""
+        from pcl._filters import SamplingSurfaceNormal
+        return SamplingSurfaceNormal(self)
 
     def to_normal_cloud(self):
         """Return the normals alone as a :class:`PointCloud_Normal`."""
@@ -1173,6 +1216,14 @@ cdef class PointCloud_PointWithViewpoint:
         cdef int error
         with nogil:
             error = loadPLYFile[PointWithViewpoint](s, deref(c))
+        return error
+
+    def _from_obj_file(self, path):
+        cdef string s = _topath(path)
+        cdef cPointCloud[PointWithViewpoint]* c = self.ptr()
+        cdef int error
+        with nogil:
+            error = loadOBJFile[PointWithViewpoint](s, deref(c))
         return error
 
     def _to_ply_file(self, path, cbool binary=False):
