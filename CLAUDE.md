@@ -115,12 +115,12 @@ helpers (`_common`), `pcl.kmeans`, `SVM`, `DenseCrf` (`_ml`),
 XYZRGBA + HSV colour, PointNormal + normal coherence), `PyramidalKLTTracker`,
 `GridProjection`, `OrganizedFastMesh`, `BilateralUpsampling`,
 `SurfelSmoothing`, `EarClipping`, `SimplificationRemoveUnusedVertices`,
-`OrganizedNeighbor`, octree ray casting, `OctreePointCloudVoxelCentroid`,
-`OctreePointCloudDensity`, `RangeImagePlanar`, `RangeImageSpherical`,
+`pcl.texture_mesh_with_cameras`, `OrganizedNeighbor`, octree ray casting,
+`OctreePointCloudVoxelCentroid`, `OctreePointCloudDensity`, `RangeImagePlanar`, `RangeImageSpherical`,
 `RangeImageBorderExtractor`, `NarfDescriptor`, `pcl.hog`, and the sensor
 side: `PCDGrabber`, `HDLGrabber`, `VLPGrabber`, `ImageGrabber`; plus the
 file formats and image helpers in `_io` (IFS, ASCII, PNG, image
-extraction, LZF / .pclzf, debayering). Names follow
+extraction, LZF / .pclzf in every colour format, debayering). Names follow
 [sirokujira/python-pcl](https://github.com/sirokujira/python-pcl),
 including the `cloud.make_*()` factory methods.
 

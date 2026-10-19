@@ -50,6 +50,7 @@ from pcl.pxd.surface.bilateral_upsampling cimport (
 from pcl.pxd.surface.surfel_smoothing cimport (
     SurfelSmoothing as cSurfelSmoothing)
 from pcl.pxd.point_types cimport PointXYZRGBA
+from pcl.pxd.compat.texture_args cimport textureWithCameras
 from pcl.pxd.compat.surface_args cimport (
     ORGANIZED_MESH_QUAD_MESH, ORGANIZED_MESH_TRIANGLE_ADAPTIVE_CUT,
     ORGANIZED_MESH_TRIANGLE_LEFT_CUT, ORGANIZED_MESH_TRIANGLE_RIGHT_CUT,
@@ -750,6 +751,63 @@ _MESH_FORMATS = {"ply": MESH_FORMAT_PLY, "obj": MESH_FORMAT_OBJ,
                  "vtk": MESH_FORMAT_VTK, "ifs": MESH_FORMAT_IFS}
 _MESH_READABLE = ("ifs", "obj", "ply")
 _MESH_WRITABLE = ("obj", "ply", "vtk")
+
+
+def texture_mesh_with_cameras(PointCloud cloud not None, triangles, cameras):
+    """Which camera textures which face, and where
+    (pcl::TextureMapping::textureMeshwithMultipleCameras).
+
+    `triangles` is (m, 3) vertex indices. Each camera is a dict with
+    "pose" (4 x 4, camera -> world; the camera looks along +z, x right,
+    y down), "focal_length" (or "focal_length_w" / "focal_length_h"),
+    "width" and "height" in pixels, and optionally "center" (cx, cy),
+    default the image centre. Every camera, in order, takes the faces it
+    sees unoccluded among those the cameras before it left.
+
+    Returns one ``(faces, uv)`` pair per camera plus a last pair for the
+    faces no camera saw: ``faces`` is (k, 3) vertex indices, ``uv`` is
+    (k, 3, 2) texture coordinates of those vertices -- u to the right and
+    v UP, both 0..1 over the image (PCL's convention), -1 for the unseen
+    group. A principal point of exactly 0 counts as unset (PCL tests
+    ``center > 0``)."""
+    import numpy as np
+    tri = np.asarray(triangles)
+    if tri.ndim != 2 or tri.shape[1] != 3 or len(tri) == 0:
+        raise ValueError("triangles must be a non-empty (m, 3) array")
+    if tri.min() < 0 or tri.max() >= cloud.size:
+        raise ValueError("triangle indices must lie in 0..%d" % (cloud.size - 1))
+    if not cameras:
+        raise ValueError("at least one camera is needed")
+    flat = []
+    for cam in cameras:
+        pose = np.asarray(cam["pose"], dtype=np.float64)
+        if pose.shape != (4, 4):
+            raise ValueError("a camera pose is 4 x 4")
+        fw = float(cam.get("focal_length_w", cam.get("focal_length", 0)))
+        fh = float(cam.get("focal_length_h", cam.get("focal_length", 0)))
+        width, height = float(cam["width"]), float(cam["height"])
+        if not (fw > 0 and fh > 0 and width > 0 and height > 0):
+            raise ValueError("focal lengths, width and height must be > 0")
+        cx, cy = cam.get("center", (width / 2.0, height / 2.0))
+        flat.extend(pose.ravel(order="F").tolist())
+        flat.extend([fw, fh, float(cx), float(cy), width, height])
+    cdef vector[int] vtri = np.ascontiguousarray(tri, dtype=np.int32).ravel().tolist()
+    cdef vector[double] vcams = flat
+    cdef vector[int] sizes
+    cdef vector[int] faces
+    cdef vector[float] uv
+    with nogil:
+        textureWithCameras(cloud.thisptr_shared, vtri, vcams, sizes, faces, uv)
+    all_faces = np.asarray(faces, dtype=np.int32).reshape(-1, 3)
+    all_uv = np.asarray(uv, dtype=np.float32).reshape(-1, 3, 2)
+    out = []
+    cdef Py_ssize_t start = 0
+    cdef Py_ssize_t i
+    for i in range(<Py_ssize_t> sizes.size()):
+        out.append((all_faces[start:start + sizes[i]],
+                    all_uv[start:start + sizes[i]]))
+        start += sizes[i]
+    return out
 
 
 cdef _mesh_format(path, format, readable):

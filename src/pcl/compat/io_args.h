@@ -290,6 +290,71 @@ inline bool readPCLZFRGBD(const std::string& depth_path,
     return rgb.read(rgb_path, out) && depth.read(depth_path, out);
 }
 
+/// Packed UYVY (U, Y0, V, Y1 per pixel pair), width x height.
+inline bool writePCLZFYUV422(const std::string& path, const std::uint8_t* uyvy,
+                             unsigned int width, unsigned int height) {
+    pcl::io::LZFYUV422ImageWriter writer;
+    return writer.write(reinterpret_cast<const char*>(uyvy), width, height, path);
+}
+
+/// One 8-bit Bayer (GRBG) sample per pixel, width x height.
+inline bool writePCLZFBayer8(const std::string& path, const std::uint8_t* bayer,
+                             unsigned int width, unsigned int height) {
+    pcl::io::LZFBayer8ImageWriter writer;
+    return writer.write(reinterpret_cast<const char*>(bayer), width, height, path);
+}
+
+/// The header's type field, through the reader's protected loader.
+class PCLZFProbe : public pcl::io::LZFImageReader {
+public:
+    std::string type(const std::string& path) {
+        std::vector<char> data;
+        std::uint32_t size = 0;
+        if (!loadImageBlob(path, data, size)) {
+            return "";
+        }
+        return getImageType();
+    }
+
+private:
+    bool readParameters(std::istream&) override { return false; }
+};
+
+/// The colour image in an rgb24, yuv422 or bayer8 .pclzf file, chosen by
+/// its type field, as interleaved RGB. 0 on success, 1 when the file
+/// cannot be read, 2 when it holds no colour image (a depth16 file).
+inline int readPCLZFImage(const std::string& path, std::vector<std::uint8_t>& rgb,
+                          unsigned int& width, unsigned int& height) {
+    PCLZFProbe probe;
+    const std::string type = probe.type(path);
+    pcl::PointCloud<pcl::PointXYZRGBA> cloud;
+    bool ok = false;
+    if (type.rfind("rgb24", 0) == 0) {
+        pcl::io::LZFRGB24ImageReader reader;
+        ok = reader.read(path, cloud);
+    } else if (type.rfind("yuv422", 0) == 0) {
+        pcl::io::LZFYUV422ImageReader reader;
+        ok = reader.read(path, cloud);
+    } else if (type.rfind("bayer8", 0) == 0) {
+        pcl::io::LZFBayer8ImageReader reader;
+        ok = reader.read(path, cloud);
+    } else {
+        return type.empty() ? 1 : 2;
+    }
+    if (!ok) {
+        return 1;
+    }
+    width = cloud.width;
+    height = cloud.height;
+    rgb.resize(cloud.size() * 3);
+    for (std::size_t i = 0; i < cloud.size(); ++i) {
+        rgb[3 * i] = cloud[i].r;
+        rgb[3 * i + 1] = cloud[i].g;
+        rgb[3 * i + 2] = cloud[i].b;
+    }
+    return 0;
+}
+
 // --- ImageGrabber ---------------------------------------------------------------------
 
 /// pcl::ImageGrabber<PointXYZRGBA> read by index rather than replayed:

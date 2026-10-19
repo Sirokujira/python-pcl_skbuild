@@ -67,6 +67,12 @@ cdef extern from "pcl/compat/io_args.h" namespace "pclcompat" nogil:
 
     bool readPCLZFDepth(const string& path, const string& xml, PointCloud[PointXYZ]& out) except +
 
+    bool writePCLZFYUV422(const string& path, const uint8_t* uyvy, unsigned int width, unsigned int height) except +
+
+    bool writePCLZFBayer8(const string& path, const uint8_t* bayer, unsigned int width, unsigned int height) except +
+
+    int readPCLZFImage(const string& path, vector[uint8_t]& rgb, unsigned int& width, unsigned int& height) except +
+
     bool readPCLZFRGBD(const string& depth_path, const string& rgb_path, const string& xml, PointCloud[PointXYZRGBA]& out) except +
 
     cdef cppclass ImageSequence:

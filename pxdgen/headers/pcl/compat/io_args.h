@@ -77,6 +77,12 @@ bool writePCLZFParameters(const std::string& path, double fx, double fy,
                           double cx, double cy);
 bool readPCLZFDepth(const std::string& path, const std::string& xml,
                     pcl::PointCloud<pcl::PointXYZ>& out);
+bool writePCLZFYUV422(const std::string& path, const std::uint8_t* uyvy,
+                      unsigned int width, unsigned int height);
+bool writePCLZFBayer8(const std::string& path, const std::uint8_t* bayer,
+                      unsigned int width, unsigned int height);
+int readPCLZFImage(const std::string& path, std::vector<std::uint8_t>& rgb,
+                   unsigned int& width, unsigned int& height);
 bool readPCLZFRGBD(const std::string& depth_path, const std::string& rgb_path,
                    const std::string& xml,
                    pcl::PointCloud<pcl::PointXYZRGBA>& out);

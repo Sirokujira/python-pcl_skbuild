@@ -29,8 +29,9 @@ from pcl.pxd.io.debayer cimport DeBayer
 from pcl.pxd.compat.io_args cimport (
     ImageSequence, extractImage, havePNG, labelImage, loadASCIICloud,
     saveIFSCloud,
-    readPCLZFDepth, readPCLZFRGBD, savePNG16, savePNG8, writePCLZFDepth,
-    writePCLZFParameters, writePCLZFRGB)
+    readPCLZFDepth, readPCLZFImage, readPCLZFRGBD, savePNG16, savePNG8,
+    writePCLZFBayer8, writePCLZFDepth, writePCLZFParameters, writePCLZFRGB,
+    writePCLZFYUV422)
 cimport pcl.pxd.compat.io_args as ia
 
 from pcl._pointcloud cimport PointCloud
@@ -323,6 +324,62 @@ def write_pclzf_rgb(path, rgb):
         ok = writePCLZFRGB(p, &v[0, 0, 0], v.shape[1], v.shape[0])
     if not ok:
         raise IOError("could not write %s" % path)
+
+
+def write_pclzf_yuv422(path, uyvy):
+    """Write a YUV 4:2:2 image as .pclzf (pcl::io::LZFYUV422ImageWriter):
+    ``(h, w, 2)`` uint8 with pixel pairs packed U, Y0 | V, Y1 (UYVY), so
+    ``uyvy[..., 1]`` is the luma and ``uyvy[:, 0::2, 0]`` /
+    ``uyvy[:, 1::2, 0]`` the chroma; w must be even."""
+    import numpy as np
+    arr = np.ascontiguousarray(uyvy)
+    if arr.ndim != 3 or arr.shape[2] != 2 or arr.dtype != np.uint8 or \
+            arr.shape[1] % 2:
+        raise ValueError("uyvy must be an (h, w, 2) uint8 array, w even")
+    cdef const uint8_t[:, :, ::1] v = arr
+    cdef string p = _path(path)
+    cdef bint ok
+    with nogil:
+        ok = writePCLZFYUV422(p, &v[0, 0, 0], v.shape[1], v.shape[0])
+    if not ok:
+        raise IOError("could not write %s" % path)
+
+
+def write_pclzf_bayer8(path, bayer):
+    """Write an ``(h, w)`` uint8 Bayer mosaic as .pclzf
+    (pcl::io::LZFBayer8ImageWriter); read back, it is demosaiced as
+    GRBG."""
+    import numpy as np
+    arr = np.ascontiguousarray(bayer)
+    if arr.ndim != 2 or arr.dtype != np.uint8:
+        raise ValueError("bayer must be an (h, w) uint8 array")
+    cdef const uint8_t[:, ::1] v = arr
+    cdef string p = _path(path)
+    cdef bint ok
+    with nogil:
+        ok = writePCLZFBayer8(p, &v[0, 0], v.shape[1], v.shape[0])
+    if not ok:
+        raise IOError("could not write %s" % path)
+
+
+def read_pclzf_image(path):
+    """The colour image in an rgb24, yuv422 or bayer8 .pclzf file (its
+    header says which) as ``(h, w, 3)`` uint8 RGB: YUV converted, Bayer
+    demosaiced, by PCL's readers. Depth files go through
+    `read_pclzf_depth`."""
+    import numpy as np
+    cdef vector[uint8_t] rgb
+    cdef unsigned int w = 0, h = 0
+    cdef string p = _path(path)
+    cdef int status
+    with nogil:
+        status = readPCLZFImage(p, rgb, w, h)
+    if status == 1:
+        raise IOError("could not read a .pclzf image from %s" % path)
+    if status == 2:
+        raise ValueError("%s holds no colour image; use read_pclzf_depth"
+                         % path)
+    return np.asarray(rgb, dtype=np.uint8).reshape(h, w, 3)
 
 
 def write_pclzf_parameters(path, double fx, double fy, double cx, double cy):

@@ -109,7 +109,9 @@ the audit when a batch adds headers; it checks headers, not every
 symbol in them. The recognition / stereo batch added twelve (CRH
 alignment, trimmed ICP, ObjRecRANSAC, occlusion reasoning, ISM,
 LineRGBD, DOTMOD and its modality, the three stereo headers, FPFH's
-impl): all at 1.11 with the signatures the shims call. The KLT status
+impl): all at 1.11 with the signatures the shims call. So were the
+extras' three (`agast_2d.h`, `texture_mapping.h`, the `.pclzf`
+YUV / Bayer reader-writers in `lzf_image_io.h`). The KLT status
 getter was renamed in 1.12 (`getPointsToTrackStatus` returning
 PointIndices before); `tracking_args.h` branches on the version and
 both branches were compiled.
@@ -378,6 +380,17 @@ outofcore is optional at build time: PCL builds it only with VTK, and
 asking `find_package(PCL)` for it would make VTK REQUIRED, so the
 top-level CMakeLists.txt looks for the library and the VTK targets
 itself.
+
+The extras: `AgastKeypoint2D` builds its detector on the first
+`compute()` -- from that image's size and threshold -- and keeps it, so
+a later frame of another size is read with the first one's row length
+and `setThreshold` after the first call does nothing (plain C++ against
+1.14: a 120-wide frame after a 40-wide one, 0 corners where a fresh
+detector finds 4; threshold 150 on a contrast of 100 still finds 4; same
+code at 1.11). `keypoint_args.h` hands it a fresh detector of the chosen
+kind on every call. `TextureMapping` logs each camera at INFO and treats
+a principal point or focal length of exactly 0 as unset (`> 0` tests) --
+documented, not absorbed.
 
 Not every quirk is worth absorbing, though. PCL's octree treats the FIRST
 point of a cloud specially: `voxelSearch` can miss it, and

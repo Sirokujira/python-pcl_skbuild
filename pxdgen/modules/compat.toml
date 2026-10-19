@@ -53,8 +53,9 @@ extern_from = "pcl/compat/keypoint_args.h"
 output = "../src/pcl/pxd/compat/keypoint_args.pxd"
 namespaces = ["pclcompat"]
 extra_cimports = [
-    "from pcl.pxd.point_types cimport PointXYZ, PointXYZI, PointXYZRGBA, Normal",
+    "from pcl.pxd.point_types cimport PointXYZ, PointXYZI, PointXYZRGBA, PointUV, Normal",
     "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.keypoints.agast_2d cimport AgastKeypoint2D",
     "from pcl.pxd.keypoints.harris_3d cimport HarrisKeypoint3D",
     "from pcl.pxd.keypoints.harris_2d cimport HarrisKeypoint2D",
     "from pcl.pxd.keypoints.trajkovic_2d cimport TrajkovicKeypoint2D",
@@ -162,6 +163,16 @@ namespaces = ["pclcompat"]
 path = "headers/pcl/compat/outofcore_args.h"
 extern_from = "pcl/compat/outofcore_args.h"
 output = "../src/pcl/pxd/compat/outofcore_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+]
+
+[[headers]]
+path = "headers/pcl/compat/texture_args.h"
+extern_from = "pcl/compat/texture_args.h"
+output = "../src/pcl/pxd/compat/texture_args.pxd"
 namespaces = ["pclcompat"]
 extra_cimports = [
     "from pcl.pxd.point_types cimport PointXYZ",

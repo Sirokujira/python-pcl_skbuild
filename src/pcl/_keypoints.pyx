@@ -22,8 +22,9 @@ from pcl.pxd.point_types cimport PointXYZ, PointXYZI
 from pcl.pxd.point_cloud cimport PointCloud as cPointCloud
 from pcl.pxd.keypoints.harris_3d cimport HarrisKeypoint3D as cHarrisKeypoint3D
 from pcl.pxd.compat.keypoint_args cimport (
-    HARRIS_METHOD_CURVATURE, HARRIS_METHOD_HARRIS, HARRIS_METHOD_LOWE,
-    HARRIS_METHOD_NOBLE, HARRIS_METHOD_TOMASI, setHarrisMethod)
+    AGAST_5_8, AGAST_7_12S, HARRIS_METHOD_CURVATURE, HARRIS_METHOD_HARRIS,
+    HARRIS_METHOD_LOWE, HARRIS_METHOD_NOBLE, HARRIS_METHOD_TOMASI, OAST_9_16,
+    agastDetect, setHarrisMethod)
 
 from pcl._pointcloud cimport PointCloud
 from pcl.pxd.point_types cimport Normal, PointXYZRGB, PointWithScale
@@ -580,20 +581,42 @@ cdef class TrajkovicKeypoint3D:
         return _xyzi_rows(out)
 
 
+_AGAST_DETECTORS = {"7_12s": AGAST_7_12S, "5_8": AGAST_5_8,
+                    "oast_9_16": OAST_9_16}
+
+
 cdef class AgastKeypoint2D:
     """AGAST corners (pcl::AgastKeypoint2D, Mair et al.) on the intensity
     image of an organized :class:`PointCloud_PointXYZRGBA`. `compute()`
     returns ``(n, 2)`` float32 pixel coordinates (u = column, v = row).
+
+    `detector` picks the mask: "7_12s" (PCL's default), "5_8" or
+    "oast_9_16". PCL builds its detector once, from the first image's
+    size and threshold, and keeps it -- a later frame of another size
+    was read with the first one's row length (0 corners where there were
+    4) and a changed threshold ignored -- so each `compute()` here gets a
+    fresh one (compat/keypoint_args.h).
     """
 
     cdef cAgastKeypoint2D[PointXYZRGBA, PointUV]* me
     cdef bint has_input
+    cdef int kind
 
-    def __cinit__(self, PointCloud_PointXYZRGBA pc=None):
+    def __cinit__(self, PointCloud_PointXYZRGBA pc=None, str detector="7_12s"):
+        if detector not in _AGAST_DETECTORS:
+            raise ValueError("detector must be one of %s"
+                             % ", ".join(_AGAST_DETECTORS))
         self.me = new cAgastKeypoint2D[PointXYZRGBA, PointUV]()
         self.has_input = False
+        self.kind = _AGAST_DETECTORS[detector]
         if pc is not None:
             self.set_InputCloud(pc)
+
+    def set_Detector(self, str detector):
+        if detector not in _AGAST_DETECTORS:
+            raise ValueError("detector must be one of %s"
+                             % ", ".join(_AGAST_DETECTORS))
+        self.kind = _AGAST_DETECTORS[detector]
 
     def __dealloc__(self):
         del self.me
@@ -636,7 +659,7 @@ cdef class AgastKeypoint2D:
             raise RuntimeError("set_InputCloud(...) is required first")
         cdef cPointCloud[PointUV] out
         with nogil:
-            self.me.compute(out)
+            agastDetect(deref(self.me), self.kind, out)
         cdef Py_ssize_t n = <Py_ssize_t> out.size()
         result = np.empty((n, 2), dtype=np.float32)
         cdef float[:, ::1] view = result

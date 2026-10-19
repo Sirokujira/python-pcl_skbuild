@@ -4,6 +4,7 @@
 
 #include <memory>
 
+#include <pcl/keypoints/agast_2d.h>
 #include <pcl/keypoints/harris_2d.h>
 #include <pcl/keypoints/harris_3d.h>
 #include <pcl/keypoints/smoothed_surfaces_keypoint.h>
@@ -38,6 +39,15 @@ void setTrajkovic2DMethod(
 void setTrajkovic3DMethod(
     pcl::TrajkovicKeypoint3D<pcl::PointXYZ, pcl::PointXYZI>& detector,
     int method);
+
+// AgastKeypoint2D with a fresh detector of the given kind per call (PCL
+// keeps the first one it builds, sized for the first image).
+const int AGAST_7_12S = 0;
+const int AGAST_5_8 = 1;
+const int OAST_9_16 = 2;
+
+void agastDetect(pcl::AgastKeypoint2D<pcl::PointXYZRGBA, pcl::PointUV>& detector,
+                 int kind, pcl::PointCloud<pcl::PointUV>& out);
 
 // SmoothedSurfacesKeypoint::addSmoothedPointCloud, with the search tree
 // it also wants built here.

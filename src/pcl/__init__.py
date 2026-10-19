@@ -147,6 +147,7 @@ from ._registration import (
     SampleConsensusPrerejective,
 )
 from ._surface import (
+    texture_mesh_with_cameras,
     OrganizedFastMesh,
     GridProjection,
     BilateralUpsampling,
@@ -228,10 +229,13 @@ from ._io import (
     lzf_decompress,
     read_pclzf,
     read_pclzf_depth,
+    read_pclzf_image,
     save_png,
+    write_pclzf_bayer8,
     write_pclzf_depth,
     write_pclzf_parameters,
     write_pclzf_rgb,
+    write_pclzf_yuv422,
 )
 from ._people import hog, hog_descriptor_size
 from ._recognition import (
@@ -631,7 +635,8 @@ __all__ = [
     "PCA", "estimate_projection_matrix", "histogram_distance",
     "line_line_intersection", "plane_plane_intersection",
     "three_planes_intersection", "transformation_from_correspondences",
-    "SVM", "DenseCrf", "kmeans",
+    "SVM", "DenseCrf", "kmeans", "texture_mesh_with_cameras",
+    "read_pclzf_image", "write_pclzf_bayer8", "write_pclzf_yuv422",
     "KLDAdaptiveParticleFilterTracker",
     "PyramidalKLTTracker",
     "estimate_transformation_point_to_plane",
