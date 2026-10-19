@@ -54,7 +54,7 @@ from pcl.pxd.octree.octree_pointcloud_adjacency cimport (
 from pcl.pxd.compat.octree_args cimport (
     adjacencyGraph, adjacencyOccluded, leafCenters, leafIndices)
 from pcl.pxd.compat.compression_args cimport (
-    compressOrganized, decompressOrganized)
+    compressOrganized, decompressOrganized, haveOrganizedCompression)
 
 
 cdef class OctreePointCloudSearch:
@@ -945,10 +945,17 @@ cdef class OrganizedPointCloudCompression:
     focal length; x and y are rebuilt from the pixel grid. PCL's decoder
     returns the cloud unorganized (it fills it with push_back, which
     resets the height); the wrapper restores the size from the stream.
+    PCL ships it only when built with libpng; elsewhere `encode` /
+    `decode` raise RuntimeError (see `available()`).
 
         data = codec.encode(cloud)            # bytes
         back = codec.decode(data, color=True) # PointCloud_PointXYZRGBA
     """
+
+    @staticmethod
+    def available():
+        """Whether this PCL has OrganizedPointCloudCompression."""
+        return haveOrganizedCompression()
 
     def encode(self, cloud, color=None, bint mono=False, int png_level=-1):
         """Compress a :class:`PointCloud` or :class:`PointCloud_PointXYZRGBA`;

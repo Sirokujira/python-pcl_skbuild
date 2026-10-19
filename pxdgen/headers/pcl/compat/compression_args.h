@@ -21,7 +21,11 @@ void decompressCloud(pcl::io::OctreePointCloudCompression<PointT>& codec,
                      const std::string& data,
                      pcl::PointCloud<PointT>& out);
 
-// OrganizedPointCloudCompression, PNG level -1 (libpng's default) or 0..9.
+// Whether this PCL has OrganizedPointCloudCompression (needs libpng).
+bool haveOrganizedCompression();
+
+// OrganizedPointCloudCompression, PNG level -1 (libpng's default) or 0..9;
+// throw std::runtime_error where PCL has none.
 std::string compressOrganized(
     const std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>& cloud,
     bool colour, bool mono, int png_level);

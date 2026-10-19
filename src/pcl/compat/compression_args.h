@@ -7,11 +7,19 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
+#include <stdexcept>
 #include <sstream>
 #include <string>
 
 #include <pcl/compression/octree_pointcloud_compression.h>
+// organized_pointcloud_compression.h is installed only when PCL found
+// libpng (Homebrew's PCL has none), so its presence is the test.
+#if defined(__has_include)
+#if __has_include(<pcl/compression/organized_pointcloud_compression.h>)
 #include <pcl/compression/organized_pointcloud_compression.h>
+#define PCLCOMPAT_HAVE_ORGANIZED_COMPRESSION 1
+#endif
+#endif
 #include <pcl/point_cloud.h>
 
 namespace pclcompat {
@@ -35,6 +43,17 @@ inline void decompressCloud(pcl::io::OctreePointCloudCompression<PointT>& codec,
     out = *cloud;
 }
 
+/// True when this PCL ships OrganizedPointCloudCompression (it needs
+/// libpng at PCL's build time).
+inline bool haveOrganizedCompression() {
+#ifdef PCLCOMPAT_HAVE_ORGANIZED_COMPRESSION
+    return true;
+#else
+    return false;
+#endif
+}
+
+#ifdef PCLCOMPAT_HAVE_ORGANIZED_COMPRESSION
 /// OrganizedPointCloudCompression: the depth image (and optionally the
 /// colour, as RGB or grey) PNG-compressed at `png_level` (-1 libpng's
 /// default, 0..9). The cloud must be organized.
@@ -76,5 +95,20 @@ inline bool decompressOrganized(const std::string& data,
     }
     return true;
 }
+
+#else
+template <typename PointT>
+inline std::string compressOrganized(
+    const std::shared_ptr<pcl::PointCloud<PointT>>&, bool, bool, int) {
+    throw std::runtime_error(
+        "this PCL was built without libpng: no OrganizedPointCloudCompression");
+}
+
+template <typename PointT>
+inline bool decompressOrganized(const std::string&, pcl::PointCloud<PointT>&) {
+    throw std::runtime_error(
+        "this PCL was built without libpng: no OrganizedPointCloudCompression");
+}
+#endif
 
 }  // namespace pclcompat

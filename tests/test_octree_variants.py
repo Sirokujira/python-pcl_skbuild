@@ -104,6 +104,12 @@ def _organized(h=24, w=32, f=525.0):
     return np.dstack([(u - w / 2) * z / f, (v - h / 2) * z / f, z])
 
 
+needs_organized_compression = pytest.mark.skipif(
+    not pcl.OrganizedPointCloudCompression.available(),
+    reason="this PCL was built without libpng")
+
+
+@needs_organized_compression
 def test_organized_compression_round_trip():
     xyz = _organized().astype(np.float32)
     cloud = pcl.PointCloud()
@@ -121,6 +127,7 @@ def test_organized_compression_round_trip():
         codec.decode(b"not a cloud")
 
 
+@needs_organized_compression
 def test_organized_compression_keeps_colour():
     xyz = _organized().astype(np.float32)
     rgba = np.zeros(xyz.shape[:2] + (4,), np.uint8)

@@ -15,6 +15,8 @@ cdef extern from "pcl/compat/compression_args.h" namespace "pclcompat" nogil:
 
     void decompressCloud[PointT](OctreePointCloudCompression[PointT]& codec, const string& data, PointCloud[PointT]& out) except +
 
+    bool haveOrganizedCompression() except +
+
     string compressOrganized(const shared_ptr[PointCloud[PointXYZ]]& cloud, bool colour, bool mono, int png_level) except +
 
     string compressOrganized(const shared_ptr[PointCloud[PointXYZRGBA]]& cloud, bool colour, bool mono, int png_level) except +
