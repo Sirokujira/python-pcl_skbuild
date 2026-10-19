@@ -353,6 +353,32 @@ The stereo batch: `DigitalElevationMapBuilder` can round a disparity
 just under the maximum into one histogram past the end;
 `stereo_args.h` drops those with the same float arithmetic first.
 
+The 2d / common / ml / outofcore batch: `pcl::Edge` declares six
+`computeDerivative*` members it never defines (a link error; the
+`DERIVATIVE_*` kernels give the same), and `detectEdgeLoG` only compiles
+with PointXYZI output. `Morphology`'s gray erosion / dilation use -1 as
+"nothing seen yet", so a pixel of exactly -1 is mishandled;
+`image2d_args.h` shifts negative images to non-negative and back (both
+operations commute with that). The LoG kernel is divided by its own sum,
+which tends to 0 as the kernel outgrows sigma -- documented, not
+absorbed. `SVMTrain::trainClassifier` calls `exit(1)` when libsvm
+rejects the parameters; `ml_args.h` runs `svm_check_parameter` first and
+raises instead, and frees the libsvm problem rows PCL leaks (ASan).
+`DenseCrf::mapInference` writes into a vector it never sizes.
+`estimateProjectionMatrix`'s `indices` defaults to `{}`, and the
+ConstCloudIterator it builds from that visits no point, so called as
+documented it returns P = [1 0 0 ...] with residual 0; `common_args.h`
+passes every index. In
+outofcore a freshly built tree answers every query with nothing (reads
+see only the node files, not the write buffers; 0 of 5,030 points), and
+`OutofcoreOctreeBase::flushToDisk` calls a node method that does not
+exist, so it has never compiled; `outofcore_args.h` closes and reopens
+the tree after each change, which flushes through the destructor.
+outofcore is optional at build time: PCL builds it only with VTK, and
+asking `find_package(PCL)` for it would make VTK REQUIRED, so the
+top-level CMakeLists.txt looks for the library and the VTK targets
+itself.
+
 Not every quirk is worth absorbing, though. PCL's octree treats the FIRST
 point of a cloud specially: `voxelSearch` can miss it, and
 `getPointIndicesFromNewVoxels` reports index 0 as new even for an

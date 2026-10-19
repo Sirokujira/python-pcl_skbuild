@@ -107,7 +107,10 @@ pipeline functions (`pcl.estimate_correspondences*`, `reject_*`,
 `ImplicitShapeModelEstimation`, `LineRGBD`, `DOTMOD` (in
 `_recognition_extra`), `BlockBasedStereoMatching`,
 `AdaptiveCostSOStereoMatching`, `pcl.disparity_to_cloud`,
-`pcl.digital_elevation_map` (in `_stereo`),
+`pcl.digital_elevation_map` (in `_stereo`), the `pcl.image_*` 2-D
+functions (`_image2d`), `PCA` and the intersection / norm / projection
+helpers (`_common`), `pcl.kmeans`, `SVM`, `DenseCrf` (`_ml`),
+`OutofcoreOctree` (`_outofcore`, built only where PCL has outofcore),
  `ParticleFilterTracker`, `KLDAdaptiveParticleFilterTracker` (XYZ,
 XYZRGBA + HSV colour, PointNormal + normal coherence), `PyramidalKLTTracker`,
 `GridProjection`, `OrganizedFastMesh`, `BilateralUpsampling`,

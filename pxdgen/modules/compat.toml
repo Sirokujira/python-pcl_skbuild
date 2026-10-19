@@ -137,6 +137,38 @@ extra_cimports = [
 ]
 
 [[headers]]
+path = "headers/pcl/compat/image2d_args.h"
+extern_from = "pcl/compat/image2d_args.h"
+output = "../src/pcl/pxd/compat/image2d_args.pxd"
+namespaces = ["pclcompat"]
+
+[[headers]]
+path = "headers/pcl/compat/common_args.h"
+extern_from = "pcl/compat/common_args.h"
+output = "../src/pcl/pxd/compat/common_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+]
+
+[[headers]]
+path = "headers/pcl/compat/ml_args.h"
+extern_from = "pcl/compat/ml_args.h"
+output = "../src/pcl/pxd/compat/ml_args.pxd"
+namespaces = ["pclcompat"]
+
+[[headers]]
+path = "headers/pcl/compat/outofcore_args.h"
+extern_from = "pcl/compat/outofcore_args.h"
+output = "../src/pcl/pxd/compat/outofcore_args.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+]
+
+[[headers]]
 path = "headers/pcl/compat/tracking_args.h"
 extern_from = "pcl/compat/tracking_args.h"
 output = "../src/pcl/pxd/compat/tracking_args.pxd"

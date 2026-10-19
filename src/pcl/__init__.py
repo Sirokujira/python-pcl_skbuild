@@ -257,6 +257,31 @@ from ._stereo import (
     digital_elevation_map,
     disparity_to_cloud,
 )
+from ._image2d import (
+    image_binary_operation,
+    image_canny,
+    image_convolve,
+    image_edges,
+    image_kernel,
+    image_log,
+    image_morphology,
+    structuring_element,
+)
+from ._common import (
+    PCA,
+    estimate_projection_matrix,
+    histogram_distance,
+    line_line_intersection,
+    plane_plane_intersection,
+    three_planes_intersection,
+    transformation_from_correspondences,
+)
+from ._ml import SVM, DenseCrf, kmeans
+try:
+    # built only where PCL has outofcore (it needs VTK); see CMakeLists.txt
+    from ._outofcore import OutofcoreOctree
+except ImportError:
+    pass
 from ._tracking import (ParticleFilterTracker, KLDAdaptiveParticleFilterTracker,
                         PyramidalKLTTracker)
 from ._rangeimage import (
@@ -601,6 +626,12 @@ __all__ = [
     "ObjRecRANSAC", "TrimmedICP", "get_occluded_cloud", "occlusion_filter",
     "AdaptiveCostSOStereoMatching", "BlockBasedStereoMatching",
     "digital_elevation_map", "disparity_to_cloud",
+    "image_binary_operation", "image_canny", "image_convolve", "image_edges",
+    "image_kernel", "image_log", "image_morphology", "structuring_element",
+    "PCA", "estimate_projection_matrix", "histogram_distance",
+    "line_line_intersection", "plane_plane_intersection",
+    "three_planes_intersection", "transformation_from_correspondences",
+    "SVM", "DenseCrf", "kmeans",
     "KLDAdaptiveParticleFilterTracker",
     "PyramidalKLTTracker",
     "estimate_transformation_point_to_plane",
@@ -673,6 +704,8 @@ __all__ = [
     "SACMODEL_REGISTRATION_2D", "SACMODEL_NORMAL_PARALLEL_PLANE",
     "SACMODEL_ELLIPSE3D",
 ]
+if "OutofcoreOctree" in globals():
+    __all__.append("OutofcoreOctree")
 
 __version__ = "0.1.0"
 

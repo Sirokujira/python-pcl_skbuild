@@ -27,6 +27,9 @@ set(PCL_CYTHON_MODULES
     _recognition
     _recognition_extra
     _stereo
+    _image2d
+    _common
+    _ml
     _tracking
     _people
 )
@@ -56,6 +59,17 @@ foreach(module ${PCL_CYTHON_MODULES})
     python_extension_module(${module})
     install(TARGETS ${module} LIBRARY DESTINATION src/pcl)
 endforeach()
+
+# Optional modules: only where the PCL install has them (top-level
+# CMakeLists.txt decides).
+if(PCL_HAVE_OUTOFCORE)
+    add_cython_target(_outofcore CXX PY3)
+    add_library(_outofcore MODULE ${_outofcore})
+    target_compile_options(_outofcore PRIVATE ${PCL_CYTHON_COMPILE_OPTIONS})
+    target_link_libraries(_outofcore ${PCL_LIBRARIES} ${PCL_OUTOFCORE_LIBRARY})
+    python_extension_module(_outofcore)
+    install(TARGETS _outofcore LIBRARY DESTINATION src/pcl)
+endif()
 
 # Modules compiled WITHOUT OpenMP: header-only PCL code whose OpenMP
 # pragmas do not compile on current compilers -- see

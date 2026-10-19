@@ -33,7 +33,27 @@ endif(APPLE)
 
 find_package(PCL REQUIRED COMPONENTS
     common io filters kdtree octree search segmentation features surface
-    registration keypoints recognition tracking people stereo)
+    registration keypoints recognition tracking people stereo ml)
+
+# Optional: pcl_outofcore. PCL builds it only together with its VTK-based
+# visualization module, and its templates include VTK headers. Asking
+# find_package(PCL) for it would make VTK REQUIRED through that module,
+# so look for the library and header directly, plus the VTK targets;
+# _outofcore is built only when all three are there (src/pcl/CMakeLists.txt).
+find_library(PCL_OUTOFCORE_LIBRARY
+    NAMES pcl_outofcore${PCL_RELEASE_SUFFIX} pcl_outofcore
+    HINTS ${PCL_LIBRARY_DIRS} NO_DEFAULT_PATH)
+find_path(PCL_OUTOFCORE_HEADER pcl/outofcore/outofcore.h
+    HINTS ${PCL_INCLUDE_DIRS} NO_DEFAULT_PATH)
+# VTK's headers reach us through its imported targets (PCL links them
+# when it was built with VTK), not through PCL_INCLUDE_DIRS.
+if(PCL_OUTOFCORE_LIBRARY AND PCL_OUTOFCORE_HEADER AND TARGET VTK::CommonCore)
+    set(PCL_HAVE_OUTOFCORE ON)
+    message(STATUS "pcl_outofcore found: building pcl._outofcore")
+else()
+    set(PCL_HAVE_OUTOFCORE OFF)
+    message(STATUS "pcl_outofcore (or VTK headers) not found: no pcl._outofcore")
+endif()
 
 # Supported range: PCL 1.11+. 1.11 is where boost::shared_ptr became
 # std::shared_ptr across the API; the generated pxd declare std::shared_ptr
