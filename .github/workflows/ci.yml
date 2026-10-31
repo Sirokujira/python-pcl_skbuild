@@ -86,6 +86,15 @@ jobs:
         run: |
           pip install pytest
           pytest tests/test_pointcloud.py -v
+      # _vtk_mesh is optional: built only where PCL has VTK, and
+      # pcl/__init__.py and the tests skip it when it does not import, so a
+      # module that failed to build or load would only show as skipped
+      # tests. Every runner's PCL has VTK, so import it directly first and
+      # let a missing or unloadable module fail the job.
+      - name: Run VTK mesh tests
+        run: |
+          python -c "import pcl._vtk_mesh"
+          pytest tests/test_vtk_mesh.py -v
 
   # The Windows build is its own job rather than a matrix entry: PCL via
   # vcpkg takes hours of compile time on hosted runners, so it comes
@@ -127,3 +136,10 @@ jobs:
         run: |
           pip install pytest
           pytest tests/test_pointcloud.py -v
+      # See the VTK mesh step of the build job: import first, so a DLL that
+      # does not load fails here instead of skipping every test.
+      - name: Run VTK mesh tests
+        shell: pwsh
+        run: |
+          python -c "import pcl._vtk_mesh"
+          pytest tests/test_vtk_mesh.py -v
