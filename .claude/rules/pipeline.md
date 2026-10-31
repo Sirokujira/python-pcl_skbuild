@@ -98,7 +98,9 @@ Never use Cython `IF` / `DEF` for version branching (deprecated in Cython
 3.0), and never duplicate a pxd or pyx per version — that is the
 maintenance trap this pipeline exists to avoid.
 
-CI only builds 1.14, so the floor is checked by audit: every PCL header
+CI builds whatever each runner's package manager ships -- 1.14 until
+Ubuntu 26.04 became `ubuntu-latest` with 1.15.1 -- never 1.11, so the
+floor is checked by audit: every PCL header
 an `extern_from` or a shim `#include` names was looked up at the
 `pcl-1.11.0` tag. Two are newer, both 1.13: `farthest_point_sampling.h`
 and `sac_model_ellipse3d.h`. Both sit behind rung 4 —
@@ -381,7 +383,11 @@ the tree after each change, which flushes through the destructor.
 outofcore is optional at build time: PCL builds it only with VTK, and
 asking `find_package(PCL)` for it would make VTK REQUIRED, so the
 top-level CMakeLists.txt looks for the library and the VTK targets
-itself.
+itself. PCL 1.15 can also be built against a system cJSON (`HAVE_CJSON` in
+`pcl_config.h`), and its outofcore headers then include
+`<cjson/cJSON.h>`, which Ubuntu 26.04's libpcl-dev does not pull in;
+CMakeLists.txt looks for that header too and skips `_outofcore` with a
+message when it is missing (CI installs libcjson-dev).
 
 The extras: `AgastKeypoint2D` builds its detector on the first
 `compute()` -- from that image's size and threshold -- and keeps it, so

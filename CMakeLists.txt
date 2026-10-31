@@ -45,11 +45,31 @@ find_library(PCL_OUTOFCORE_LIBRARY
     HINTS ${PCL_LIBRARY_DIRS} NO_DEFAULT_PATH)
 find_path(PCL_OUTOFCORE_HEADER pcl/outofcore/outofcore.h
     HINTS ${PCL_INCLUDE_DIRS} NO_DEFAULT_PATH)
+# PCL 1.15 can be built against a system cJSON (HAVE_CJSON in
+# pcl_config.h), and its outofcore headers then include <cjson/cJSON.h>,
+# which nothing else here needs -- Ubuntu 26.04's libpcl-dev does not even
+# pull in libcjson-dev. Look for it only then.
+set(PCL_OUTOFCORE_CJSON_OK ON)
+if(PCL_OUTOFCORE_HEADER AND EXISTS "${PCL_OUTOFCORE_HEADER}/pcl/pcl_config.h")
+    file(STRINGS "${PCL_OUTOFCORE_HEADER}/pcl/pcl_config.h" _pcl_have_cjson
+        REGEX "^#define HAVE_CJSON")
+    if(_pcl_have_cjson)
+        find_path(CJSON_INCLUDE_DIR cjson/cJSON.h HINTS ${PCL_INCLUDE_DIRS})
+        if(NOT CJSON_INCLUDE_DIR)
+            set(PCL_OUTOFCORE_CJSON_OK OFF)
+        endif()
+    endif()
+endif()
 # VTK's headers reach us through its imported targets (PCL links them
 # when it was built with VTK), not through PCL_INCLUDE_DIRS.
-if(PCL_OUTOFCORE_LIBRARY AND PCL_OUTOFCORE_HEADER AND TARGET VTK::CommonCore)
+if(PCL_OUTOFCORE_LIBRARY AND PCL_OUTOFCORE_HEADER AND TARGET VTK::CommonCore
+        AND PCL_OUTOFCORE_CJSON_OK)
     set(PCL_HAVE_OUTOFCORE ON)
     message(STATUS "pcl_outofcore found: building pcl._outofcore")
+elseif(NOT PCL_OUTOFCORE_CJSON_OK)
+    set(PCL_HAVE_OUTOFCORE OFF)
+    message(STATUS "PCL's outofcore headers need cJSON's (cjson/cJSON.h, "
+                   "e.g. libcjson-dev): no pcl._outofcore")
 else()
     set(PCL_HAVE_OUTOFCORE OFF)
     message(STATUS "pcl_outofcore (or VTK headers) not found: no pcl._outofcore")

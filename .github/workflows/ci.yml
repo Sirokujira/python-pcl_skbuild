@@ -76,7 +76,9 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libpcl-dev
+          # PCL 1.15's outofcore headers include cJSON's, which
+          # libpcl-dev does not depend on (see CMakeLists.txt)
+          sudo apt-get install -y libpcl-dev libcjson-dev
       - name: Install PCL — macOS
         if: runner.os == 'macOS'
         run: brew install pcl
