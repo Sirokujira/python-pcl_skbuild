@@ -60,6 +60,10 @@ foreach(module ${PCL_CYTHON_MODULES})
     install(TARGETS ${module} LIBRARY DESTINATION src/pcl)
 endforeach()
 
+if(NOT PCL_IO_HAS_PCAP)
+    target_compile_definitions(_grabber PRIVATE PCLCOMPAT_NO_PCAP)
+endif()
+
 # Optional modules: only where the PCL install has them (top-level
 # CMakeLists.txt decides).
 if(PCL_HAVE_OUTOFCORE)

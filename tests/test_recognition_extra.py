@@ -260,6 +260,48 @@ def test_ism_model_round_trip(ism_scene, tmp_path):
         other.load_Model(tmp_path / "missing.txt")
 
 
+def _tiny_model(learned_weight="0.5", word_class="0", tail="1 0"):
+    """One class, one visual word, one cluster of 153-value words, in
+    the format ISMModel::saveModelToFile writes."""
+    centre = " ".join("%g" % (i / 153.0) for i in range(153))
+    return ("1 1 1 153 0.25 %s %s 0.02 0.1 0.2 0.3 %s %s "
+            % (learned_weight, word_class, centre, tail))
+
+
+def test_ism_model_with_a_subnormal_weight_loads_whole(tmp_path):
+    """Learned weights underflow to subnormal floats routinely (a trained
+    model here holds several); PCL's loader reads with `>>`, which libc++
+    fails on one, leaving every later value zero (macOS CI)."""
+    path = tmp_path / "model.txt"
+    path.write_text(_tiny_model(learned_weight="8.421e-39"))
+    ism = pcl.ImplicitShapeModelEstimation()
+    ism.load_Model(path)
+    again = tmp_path / "again.txt"
+    ism.save_Model(again)
+    saved = again.read_text().split()
+    assert float(saved[5]) == pytest.approx(8.421e-39)
+    assert saved[-2:] == ["1", "0"]       # the cluster, read after it
+    assert float(saved[-3]) == pytest.approx(152 / 153.0, rel=1e-5)
+
+
+@pytest.mark.parametrize("text", [
+    _tiny_model(tail="1"),                # truncated
+    _tiny_model(tail="1 0 7"),            # trailing value
+    _tiny_model(word_class="3"),          # a class the model does not have
+    _tiny_model(tail="1 5"),              # a word the model does not have
+    _tiny_model(learned_weight="half"),   # not a number
+    _tiny_model().replace(" 153 ", " 33 ", 1),  # not 153-value words
+    "",
+])
+def test_ism_model_that_is_not_one_is_refused(tmp_path, text):
+    """PCL's loader returns true whatever it read, zero-filling the rest."""
+    path = tmp_path / "model.txt"
+    path.write_text(text)
+    ism = pcl.ImplicitShapeModelEstimation()
+    with pytest.raises(IOError):
+        ism.load_Model(path)
+
+
 def test_ism_arguments(ism_scene):
     ism, scene, normals, _, _ = ism_scene
     fresh = pcl.ImplicitShapeModelEstimation()

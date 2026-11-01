@@ -120,6 +120,16 @@ getter was renamed in 1.12 (`getPointsToTrackStatus` returning
 PointIndices before); `tracking_args.h` branches on the version and
 both branches were compiled.
 
+Behaviour can change between versions with no API change, too, which
+no header audit finds: 1.15 made RRANSAC and RMSAC pre-test ONE point
+by default instead of 10% of them (`setNrSamplesPretest`), which ends
+the RRANSAC hang below and lets RMSAC fit noisy data. The refusal and
+the RMSAC test branch on `pcl.PCL_VERSION`, the version compiled
+against (`compat/version_args.h`, since `pcl_config.h` has only
+macros). The CI runners are 1.15, so a 1.14-only expectation fails
+there and nowhere else -- run the suite against both before trusting
+a measured number (a conda-forge env gives a second PCL locally).
+
 ## C++ shims (src/pcl/compat/)
 
 Shims are the rung-4 escape hatch, and not only for version differences —
@@ -186,7 +196,9 @@ point of a random 10% subset is an outlier — so with any real outlier
 fraction no candidate ever passes and `max_iterations` is never
 consulted (read in `impl/rransac.hpp`; a plane with 20% outliers ran
 for ten minutes before being killed). `SampleConsensus` and
-`Segmentation.set_method_type` refuse the constant with that reason.
+`Segmentation.set_method_type` refuse the constant with that reason --
+below 1.15 only: 1.15's one-point pre-test lets candidates pass, and the
+same plane then fits (measured against conda-forge's 1.15.1).
 
 Hypothesis verification has a quieter version of the same trap:
 `PapazovHV` iterates `complete_models_`, which `addModels()` only fills
@@ -242,6 +254,19 @@ the survivors with the descriptors so the rows still line up.
 `PCL_WITHOUT_OPENMP` target property (top-level CMakeLists.txt) so the
 pragmas are ignored. `convolution_3d.h` uses `pcl::search::KdTree`
 without including it; `filter_args.h` includes it first.
+
+`VoxelGridLabel`'s "majority label" is no vote at all (1.11 through
+master): only each voxel's first point goes into the label map -- the
+loop over the rest never adds one -- and its counter reads
+`it->second = it->second++`, which does not count either. The answer is
+the label of whichever point `std::sort` (not stable) puts first, so a
+lone point beats four (plain C++), and libstdc++, libc++ and MSVC put
+different points first: the test passed on Linux by luck and failed on
+macOS and Windows. `filter_args.h` repeats PCL's voxel index arithmetic
+through the public `getMinBoxCoordinates` / `getDivisionMultiplier`
+(the output is one centroid per occupied voxel in index order) and
+votes over every point; ties go to the smaller label, as PCL's map
+would. No leaf layout: that allocates the whole grid.
 
 Compile-time, too: `OctreePointCloudVoxelCentroid::getVoxelCentroidAtPoint`
 in 1.14 calls a dependent-base member without `this->`, which two-phase
@@ -299,7 +324,12 @@ projects each indexed frame with that frame's XML but never updates the
 intrinsics `getCameraIntrinsics` reports -- documented, not absorbed.
 PNG writing goes through VTK inside PCL and `png_io.h` is only installed
 when PCL had VTK, so the shim tests `__has_include` rather than the
-private `PCL_BUILT_WITH_VTK`.
+private `PCL_BUILT_WITH_VTK`. conda-forge builds PCL's io without
+libpcap, and `HDLGrabber` / `VLPGrabber` then start on a .pcap and
+deliver nothing -- no error. PCLConfig.cmake lists io's optional
+dependencies in `pcl_io_opt_dep`; the top-level CMakeLists.txt reads it,
+`_grabber` refuses a `pcap_file` without pcap, and `pcl.PCAP_SUPPORTED`
+says which applies.
 
 The octree / compression batch: `OctreePointCloudAdjacency::testForOcclusion`
 walks towards the camera casting `(p - min) / resolution` to unsigned
@@ -354,6 +384,15 @@ header-only PCL class, compile it with clang as well as GCC
 (`clang++ -fsyntax-only`, no OpenMP needed for that).
 ObjRecRANSAC prints progress on every call: `OBJ_REC_RANSAC_VERBOSE` is
 defined in its header, so it is compiled into pcl_recognition.
+`ISMModel::loadModelFromfile` reads its text format with `>>`, and
+libc++ sets failbit on a subnormal float (ERANGE; libstdc++ does not)
+-- learned weights underflow into that range routinely -- so on macOS
+every value after the first such weight read as 0 while `true` came
+back. PCL never checks the stream at all, so a truncated file "loads"
+on every platform. `recognition_extra.h` reads the same format with
+`strtof` and refuses a short, garbled or inconsistent file. Proven with
+conda-forge's libc++ on Linux: `"0.5 8.4e-39 0.25" >> a >> b >> c`
+leaves `c` unread.
 
 The stereo batch: `DigitalElevationMapBuilder` can round a disparity
 just under the maximum into one histogram past the end;
@@ -527,6 +566,11 @@ from Python. `src/pcl/CMakeLists.txt` adds `-Ukiss_fft_scalar` (MSVC
   interpreter.
 - Stale `_skbuild/` cache after a failed rebuild: delete the `_skbuild`
   directory and rebuild.
+- A test that reads PCL's console output through `capfd` must flush C
+  stdio first (`fflush(NULL)` via ctypes). PCL prints with C `stdout`,
+  fully buffered on a pipe or file, so the text reaches the descriptor
+  late. Where `PYTHONUNBUFFERED` is set -- this sandbox -- Python turns
+  C stdio buffering off and the test passes; in CI it read nothing.
 
 ## Performance shape (measured, see bench/README.md)
 

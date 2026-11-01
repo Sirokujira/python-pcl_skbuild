@@ -35,6 +35,18 @@ find_package(PCL REQUIRED COMPONENTS
     common io filters kdtree octree search segmentation features surface
     registration keypoints recognition tracking people stereo ml)
 
+# PCL's HDL / VLP grabbers replay .pcap files only when pcl_io was built
+# with libpcap; without it they start, deliver nothing and report no
+# error (conda-forge's PCL, for one). PCLConfig.cmake lists the optional
+# dependencies pcl_io was built with (1.11 onwards), so the wrapper can
+# refuse instead of going silent.
+if(DEFINED pcl_io_opt_dep AND NOT "pcap" IN_LIST pcl_io_opt_dep)
+    set(PCL_IO_HAS_PCAP OFF)
+    message(STATUS "PCL's io was built without libpcap: no .pcap replay")
+else()
+    set(PCL_IO_HAS_PCAP ON)
+endif()
+
 # Optional: pcl_outofcore. PCL builds it only together with its VTK-based
 # visualization module, and its templates include VTK headers. Asking
 # find_package(PCL) for it would make VTK REQUIRED through that module,

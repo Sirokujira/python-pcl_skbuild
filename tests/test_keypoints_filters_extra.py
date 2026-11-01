@@ -304,10 +304,30 @@ def test_voxel_grid_label_keeps_the_majority_label():
     cloud = pcl.PointCloud(np.vstack([a, b]).astype(np.float32))
     labels = np.r_[np.full(100, 3), np.full(100, 8)]
     labels[:10] = 8          # a minority inside the first cluster
+    labels[195:] = 3         # and one inside the second
     points, out = pcl.VoxelGridLabel(0.2).filter(cloud, labels)
     assert points.size == len(out) == 2
     order = np.argsort(points.to_array()[:, 0])
     assert out[order].tolist() == [3, 8]
+
+
+@pytest.mark.parametrize("first, rest", [(8, 3), (3, 8)])
+def test_voxel_grid_label_counts_every_point(first, rest):
+    """PCL keeps the label of the voxel's first point after an unstable
+    sort -- here the lone one, measured in plain C++ -- so the vote is
+    the wrapper's."""
+    xyz = np.c_[np.arange(5) * 0.01, np.full(5, 0.01), np.full(5, 0.01)]
+    labels = np.r_[first, np.full(4, rest)]
+    _, out = pcl.VoxelGridLabel(1.0).filter(
+        pcl.PointCloud(xyz.astype(np.float32)), labels)
+    assert out.tolist() == [rest]
+
+
+def test_voxel_grid_label_tie_goes_to_the_smaller_label():
+    xyz = np.c_[np.arange(4) * 0.01, np.zeros(4), np.zeros(4)]
+    _, out = pcl.VoxelGridLabel(1.0).filter(
+        pcl.PointCloud(xyz.astype(np.float32)), np.array([9, 9, 4, 4]))
+    assert out.tolist() == [4]
 
 
 def test_voxel_grid_covariance():

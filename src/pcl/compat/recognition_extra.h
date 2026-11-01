@@ -23,6 +23,10 @@
 //   cloud sits relative to the origin. ShapeModel passes diameter / 10
 //   (the stated rule of thumb), with the diameter twice the largest
 //   distance from the centroid.
+// - Its model loader reads with `>>`, which libc++ fails on the first
+//   subnormal float (learned weights underflow routinely), leaving the
+//   rest of the model zero and returning true; ShapeModel reads the same
+//   format with strtof and refuses a file that does not hold a model.
 // - implicit_shape_model.h includes Eigen's private
 //   <Eigen/src/Core/Matrix.h> before <Eigen/Core>, which only compiles
 //   when something included Eigen first; this header does.
@@ -46,7 +50,12 @@
 #include <Eigen/Core>
 
 #include <algorithm>
+#include <cerrno>
 #include <cmath>
+#include <cstdlib>
+#include <fstream>
+#include <iterator>
+#include <limits>
 #include <list>
 #include <memory>
 #include <string>
@@ -329,7 +338,7 @@ public:
     /// count, so it follows the file's.
     bool load(std::string path) {
         auto loaded = std::make_shared<pcl::features::ISMModel>();
-        if (!loaded->loadModelFromfile(path)) {
+        if (!readModel(path, *loaded)) {
             return false;
         }
         model_ = loaded;
@@ -338,6 +347,132 @@ public:
     }
 
 private:
+    /// ISMModel::loadModelFromfile's format, read so that it loads the
+    /// same everywhere and fails when the file does not hold a model.
+    /// PCL reads it with `>>`, and libc++ sets failbit on a subnormal
+    /// float (ERANGE) -- learned weights underflow into that range
+    /// routinely -- after which every read fails and the rest of the
+    /// model stays zero while `true` is returned (macOS; the same file
+    /// loads under libstdc++). strtof takes subnormals; a short, garbled
+    /// or inconsistent file is refused, as is one of other than 153-value
+    /// words, which the search here would read past.
+    static bool readModel(const std::string& path,
+                          pcl::features::ISMModel& model) {
+        std::ifstream in(path);
+        if (!in) {
+            return false;
+        }
+        const std::vector<std::string> tokens{
+            std::istream_iterator<std::string>(in),
+            std::istream_iterator<std::string>()};
+        std::size_t at = 0;
+        auto count = [&](unsigned int& out) {
+            if (at >= tokens.size() || tokens[at][0] == '-') {
+                return false;
+            }
+            const char* text = tokens[at].c_str();
+            char* end = nullptr;
+            errno = 0;
+            const unsigned long v = std::strtoul(text, &end, 10);
+            if (end == text || *end != '\0' || errno == ERANGE ||
+                v > std::numeric_limits<unsigned int>::max()) {
+                return false;
+            }
+            out = static_cast<unsigned int>(v);
+            ++at;
+            return true;
+        };
+        auto value = [&](float& out) {
+            if (at >= tokens.size()) {
+                return false;
+            }
+            const char* text = tokens[at].c_str();
+            char* end = nullptr;
+            out = std::strtof(text, &end);
+            if (end == text || *end != '\0') {
+                return false;
+            }
+            ++at;
+            return true;
+        };
+        unsigned int classes = 0, words = 0, clusters = 0, dims = 0;
+        if (!count(classes) || !count(words) || !count(clusters) ||
+            !count(dims) || dims != 153) {
+            return false;
+        }
+        // what the counts promise, checked before allocating for them
+        const double promised = double(classes) * clusters + 5.0 * words +
+                                classes + double(clusters) * dims + clusters;
+        if (promised > double(tokens.size() - at)) {
+            return false;
+        }
+        model.reset();
+        model.number_of_classes_ = classes;
+        model.number_of_visual_words_ = words;
+        model.number_of_clusters_ = clusters;
+        model.descriptors_dimension_ = dims;
+        model.statistical_weights_.assign(classes,
+                                          std::vector<float>(clusters, 0.f));
+        for (auto& row : model.statistical_weights_) {
+            for (float& w : row) {
+                if (!value(w)) {
+                    return false;
+                }
+            }
+        }
+        model.learned_weights_.assign(words, 0.f);
+        for (float& w : model.learned_weights_) {
+            if (!value(w)) {
+                return false;
+            }
+        }
+        model.classes_.assign(words, 0);
+        for (unsigned int& c : model.classes_) {
+            if (!count(c) || c >= classes) {
+                return false;
+            }
+        }
+        model.sigmas_.assign(classes, 0.f);
+        for (float& sigma : model.sigmas_) {
+            if (!value(sigma)) {
+                return false;
+            }
+        }
+        float v = 0.f;
+        model.directions_to_center_.resize(words, 3);
+        for (unsigned int w = 0; w < words; ++w) {
+            for (int d = 0; d < 3; ++d) {
+                if (!value(v)) {
+                    return false;
+                }
+                model.directions_to_center_(w, d) = v;
+            }
+        }
+        model.clusters_centers_.resize(clusters, dims);
+        for (unsigned int k = 0; k < clusters; ++k) {
+            for (unsigned int d = 0; d < dims; ++d) {
+                if (!value(v)) {
+                    return false;
+                }
+                model.clusters_centers_(k, d) = v;
+            }
+        }
+        model.clusters_.assign(clusters, {});
+        for (auto& cluster : model.clusters_) {
+            unsigned int size = 0;
+            if (!count(size) || size > tokens.size() - at) {
+                return false;
+            }
+            cluster.assign(size, 0);
+            for (unsigned int& word : cluster) {
+                if (!count(word) || word >= words) {
+                    return false;
+                }
+            }
+        }
+        return at == tokens.size();
+    }
+
     void configureEstimator() {
         auto fpfh = std::make_shared<
             pcl::FPFHEstimation<pcl::PointXYZ, pcl::Normal, Histogram>>();

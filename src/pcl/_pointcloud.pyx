@@ -32,6 +32,8 @@ from pcl.pxd.compat.transform_args cimport isRigidTransform, transformCloud
 from pcl.pxd.console.print cimport (
     VERBOSITY_LEVEL, getVerbosityLevel, setVerbosityLevel)
 cimport pcl.pxd.console.print as console
+from pcl.pxd.compat.version_args cimport (
+    major_version, minor_version, revision_version)
 
 
 cdef string _topath(path):
@@ -874,6 +876,12 @@ cdef PointCloud wrap_cloud(shared_ptr[cPointCloud[PointXYZ]] ptr):
 
 # Backwards-compatible name from the first iteration of this package.
 PointCloudXYZ = PointCloud
+
+
+# --- the PCL this was built against -----------------------------------------
+
+# (major, minor, revision), e.g. (1, 14, 0), from pcl_config.h.
+PCL_VERSION = (major_version, minor_version, revision_version)
 
 
 # --- PCL's own log output --------------------------------------------------

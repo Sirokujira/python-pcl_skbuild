@@ -4,6 +4,11 @@
 // - NormalRefinement needs every point's neighbour indices and squared
 //   distances up front; they are searched here with a kd-tree.
 // - VoxelGridLabel works on PointXYZRGBL only; the cloud is converted.
+//   Its majority vote is done here: PCL records the label of each voxel's
+//   first point only (the inner loop never adds one, and its counter
+//   `it->second = it->second++` does not count), so it returns whichever
+//   label std::sort -- not stable -- puts first, and libstdc++, libc++
+//   and MSVC put different ones first.
 // - VoxelGridCovariance's results are Eigen vectors and matrices inside
 //   a std::map of leaves.
 // - VoxelGridOcclusionEstimation reads the sensor origin from the cloud
@@ -13,6 +18,7 @@
 //   operator an enum.
 #pragma once
 
+#include <cmath>
 #include <cstddef>
 #include <map>
 #include <memory>
@@ -115,6 +121,7 @@ inline void voxelGridLabel(const FCloud& cloud,
                            std::vector<unsigned int>& out_labels) {
     auto labelled = std::make_shared<pcl::PointCloud<pcl::PointXYZRGBL>>();
     labelled->resize(cloud.size());
+    bool dense = true;
     for (std::size_t i = 0; i < cloud.size(); ++i) {
         auto& p = (*labelled)[i];
         p.x = cloud[i].x;
@@ -122,7 +129,10 @@ inline void voxelGridLabel(const FCloud& cloud,
         p.z = cloud[i].z;
         p.rgba = 0;
         p.label = labels[i];
+        dense = dense && std::isfinite(p.x) && std::isfinite(p.y) &&
+                std::isfinite(p.z);
     }
+    labelled->is_dense = dense;  // so PCL skips NaN points
     pcl::VoxelGridLabel grid;
     grid.setInputCloud(labelled);
     grid.setLeafSize(leaf_x, leaf_y, leaf_z);
@@ -133,6 +143,44 @@ inline void voxelGridLabel(const FCloud& cloud,
     for (std::size_t i = 0; i < filtered.size(); ++i) {
         out_points[i] = FPoint(filtered[i].x, filtered[i].y, filtered[i].z);
         out_labels[i] = filtered[i].label;
+    }
+    if (filtered.empty()) {
+        return;
+    }
+    // The vote, over every point: PCL's own voxel index arithmetic
+    // (voxel_grid_label.cpp), and its output holds one centroid per
+    // occupied voxel in increasing index order. Ties go to the smallest
+    // label, as PCL's ordered map would resolve them.
+    const Eigen::Vector3i min_b = grid.getMinBoxCoordinates();
+    const Eigen::Vector3i mul = grid.getDivisionMultiplier();
+    const float inv[3] = {1.0f / leaf_x, 1.0f / leaf_y, 1.0f / leaf_z};
+    std::map<long long, std::map<unsigned int, std::size_t>> votes;
+    for (const auto& p : *labelled) {
+        if (!std::isfinite(p.x) || !std::isfinite(p.y) || !std::isfinite(p.z)) {
+            continue;
+        }
+        const float xyz[3] = {p.x, p.y, p.z};
+        long long voxel = 0;
+        for (int k = 0; k < 3; ++k) {
+            const int ijk =
+                static_cast<int>(std::floor(xyz[k] * inv[k]) - min_b[k]);
+            voxel += static_cast<long long>(ijk) * mul[k];
+        }
+        ++votes[voxel][p.label];
+    }
+    if (votes.size() != filtered.size()) {
+        return;  // not PCL's grid after all; keep what it answered
+    }
+    std::size_t i = 0;
+    for (const auto& voxel : votes) {
+        std::size_t most = 0;
+        for (const auto& vote : voxel.second) {
+            if (vote.second > most) {
+                out_labels[i] = vote.first;
+                most = vote.second;
+            }
+        }
+        ++i;
     }
 }
 

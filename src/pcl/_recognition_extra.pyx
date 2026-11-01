@@ -433,6 +433,12 @@ cdef class ImplicitShapeModelEstimation:
             raise IOError("could not write %s" % path)
 
     def load_Model(self, path):
+        """Load a model written by :meth:`save_Model` (or by PCL's
+        ``ISMModel::saveModelToFile``). Read here rather than by PCL,
+        whose reader stops at the first subnormal weight under libc++
+        (macOS) and zero-fills the rest; a file that does not hold a
+        complete, consistent model of 153-value words raises IOError
+        where PCL would report success."""
         import os
         if not self.me.load(os.fsencode(os.fspath(path))):
             raise IOError("could not read an ISM model from %s" % path)

@@ -2,6 +2,9 @@
 FlannSearch, and ConditionalRemoval's OR / nested / quadric / colour
 conditions."""
 
+import ctypes
+import sys
+
 import numpy as np
 import pytest
 
@@ -25,6 +28,15 @@ def test_verbosity_round_trips():
         pcl.set_verbosity_level(before)
 
 
+def _flush_c_stdio():
+    """PCL prints through C stdio, which buffers stdout fully when it is
+    a pipe or a file -- as under pytest's fd capture, unless
+    PYTHONUNBUFFERED made Python switch the buffering off -- so what PCL
+    printed reaches the descriptor only on a flush."""
+    libc = ctypes.CDLL("ucrtbase" if sys.platform == "win32" else None)
+    libc.fflush(None)
+
+
 def test_verbosity_silences_pcl_info(capfd):
     """GrabCut reports every iteration with PCL_INFO."""
     h, w = 12, 12
@@ -45,11 +57,15 @@ def test_verbosity_silences_pcl_info(capfd):
 
     before = pcl.get_verbosity_level()
     try:
+        _flush_c_stdio()
+        capfd.readouterr()
         pcl.set_verbosity_level(pcl.L_INFO)
         run()
+        _flush_c_stdio()
         assert "pixels changed" in "".join(capfd.readouterr())
         pcl.set_verbosity_level(pcl.L_WARN)
         run()
+        _flush_c_stdio()
         assert "pixels changed" not in "".join(capfd.readouterr())
     finally:
         pcl.set_verbosity_level(before)

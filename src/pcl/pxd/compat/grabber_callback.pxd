@@ -22,3 +22,5 @@ cdef extern from "pcl/compat/grabber_callback.h" namespace "pclcompat" nogil:
         bool connected() except +
 
     HDLGrabber* newVLPGrabber(const string& pcap_file) except +
+
+    const bool PCAP_REPLAY

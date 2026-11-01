@@ -239,6 +239,8 @@ def _vlp_capture(path, revolutions=2.2, distance_m=5.0):
     return path
 
 
+@pytest.mark.skipif(not pcl.PCAP_SUPPORTED,
+                    reason="this PCL's io was built without libpcap")
 def test_vlp_grabber_replays_a_capture(tmp_path):
     capture = _vlp_capture(tmp_path / "vlp.pcap")
     sweeps = []
@@ -260,3 +262,15 @@ def test_vlp_grabber_replays_a_capture(tmp_path):
     ranges = np.linalg.norm(full, axis=1)
     assert len(full) > 300 * 16
     assert np.allclose(ranges, 5.0, atol=0.05)
+
+
+@pytest.mark.skipif(pcl.PCAP_SUPPORTED, reason="this PCL replays .pcap")
+def test_pcap_replay_refused_without_libpcap(tmp_path):
+    """PCL without libpcap (conda-forge's) starts the grabber and never
+    delivers a frame; the wrapper says why instead."""
+    capture = _vlp_capture(tmp_path / "vlp.pcap")
+    with pytest.raises(RuntimeError, match="libpcap"):
+        pcl.VLPGrabber(str(capture))
+    with pytest.raises(RuntimeError, match="libpcap"):
+        pcl.HDLGrabber(pcap_file=str(capture))
+    pcl.HDLGrabber()          # no capture: nothing to refuse

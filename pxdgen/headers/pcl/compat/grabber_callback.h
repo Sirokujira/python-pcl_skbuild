@@ -39,4 +39,7 @@ public:
 // A VLPGrabber replaying a .pcap, as its HDLGrabber base.
 pcl::HDLGrabber* newVLPGrabber(const std::string& pcap_file);
 
+// false where pcl_io was built without libpcap (see the shim).
+const bool PCAP_REPLAY = true;
+
 }  // namespace pclcompat

@@ -99,12 +99,10 @@ cdef class Segmentation:
         self.me.setModelType(m)
 
     def set_method_type(self, int m):
-        # SAC_RRANSAC never returns on data with outliers in PCL 1.14 --
-        # see SampleConsensus in _sac.pyx for the mechanism.
-        if m == method_types.SAC_RRANSAC:
-            raise ValueError(
-                "SAC_RRANSAC is refused: PCL's RandomizedRandomSampleConsensus "
-                "never returns on data with outliers; use SAC_RANSAC")
+        # SAC_RRANSAC never returns on data with outliers before PCL
+        # 1.15 -- see SampleConsensus in _sac.pyx for the mechanism.
+        from pcl._sac import _refuse_rransac
+        _refuse_rransac(m)
         """Estimation method, e.g. ``pcl.SAC_RANSAC``."""
         self.me.setMethodType(m)
 
@@ -249,12 +247,10 @@ cdef class SegmentationNormal:
         self.me.setModelType(m)
 
     def set_method_type(self, int m):
-        # SAC_RRANSAC never returns on data with outliers in PCL 1.14 --
-        # see SampleConsensus in _sac.pyx for the mechanism.
-        if m == method_types.SAC_RRANSAC:
-            raise ValueError(
-                "SAC_RRANSAC is refused: PCL's RandomizedRandomSampleConsensus "
-                "never returns on data with outliers; use SAC_RANSAC")
+        # SAC_RRANSAC never returns on data with outliers before PCL
+        # 1.15 -- see SampleConsensus in _sac.pyx for the mechanism.
+        from pcl._sac import _refuse_rransac
+        _refuse_rransac(m)
         self.me.setMethodType(m)
 
     def set_distance_threshold(self, float d):

@@ -53,6 +53,7 @@ _add_windows_dll_directories()
 from ._pointcloud import (
     PointCloud,
     PointCloudXYZ,
+    PCL_VERSION,
     L_ALWAYS,
     L_DEBUG,
     L_ERROR,
@@ -210,7 +211,7 @@ from ._keypoints import (
     TOMASI,
     HarrisKeypoint3D,
 )
-from ._grabber import HDLGrabber, PCDGrabber, VLPGrabber
+from ._grabber import PCAP_SUPPORTED, HDLGrabber, PCDGrabber, VLPGrabber
 from . import _io
 from ._io import (
     IMAGE_COLORS_MONO,
@@ -539,7 +540,8 @@ __all__ = [
     "IMAGE_SCALING_FULL_RANGE",
     "IMAGE_SCALING_NO",
     "PointCloud", "PointCloudXYZ", "load", "save",
-    "L_ALWAYS", "L_ERROR", "L_WARN", "L_INFO", "L_DEBUG", "L_VERBOSE",
+    "PCL_VERSION", "L_ALWAYS", "L_ERROR", "L_WARN", "L_INFO", "L_DEBUG",
+    "L_VERBOSE",
     "get_verbosity_level", "set_verbosity_level",
     "PointCloud_Normal",
     "PointCloud_PointXYZI", "PointCloud_PointXYZRGB",
@@ -569,7 +571,7 @@ __all__ = [
     "IterativeClosestPoint", "IterativeClosestPointNonLinear",
     "GeneralizedIterativeClosestPoint", "NormalDistributionsTransform",
     "SampleConsensusPrerejective",
-    "PCDGrabber", "HDLGrabber", "VLPGrabber",
+    "PCDGrabber", "HDLGrabber", "VLPGrabber", "PCAP_SUPPORTED",
     "RangeImage", "CAMERA_FRAME", "LASER_FRAME",
     "GeometricConsistencyGrouping", "Hough3DGrouping", "match_descriptors",
     "transform_cloud",

@@ -34,9 +34,24 @@ from pcl.pxd.compat.sac_models cimport (
     sacModelSetTarget, SAC_MODEL_ELLIPSE3D)
 cimport pcl.pxd.sample_consensus.model_types as model_types
 cimport pcl.pxd.sample_consensus.method_types as method_types
+from pcl.pxd.compat.version_args cimport major_version, minor_version
 
 from pcl._pointcloud cimport PointCloud
 from pcl._pointtypes cimport PointCloud_Normal
+
+
+# Before 1.15, RRANSAC pre-tests 10% of the points and never returns on
+# data with outliers; see SampleConsensus. Segmentation shares this.
+_RRANSAC_HANGS = (major_version, minor_version) < (1, 15)
+
+
+def _refuse_rransac(int method):
+    if method == method_types.SAC_RRANSAC and _RRANSAC_HANGS:
+        raise ValueError(
+            "SAC_RRANSAC is refused before PCL 1.15: its "
+            "RandomizedRandomSampleConsensus never returns on data with "
+            "outliers (see pcl.SampleConsensus); use SAC_RANSAC, or "
+            "SAC_RMSAC on nearly clean data")
 
 
 cdef class SampleConsensusModel:
@@ -240,12 +255,14 @@ cdef class SampleConsensus:
     LMEDS, MSAC, RMSAC, MLESAC or PROSAC. All share the distance
     threshold, iteration cap and probability.
 
-    SAC_RRANSAC is refused: PCL's RandomizedRandomSampleConsensus never
-    returns on data with outliers (its pre-test rejects a candidate as
-    soon as one point of a random 10% subset is an outlier, and the loop
-    bound is only lowered once a candidate passes, so `max_iterations`
-    is never consulted). SAC_RMSAC shares the pre-test but does stop;
-    expect a poor model unless the data is nearly outlier-free.
+    Before PCL 1.15, SAC_RRANSAC is refused: RandomizedRandomSampleConsensus
+    never returns on data with outliers (its pre-test rejects a candidate
+    as soon as one point of a random 10% subset is an outlier, and the
+    loop bound is only lowered once a candidate passes, so
+    `max_iterations` is never consulted). SAC_RMSAC shares that pre-test
+    but does stop; expect a poor model unless the data is nearly
+    outlier-free. PCL 1.15 pre-tests a single point by default, and both
+    then fit as RANSAC does (``pcl.PCL_VERSION`` says which applies).
     """
 
     cdef shared_ptr[cSac[PointXYZ]] thisptr
@@ -258,11 +275,7 @@ cdef class SampleConsensus:
                   int method=method_types.SAC_RANSAC):
         self.model = model
         self.method = method
-        if method == method_types.SAC_RRANSAC:
-            raise ValueError(
-                "SAC_RRANSAC is refused: PCL's RandomizedRandomSampleConsensus "
-                "never returns on data with outliers (see the class docstring); "
-                "use SAC_RANSAC, or SAC_RMSAC on nearly clean data")
+        _refuse_rransac(method)
         self.thisptr = makeSac(method, model.thisptr)
         if sacIsNull(self.thisptr):
             raise ValueError(

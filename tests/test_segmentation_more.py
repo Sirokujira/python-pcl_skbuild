@@ -154,15 +154,20 @@ def test_every_method_fits_the_plane(tilted_plane, method):
 
 
 def test_rmsac_needs_nearly_clean_data(tilted_plane):
-    """RMSAC pre-tests a random 10% of the points: one outlier among
-    them rejects the candidate, so with 20% outliers it returns a poor
-    model (measured: ~25 inliers of 800) -- while a clean plane fits."""
+    """Before 1.15 RMSAC pre-tests a random 10% of the points: one
+    outlier among them rejects the candidate, so with 20% outliers it
+    returns a poor model (measured: ~25 inliers of 800) -- while a clean
+    plane fits. 1.15 pre-tests a single point by default, and the noisy
+    plane fits too (all 800 inliers, measured)."""
     noisy = pcl.SampleConsensus(
         pcl.SampleConsensusModelPlane(tilted_plane), pcl.SAC_RMSAC)
     noisy.set_DistanceThreshold(0.02)
     noisy.set_MaxIterations(200)
     noisy.computeModel()
-    assert len(noisy.get_Inliers()) < 600
+    if pcl.PCL_VERSION < (1, 15, 0):
+        assert len(noisy.get_Inliers()) < 600
+    else:
+        assert len(noisy.get_Inliers()) > 700
 
     clean = pcl.PointCloud(tilted_plane.to_array()[:800, :3])
     sac = pcl.SampleConsensus(pcl.SampleConsensusModelPlane(clean),
@@ -173,12 +178,32 @@ def test_rmsac_needs_nearly_clean_data(tilted_plane):
     assert len(sac.get_Inliers()) > 700
 
 
+@pytest.mark.skipif(pcl.PCL_VERSION >= (1, 15, 0),
+                    reason="1.15 pre-tests one point; RRANSAC returns")
 def test_rransac_is_refused_because_it_never_returns(tilted_plane):
     model = pcl.SampleConsensusModelPlane(tilted_plane)
     with pytest.raises(ValueError, match="never returns"):
         pcl.SampleConsensus(model, pcl.SAC_RRANSAC)
     with pytest.raises(ValueError, match="never returns"):
         tilted_plane.make_segmenter().set_method_type(pcl.SAC_RRANSAC)
+
+
+@pytest.mark.skipif(pcl.PCL_VERSION < (1, 15, 0),
+                    reason="before 1.15 RRANSAC never returns on outliers")
+def test_rransac_fits_from_pcl_1_15(tilted_plane):
+    """The 20%-outlier plane that hangs 1.14 for good."""
+    sac = pcl.SampleConsensus(pcl.SampleConsensusModelPlane(tilted_plane),
+                              pcl.SAC_RRANSAC)
+    sac.set_DistanceThreshold(0.02)
+    sac.set_MaxIterations(200)
+    assert sac.computeModel()
+    assert len(sac.get_Inliers()) > 700
+    seg = tilted_plane.make_segmenter()
+    seg.set_model_type(pcl.SACMODEL_PLANE)
+    seg.set_method_type(pcl.SAC_RRANSAC)
+    seg.set_distance_threshold(0.02)
+    indices, _ = seg.segment()
+    assert len(indices) > 700
 
 
 def test_random_sample_consensus_is_the_ransac_spelling(tilted_plane):

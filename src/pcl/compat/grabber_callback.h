@@ -97,6 +97,17 @@ private:
     boost::signals2::connection connection_;
 };
 
+/// Whether pcl_io can replay .pcap files. It reads them only when built
+/// with libpcap, and otherwise starts, delivers nothing and reports no
+/// error (conda-forge's PCL has no libpcap). CMakeLists.txt reads the
+/// io library's optional dependencies from PCLConfig.cmake and defines
+/// PCLCOMPAT_NO_PCAP when libpcap is not among them.
+#ifdef PCLCOMPAT_NO_PCAP
+const bool PCAP_REPLAY = false;
+#else
+const bool PCAP_REPLAY = true;
+#endif
+
 /// A VLPGrabber replaying `pcap_file`, handed back as its HDLGrabber
 /// base: VLP-16 packets differ only in how toPointClouds reads them, and
 /// every call the wrapper makes (start, stop, the sweep signal) is on the

@@ -20,6 +20,12 @@ def _same_points(actual, expected):
         a == pytest.approx(e) for a, e in zip(actual, expected))
 
 
+def test_pcl_version():
+    assert len(pcl.PCL_VERSION) == 3
+    assert all(isinstance(v, int) for v in pcl.PCL_VERSION)
+    assert pcl.PCL_VERSION >= (1, 11, 0)
+
+
 def test_construct_empty():
     cloud = pcl.PointCloud()
     assert cloud.size == 0

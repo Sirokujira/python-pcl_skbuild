@@ -37,7 +37,7 @@ from pcl.pxd.point_cloud cimport PointCloud as cPointCloud
 from pcl.pxd.io.pcd_grabber cimport PCDGrabber as cPCDGrabber
 from pcl.pxd.io.hdl_grabber cimport HDLGrabber as cHDLGrabber
 from pcl.pxd.compat.grabber_callback cimport (
-    CloudCallback, CloudCallbackFn, newVLPGrabber)
+    PCAP_REPLAY, CloudCallback, CloudCallbackFn, newVLPGrabber)
 
 from pcl._pointcloud cimport PointCloud, wrap_cloud
 
@@ -284,6 +284,19 @@ cdef class PCDGrabber:
     Stop = stop
 
 
+# Whether this PCL's io library can replay .pcap files (it needs libpcap;
+# conda-forge's PCL has none, and its grabbers then start and stay silent).
+PCAP_SUPPORTED = bool(PCAP_REPLAY)
+
+
+cdef _check_pcap(pcap_file):
+    if pcap_file and not PCAP_REPLAY:
+        raise RuntimeError(
+            "this PCL's io library was built without libpcap, so its HDL / "
+            "VLP grabbers deliver no frames from a .pcap file (they start "
+            "and stay silent); pcl.PCAP_SUPPORTED is False")
+
+
 cdef class HDLGrabber:
     """Velodyne HDL LiDAR (pcl::HDLGrabber), replaying a .pcap.
 
@@ -304,6 +317,7 @@ cdef class HDLGrabber:
         self.handler = None
 
     def __init__(self, corrections_file="", pcap_file=""):
+        _check_pcap(pcap_file)
         self.me = new cHDLGrabber(
             _tobytes(corrections_file), _tobytes(pcap_file))
 
@@ -390,5 +404,6 @@ cdef class VLPGrabber(HDLGrabber):
     dual-return packets understood."""
 
     def __init__(self, pcap_file=""):
+        _check_pcap(pcap_file)
         self.me = newVLPGrabber(_tobytes(pcap_file))
 

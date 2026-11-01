@@ -375,3 +375,9 @@ extra_cimports = [
     "from pcl.pxd.point_types cimport PointXYZ",
     "from pcl.pxd.point_cloud cimport PointCloud",
 ]
+
+[[headers]]
+path = "headers/pcl/compat/version_args.h"
+extern_from = "pcl/compat/version_args.h"
+output = "../src/pcl/pxd/compat/version_args.pxd"
+namespaces = ["pclcompat"]
