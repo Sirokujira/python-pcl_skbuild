@@ -123,11 +123,18 @@ def test_sac_ia_needs_no_initial_guess(moved_pair):
     assert transform.shape == (4, 4)
     assert isinstance(estimate, pcl.PointCloud)
     assert estimate.size == source.size
-    # Far better than doing nothing, even if not pixel-perfect.
+    # Far better than doing nothing, even if not pixel-perfect: SAC-IA
+    # samples with rand(), and over 1000 seeds its translation was off by
+    # more than 0.1 seven times (0.132 at worst) -- it is a starting point
+    # for ICP, which from there reached the truth every time.
     before = pcl.validate_transformation(source, target, np.eye(4))
     after = pcl.validate_transformation(source, target, transform)
     assert after < before / 10
-    assert transform[:3, 3] == pytest.approx(truth[:3, 3], abs=0.1)
+    assert transform[:3, 3] == pytest.approx(truth[:3, 3], abs=0.2)
+    _, refine, _, _ = pcl.IterativeClosestPoint().icp(
+        source.transform(transform), target, max_iter=50)
+    refined = refine.astype(np.float64) @ transform
+    assert refined[:3, 3] == pytest.approx(truth[:3, 3], abs=0.01)
 
 
 def test_sac_ia_settings_round_trip():
