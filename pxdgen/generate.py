@@ -4,6 +4,15 @@
 Usage:
     python pxdgen/generate.py            # rewrite src/pcl/pxd/**/*.pxd
     python pxdgen/generate.py --check    # exit 1 if committed pxd are stale
+    python pxdgen/generate.py --backend cppast   # same, through the C++ tool
+
+The committed pxd files are the libclang backend's output. `--backend
+cppast` writes what cppast2autopxd's C++ tool (cppast_autopxd) generates
+for the same config instead, so the two can be diffed; it does not combine
+with --check, because the two backends differ cosmetically (block-level vs
+per-function `nogil`, cimport order) and a byte comparison would always be
+"stale". Cross-backend parity is tested where it belongs, in
+tests/test_pxd_pipeline.py::test_cppast_backend_parity.
 
 The base config (pxdgen/pcl_headers.toml) carries the [generator] settings
 and typemap substitutions; per-module header lists live in
@@ -116,12 +125,51 @@ def main(argv=None) -> int:
         help="do not write; fail if committed pxd files differ from "
         "freshly generated output",
     )
+    ap.add_argument(
+        "--backend",
+        choices=["libclang", "cppast"],
+        default="libclang",
+        help="parser to generate with: libclang (cppast2autopxd's own; what "
+        "the committed files are) or cppast (delegate every header to the "
+        "cppast_autopxd binary, found via CPPAST2AUTOPXD_CPP_TOOL, PATH or "
+        "the cppast_autopxd_native wheel). Not combinable with --check",
+    )
     args = ap.parse_args(argv)
+
+    if args.backend == "cppast":
+        if args.check:
+            print(
+                "error: --check compares against the committed pxd, which are "
+                "libclang output; the cppast backend differs cosmetically, so "
+                "parity is tested by tests/test_pxd_pipeline.py::"
+                "test_cppast_backend_parity instead",
+                file=sys.stderr,
+            )
+            return 2
+        try:
+            from cppast2autopxd.generator import generate_job_cppast
+        except ImportError:
+            print(
+                "error: the installed cppast2autopxd predates its cppast "
+                "backend's batch mode; upgrade:\n"
+                "  pip install -U git+https://github.com/sirokujira/cppast2autopxd",
+                file=sys.stderr,
+            )
+            return 2
+        generate = generate_job_cppast
+    else:
+        generate = generate_job
 
     cfg = load_all()
     stale = []
     for job in cfg.headers:
-        result = generate_job(cfg, job)
+        try:
+            result = generate(cfg, job)
+        except (RuntimeError, ValueError) as err:
+            # a missing/failing cppast_autopxd binary, or a job option the
+            # cppast backend cannot honor: say which, do not write anything
+            print(f"error [{os.path.basename(job.path)}]: {err}", file=sys.stderr)
+            return 2
         for w in result.warnings:
             print(f"warning [{os.path.basename(job.path)}]: {w}", file=sys.stderr)
 

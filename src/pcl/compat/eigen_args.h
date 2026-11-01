@@ -11,6 +11,7 @@
 #pragma once
 
 #include <pcl/filters/crop_box.h>
+#include <pcl/filters/frustum_culling.h>
 #include <pcl/point_types.h>
 #include <pcl/segmentation/sac_segmentation.h>
 
@@ -43,6 +44,17 @@ inline void setCropBoxRotation(pcl::CropBox<Point>& box,
 }
 
 /// The axis a perpendicular/parallel model is measured against.
+inline void setFrustumCameraPose(pcl::FrustumCulling<pcl::PointXYZ>& culling,
+                                 const float* column_major16) {
+    Eigen::Matrix4f m;
+    for (int col = 0; col < 4; ++col) {
+        for (int row = 0; row < 4; ++row) {
+            m(row, col) = column_major16[col * 4 + row];
+        }
+    }
+    culling.setCameraPose(m);
+}
+
 inline void setSegmentationAxis(pcl::SACSegmentation<Point>& seg,
                                 float x, float y, float z) {
     seg.setAxis(Eigen::Vector3f(x, y, z));

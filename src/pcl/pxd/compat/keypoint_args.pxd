@@ -3,8 +3,16 @@
 
 # distutils: language = c++
 
+from libcpp cimport bool
+from libcpp.memory cimport shared_ptr
+from pcl.pxd.keypoints.agast_2d cimport AgastKeypoint2D
+from pcl.pxd.keypoints.harris_2d cimport HarrisKeypoint2D
 from pcl.pxd.keypoints.harris_3d cimport HarrisKeypoint3D
-from pcl.pxd.point_types cimport PointXYZ, PointXYZI
+from pcl.pxd.keypoints.smoothed_surfaces_keypoint cimport SmoothedSurfacesKeypoint
+from pcl.pxd.keypoints.trajkovic_2d cimport TrajkovicKeypoint2D
+from pcl.pxd.keypoints.trajkovic_3d cimport TrajkovicKeypoint3D
+from pcl.pxd.point_cloud cimport PointCloud
+from pcl.pxd.point_types cimport PointXYZ, PointXYZI, PointXYZRGBA, PointUV, Normal
 
 cdef extern from "pcl/compat/keypoint_args.h" namespace "pclcompat" nogil:
     const int HARRIS_METHOD_HARRIS
@@ -18,3 +26,35 @@ cdef extern from "pcl/compat/keypoint_args.h" namespace "pclcompat" nogil:
     const int HARRIS_METHOD_CURVATURE
 
     void setHarrisMethod(HarrisKeypoint3D[PointXYZ, PointXYZI]& detector, int method) except +
+
+    cdef cppclass CorrectedHarris2D:
+        CorrectedHarris2D() except +
+        void setInputCloud(const shared_ptr[PointCloud[PointXYZRGBA]]& cloud) except +
+        void setKSearch(int k) except +
+        void setMethodCode(int method) except +
+        void setWindowWidth(int pixels) except +
+        void setWindowHeight(int pixels) except +
+        void setSkippedPixels(int pixels) except +
+        void setMinimalDistance(int pixels) except +
+        void setThreshold(float threshold) except +
+        void setNonMaxSupression(bool suppress) except +
+        void setRefine(bool refine) except +
+        void compute(PointCloud[PointXYZI]& output) except +
+
+    const int TRAJKOVIC_FOUR_CORNERS
+
+    const int TRAJKOVIC_EIGHT_CORNERS
+
+    void setTrajkovic2DMethod(TrajkovicKeypoint2D[PointXYZRGBA, PointXYZI]& detector, int method) except +
+
+    void setTrajkovic3DMethod(TrajkovicKeypoint3D[PointXYZ, PointXYZI]& detector, int method) except +
+
+    const int AGAST_7_12S
+
+    const int AGAST_5_8
+
+    const int OAST_9_16
+
+    void agastDetect(AgastKeypoint2D[PointXYZRGBA, PointUV]& detector, int kind, PointCloud[PointUV]& out) except +
+
+    void addSmoothedCloud(SmoothedSurfacesKeypoint[PointXYZ, Normal]& detector, const shared_ptr[PointCloud[PointXYZ]]& cloud, const shared_ptr[PointCloud[Normal]]& normals, float scale) except +

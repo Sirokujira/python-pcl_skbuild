@@ -151,3 +151,36 @@ def test_change_detector_reports_nothing_new_for_an_unchanged_cloud():
 def test_change_detector_rejects_a_nonpositive_resolution():
     with pytest.raises(ValueError):
         pcl.OctreePointCloudChangeDetector(-1.0)
+
+
+# --- voxel occupancy (python-pcl's OctreePointCloud base methods) --------
+
+def test_voxel_occupancy_follows_the_points():
+    points = np.array([[0.05, 0.05, 0.05], [0.95, 0.95, 0.95]],
+                      dtype=np.float32)
+    cloud = pcl.PointCloud(points)
+    octree = pcl.OctreePointCloudSearch(0.1, cloud)
+    octree.add_points_from_input_cloud()
+    assert octree.is_voxel_occupied_at_point((0.05, 0.05, 0.05))
+    # the voxel grid starts at the cloud's minimum corner, so a query
+    # a little ABOVE the first point shares its voxel (one below it would
+    # fall outside the tree's bounding box and count as unoccupied)
+    assert octree.is_voxel_occupied_at_point((0.08, 0.09, 0.06))
+    assert not octree.is_voxel_occupied_at_point((0.5, 0.5, 0.5))
+    with pytest.raises((TypeError, ValueError)):
+        octree.is_voxel_occupied_at_point((0.5, 0.5))
+
+
+def test_delete_voxel_at_point_removes_only_that_voxel():
+    points = np.array([[0.05, 0.05, 0.05], [0.95, 0.95, 0.95]],
+                      dtype=np.float32)
+    cloud = pcl.PointCloud(points)
+    octree = pcl.OctreePointCloudSearch(0.1, cloud)
+    octree.add_points_from_input_cloud()
+    assert len(octree.get_occupied_voxel_centers()) == 2
+    octree.delete_voxel_at_point((0.05, 0.05, 0.05))
+    assert not octree.is_voxel_occupied_at_point((0.05, 0.05, 0.05))
+    assert octree.is_voxel_occupied_at_point((0.95, 0.95, 0.95))
+    assert len(octree.get_occupied_voxel_centers()) == 1
+    # the cloud itself keeps both points
+    assert cloud.size == 2

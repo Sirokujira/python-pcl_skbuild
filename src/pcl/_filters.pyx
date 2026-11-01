@@ -48,16 +48,35 @@ from pcl.pxd.vertices cimport Vertices
 from libcpp.vector cimport vector
 from pcl.pxd.filters.fast_bilateral cimport (
     FastBilateralFilter as cFastBilateralFilter)
-from pcl.pxd.filters.conditional_removal cimport (
-    ConditionAnd as cConditionAnd,
-    ConditionalRemoval as cConditionalRemoval)
 from pcl.pxd.compat.eigen_args cimport (
     setCropBoxMax, setCropBoxMin, setCropBoxRotation, setCropBoxTranslation)
 from pcl.pxd.compat.condition_args cimport (
     COMPARE_EQ, COMPARE_GE, COMPARE_GT, COMPARE_LE, COMPARE_LT,
-    addFieldComparison, makeConditionAnd, setCondition)
+    conditionalRemoval)
+cimport pcl.pxd.compat.condition_args as ca
 
 from libcpp.memory cimport shared_ptr
+from pcl.pxd.point_types cimport (
+    Normal, PointXYZI, PointNormal, PointXYZRGB, PointXYZRGBA)
+from pcl.pxd.filters.shadowpoints cimport ShadowPoints as cShadowPoints
+from pcl.pxd.filters.normal_space cimport (
+    NormalSpaceSampling as cNormalSpaceSampling)
+from pcl.pxd.filters.sampling_surface_normal cimport (
+    SamplingSurfaceNormal as cSamplingSurfaceNormal)
+from pcl.pxd.filters.grid_minimum cimport GridMinimum as cGridMinimum
+from pcl.pxd.filters.local_maximum cimport LocalMaximum as cLocalMaximum
+from pcl.pxd.filters.frustum_culling cimport (
+    FrustumCulling as cFrustumCulling)
+from pcl.pxd.filters.median_filter cimport MedianFilter as cMedianFilter
+from pcl.pxd.filters.bilateral cimport BilateralFilter as cBilateralFilter
+from pcl.pxd.filters.model_outlier_removal cimport (
+    ModelOutlierRemoval as cModelOutlierRemoval)
+from pcl.pxd.compat.eigen_args cimport setFrustumCameraPose
+cimport pcl.pxd.sample_consensus.model_types as model_types
+from pcl._pointtypes cimport (
+    PointCloud_Normal, PointCloud_PointXYZI, PointCloud_PointNormal,
+    PointCloud_PointXYZRGB, PointCloud_PointXYZRGBA, wrap_xyzrgb_cloud,
+    wrap_xyzrgba_cloud)
 
 from pcl._pointcloud cimport PointCloud
 
@@ -534,72 +553,223 @@ CompareOp_LE = COMPARE_LE
 CompareOp_EQ = COMPARE_EQ
 
 
-cdef class ConditionAnd:
-    """A conjunction of field comparisons (pcl::ConditionAnd).
+cdef class _Condition:
+    """A node of ConditionalRemoval's condition tree: comparisons and
+    nested conditions, combined with AND (`ConditionAnd`) or OR
+    (`ConditionOr`).
 
-    Every comparison added must hold for a point to survive
-    `ConditionalRemoval`.
+    The tree lives on the Python side and is rebuilt in
+    pcl/compat/condition_args.h for the point type of the cloud being
+    filtered: PCL's nodes are shared_ptrs to abstract bases, whose
+    derived-to-base conversions Cython cannot perform, and a tree built
+    for one point type cannot filter another.
+    """
+
+    cdef int kind
+    cdef list nodes
+
+    def __cinit__(self, *args, **kwargs):
+        self.nodes = []
+
+    def add_Comparison2(self, field_name, int op, double value):
+        """Add ``field_name <op> value`` (pcl::FieldComparison); *op* is
+        one of the ``pcl.CompareOp_*`` constants."""
+        _check_op(op)
+        self.nodes.append((ca.COMPARISON_FIELD, _tobytes(field_name), op,
+                           (value,)))
+        return self
+
+    def add_TfQuadraticXYZComparison(self, int op, matrix, vector,
+                                     double scalar):
+        """Add ``p'Ap + 2v'p + c <op> 0`` on the point's x, y, z
+        (pcl::TfQuadraticXYZComparison): `matrix` is A (3 x 3), `vector`
+        v (3), `scalar` c. ``A = I, v = -centre, c = |centre|^2 - r^2``
+        with ``LT`` keeps the inside of a sphere."""
+        import numpy as np
+        _check_op(op)
+        a = np.asarray(matrix, dtype=np.float64)
+        v = np.asarray(vector, dtype=np.float64).ravel()
+        if a.shape != (3, 3) or v.shape != (3,):
+            raise ValueError("matrix must be 3 x 3 and vector length 3")
+        self.nodes.append((ca.COMPARISON_TF_QUADRATIC, b"", op,
+                           tuple(a.ravel().tolist() + v.tolist() + [scalar])))
+        return self
+
+    def add_PackedRGBComparison(self, component, int op, double value):
+        """Add ``<component> <op> value`` on the packed colour
+        (pcl::PackedRGBComparison); *component* is ``"r"``, ``"g"`` or
+        ``"b"`` (0..255). Needs a colour cloud."""
+        _check_op(op)
+        if component not in ("r", "g", "b"):
+            raise ValueError('component must be "r", "g" or "b"')
+        self.nodes.append((ca.COMPARISON_PACKED_RGB, _tobytes(component), op,
+                           (value,)))
+        return self
+
+    def add_PackedHSIComparison(self, component, int op, double value):
+        """Add ``<component> <op> value`` on hue / saturation / intensity
+        (pcl::PackedHSIComparison); *component* is ``"h"`` (-128..127),
+        ``"s"`` or ``"i"`` (0..255). Needs a colour cloud."""
+        _check_op(op)
+        if component not in ("h", "s", "i"):
+            raise ValueError('component must be "h", "s" or "i"')
+        self.nodes.append((ca.COMPARISON_PACKED_HSI, _tobytes(component), op,
+                           (value,)))
+        return self
+
+    def add_Condition(self, _Condition condition not None):
+        """Nest another condition: an OR inside an AND, or vice versa."""
+        self.nodes.append((condition.kind, condition, 0, ()))
+        return self
+
+    cdef bint _needs_colour(self, set seen) except -1:
+        if id(self) in seen:
+            raise ValueError("a condition cannot contain itself")
+        seen.add(id(self))
+        for kind, payload, op, values in self.nodes:
+            if kind in (ca.COMPARISON_PACKED_RGB, ca.COMPARISON_PACKED_HSI):
+                return True
+            if kind in (ca.CONDITION_AND, ca.CONDITION_OR):
+                if (<_Condition> payload)._needs_colour(seen):
+                    return True
+        seen.discard(id(self))
+        return False
+
+    cdef int _encode(self, vector[int]& kinds, vector[int]& ints,
+                     vector[double]& numbers, vector[string]& names,
+                     set seen) except -1:
+        if id(self) in seen:
+            raise ValueError("a condition cannot contain itself")
+        seen.add(id(self))
+        kinds.push_back(self.kind)
+        ints.push_back(len(self.nodes))
+        cdef double value
+        for kind, payload, op, values in self.nodes:
+            if kind in (ca.CONDITION_AND, ca.CONDITION_OR):
+                (<_Condition> payload)._encode(kinds, ints, numbers, names,
+                                               seen)
+                continue
+            kinds.push_back(kind)
+            if kind != ca.COMPARISON_TF_QUADRATIC:
+                names.push_back(payload)
+            ints.push_back(op)
+            for value in values:
+                numbers.push_back(value)
+        seen.discard(id(self))
+        return 0
+
+
+cdef int _check_op(int op) except -1:
+    if not COMPARE_GT <= op <= COMPARE_EQ:
+        raise ValueError("op must be one of the pcl.CompareOp_* constants")
+    return 0
+
+
+cdef class ConditionAnd(_Condition):
+    """A conjunction (pcl::ConditionAnd): every comparison and nested
+    condition must hold for a point to survive `ConditionalRemoval`.
 
         cond = cloud.make_ConditionAnd()
         cond.add_Comparison2("z", pcl.CompareOp_GT, 0.0)
         cond.add_Comparison2("z", pcl.CompareOp_LT, 1.0)
-
-    The tree is built through pcl/compat/condition_args.h: its nodes are
-    shared_ptrs to abstract bases, and Cython cannot perform the
-    derived-to-base shared_ptr conversions that assembling one needs.
     """
 
-    cdef shared_ptr[cConditionAnd[PointXYZ]] thisptr
+    def __init__(self):
+        self.kind = ca.CONDITION_AND
 
-    def __cinit__(self):
-        self.thisptr = makeConditionAnd()
 
-    def add_Comparison2(self, field_name, int op, double value):
-        """Add ``field_name <op> value``; *op* is one of the
-        ``pcl.CompareOp_*`` constants."""
-        addFieldComparison(deref(self.thisptr), _tobytes(field_name), op,
-                           value)
-        return self
+cdef class ConditionOr(_Condition):
+    """A disjunction (pcl::ConditionOr): at least one comparison or
+    nested condition must hold. An empty one accepts every point, as in
+    PCL (both empty conditions are true)."""
+
+    def __init__(self):
+        self.kind = ca.CONDITION_OR
 
 
 cdef class ConditionalRemoval:
-    """Keep the points a condition accepts (pcl::ConditionalRemoval)."""
+    """Keep the points a condition accepts (pcl::ConditionalRemoval), on
+    a :class:`PointCloud`, :class:`PointCloud_PointXYZRGB` or
+    :class:`PointCloud_PointXYZRGBA`; `filter()` returns the same type.
+    With `set_KeepOrganized(True)` rejected points are replaced by
+    `set_UserFilterValue` (NaN by default) instead of removed."""
 
-    cdef cConditionalRemoval[PointXYZ]* me
-    # Keeps the condition alive for as long as the filter refers to it.
-    cdef object condition
+    cdef object cloud
+    cdef _Condition condition
+    cdef bint keep_organized
+    cdef float user_value
 
-    def __cinit__(self, ConditionAnd condition=None, PointCloud pc=None):
-        self.me = new cConditionalRemoval[PointXYZ]()
-        self.condition = None
+    def __cinit__(self, _Condition condition=None, pc=None):
+        self.keep_organized = False
+        self.user_value = float("nan")
         if condition is not None:
             self.set_Condition(condition)
         if pc is not None:
             self.set_InputCloud(pc)
 
-    def __dealloc__(self):
-        del self.me
-        self.me = NULL
+    def set_InputCloud(self, pc):
+        if not isinstance(pc, (PointCloud, PointCloud_PointXYZRGB,
+                               PointCloud_PointXYZRGBA)):
+            raise TypeError("expected a PointCloud, PointCloud_PointXYZRGB "
+                            "or PointCloud_PointXYZRGBA")
+        self.cloud = pc
 
-    def set_InputCloud(self, PointCloud pc not None):
-        self.me.setInputCloud(pc.thisptr_shared)
-
-    def set_Condition(self, ConditionAnd condition not None):
+    def set_Condition(self, _Condition condition not None):
         self.condition = condition
-        setCondition(deref(self.me), condition.thisptr)
 
     def set_KeepOrganized(self, bint keep_organized):
-        self.me.setKeepOrganized(keep_organized)
+        self.keep_organized = keep_organized
 
     def get_KeepOrganized(self):
-        return self.me.getKeepOrganized()
+        return self.keep_organized
+
+    def set_UserFilterValue(self, float value):
+        self.user_value = value
 
     def filter(self):
-        cdef PointCloud pc = PointCloud()
-        cdef cPointCloud[PointXYZ]* out = pc.ptr()
+        if self.cloud is None:
+            raise RuntimeError("no input cloud: call set_InputCloud() first")
+        if self.condition is None:
+            raise RuntimeError("no condition: call set_Condition() first")
+        if isinstance(self.cloud, PointCloud) and \
+                self.condition._needs_colour(set()):
+            raise ValueError("colour comparisons need a "
+                             "PointCloud_PointXYZRGB or _PointXYZRGBA")
+        cdef vector[int] kinds
+        cdef vector[int] ints
+        cdef vector[double] numbers
+        cdef vector[string] names
+        self.condition._encode(kinds, ints, numbers, names, set())
+        cdef PointCloud xyz, xyz_out
+        cdef cPointCloud[PointXYZ]* xyz_target
+        cdef PointCloud_PointXYZRGB rgb
+        cdef PointCloud_PointXYZRGBA rgba
+        cdef shared_ptr[cPointCloud[PointXYZRGB]] rgb_out
+        cdef shared_ptr[cPointCloud[PointXYZRGBA]] rgba_out
+        if isinstance(self.cloud, PointCloud):
+            xyz = self.cloud
+            xyz_out = PointCloud()
+            xyz_target = xyz_out.ptr()
+            with nogil:
+                conditionalRemoval(xyz.thisptr_shared, kinds, ints, numbers,
+                                   names, self.keep_organized,
+                                   self.user_value, deref(xyz_target))
+            return xyz_out
+        if isinstance(self.cloud, PointCloud_PointXYZRGB):
+            rgb = self.cloud
+            rgb_out.reset(new cPointCloud[PointXYZRGB]())
+            with nogil:
+                conditionalRemoval(rgb.thisptr_shared, kinds, ints, numbers,
+                                   names, self.keep_organized,
+                                   self.user_value, deref(rgb_out.get()))
+            return wrap_xyzrgb_cloud(rgb_out)
+        rgba = self.cloud
+        rgba_out.reset(new cPointCloud[PointXYZRGBA]())
         with nogil:
-            self.me.filter(deref(out))
-        return pc
+            conditionalRemoval(rgba.thisptr_shared, kinds, ints, numbers,
+                               names, self.keep_organized, self.user_value,
+                               deref(rgba_out.get()))
+        return wrap_xyzrgba_cloud(rgba_out)
 
 
 cdef class FastBilateralFilter:
@@ -638,6 +808,504 @@ cdef class FastBilateralFilter:
 
     def get_sigma_r(self):
         return self.me.getSigmaR()
+
+    def filter(self):
+        cdef PointCloud pc = PointCloud()
+        cdef cPointCloud[PointXYZ]* out = pc.ptr()
+        with nogil:
+            self.me.filter(deref(out))
+        return pc
+
+
+cdef class ShadowPoints:
+    """Drop points seen edge-on (pcl::ShadowPoints).
+
+    A point whose normal is nearly perpendicular to its line of sight
+    from the origin is a "shadow" point: its position is unreliable.
+    `set_Threshold` is the smallest |normal . direction| kept (0..1).
+    Needs normals.
+    """
+
+    cdef cShadowPoints[PointXYZ, Normal]* me
+    cdef bint has_normals
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cShadowPoints[PointXYZ, Normal]()
+        self.has_normals = False
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_Normals(self, PointCloud_Normal normals not None):
+        self.me.setNormals(normals.thisptr_shared)
+        self.has_normals = True
+
+    def set_Threshold(self, float threshold):
+        self.me.setThreshold(threshold)
+
+    def get_Threshold(self):
+        return self.me.getThreshold()
+
+    def set_negative(self, bint negative):
+        self.me.setNegative(negative)
+
+    def filter(self):
+        # PCL only asserts on missing normals (a release build walks
+        # straight into the null pointer).
+        if not self.has_normals:
+            raise RuntimeError(
+                "ShadowPoints needs normals: call set_Normals() with a "
+                "PointCloud_Normal (NormalEstimation.compute_cloud())")
+        cdef PointCloud pc = PointCloud()
+        cdef cPointCloud[PointXYZ]* out = pc.ptr()
+        with nogil:
+            self.me.filter(deref(out))
+        return pc
+
+
+cdef class NormalSpaceSampling:
+    """Subsample evenly over normal directions (pcl::NormalSpaceSampling).
+
+    Normals are binned over the sphere (`set_Bins`) and `set_Sample`
+    points are drawn so every bin is represented, which keeps the flat
+    parts of a scan from drowning its edges -- the usual preparation for
+    registration. Needs normals.
+    """
+
+    cdef cNormalSpaceSampling[PointXYZ, Normal]* me
+    cdef bint has_normals
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cNormalSpaceSampling[PointXYZ, Normal]()
+        self.has_normals = False
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_Normals(self, PointCloud_Normal normals not None):
+        self.me.setNormals(normals.thisptr_shared)
+        self.has_normals = True
+
+    def set_Sample(self, unsigned int sample):
+        """How many points to keep."""
+        self.me.setSample(sample)
+
+    def get_Sample(self):
+        return self.me.getSample()
+
+    def set_Seed(self, unsigned int seed):
+        self.me.setSeed(seed)
+
+    def get_Seed(self):
+        return self.me.getSeed()
+
+    def set_Bins(self, unsigned int x, unsigned int y, unsigned int z):
+        """Bins per normal component."""
+        self.me.setBins(x, y, z)
+
+    def set_negative(self, bint negative):
+        self.me.setNegative(negative)
+
+    def filter(self):
+        if not self.has_normals:
+            raise RuntimeError(
+                "NormalSpaceSampling needs normals: call set_Normals() with "
+                "a PointCloud_Normal (NormalEstimation.compute_cloud())")
+        cdef PointCloud pc = PointCloud()
+        cdef cPointCloud[PointXYZ]* out = pc.ptr()
+        with nogil:
+            self.me.filter(deref(out))
+        return pc
+
+
+cdef class SamplingSurfaceNormal:
+    """Subsample by cells and give the kept points their cell's plane
+    normal (pcl::SamplingSurfaceNormal).
+
+    The cloud is split into cells of `set_Sample` points; a `set_Ratio`
+    fraction of each is kept, and each kept point receives the normal of
+    the plane fitted to its cell. Works on a :class:`PointCloud_PointNormal`
+    (the normals it writes need somewhere to go); the input normals are
+    ignored.
+    """
+
+    cdef cSamplingSurfaceNormal[PointNormal]* me
+
+    def __cinit__(self, PointCloud_PointNormal pc=None):
+        self.me = new cSamplingSurfaceNormal[PointNormal]()
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud_PointNormal pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_Sample(self, unsigned int sample):
+        """Points per cell."""
+        self.me.setSample(sample)
+
+    def get_Sample(self):
+        return self.me.getSample()
+
+    def set_Seed(self, unsigned int seed):
+        self.me.setSeed(seed)
+
+    def get_Seed(self):
+        return self.me.getSeed()
+
+    def set_Ratio(self, float ratio):
+        """Fraction of each cell kept (0..1)."""
+        if not 0.0 <= ratio <= 1.0:
+            raise ValueError("ratio must be between 0 and 1, got %g" % ratio)
+        self.me.setRatio(ratio)
+
+    def get_Ratio(self):
+        return self.me.getRatio()
+
+    def filter(self):
+        cdef PointCloud_PointNormal pc = PointCloud_PointNormal()
+        cdef cPointCloud[PointNormal]* out = pc.ptr()
+        with nogil:
+            self.me.filter(deref(out))
+        return pc
+
+
+cdef class GridMinimum:
+    """Keep the lowest point of every x/y grid cell (pcl::GridMinimum).
+
+    A ground estimate for scans seen from above: `resolution` is the cell
+    size in the cloud's own units.
+    """
+
+    cdef cGridMinimum[PointXYZ]* me
+
+    def __cinit__(self, float resolution, PointCloud pc=None):
+        if resolution <= 0:
+            raise ValueError("resolution must be positive, got %g" % resolution)
+        self.me = new cGridMinimum[PointXYZ](resolution)
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_Resolution(self, float resolution):
+        if resolution <= 0:
+            raise ValueError("resolution must be positive, got %g" % resolution)
+        self.me.setResolution(resolution)
+
+    def get_Resolution(self):
+        return self.me.getResolution()
+
+    def set_negative(self, bint negative):
+        self.me.setNegative(negative)
+
+    def filter(self):
+        cdef PointCloud pc = PointCloud()
+        cdef cPointCloud[PointXYZ]* out = pc.ptr()
+        with nogil:
+            self.me.filter(deref(out))
+        return pc
+
+
+cdef class LocalMaximum:
+    """Drop the points that are local maxima in z (pcl::LocalMaximum).
+
+    A point with no higher point within `set_Radius` is a local maximum
+    and is REMOVED; the points around it are kept. (That is PCL's
+    definition of this filter: it thins a surface by its peaks.)
+    `set_negative(True)` returns the maxima instead.
+    """
+
+    cdef cLocalMaximum[PointXYZ]* me
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cLocalMaximum[PointXYZ]()
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_Radius(self, float radius):
+        self.me.setRadius(radius)
+
+    def get_Radius(self):
+        return self.me.getRadius()
+
+    def set_negative(self, bint negative):
+        self.me.setNegative(negative)
+
+    def filter(self):
+        cdef PointCloud pc = PointCloud()
+        cdef cPointCloud[PointXYZ]* out = pc.ptr()
+        with nogil:
+            self.me.filter(deref(out))
+        return pc
+
+
+cdef _matrix16(matrix, float* buf):
+    """Flatten a 4x4 matrix column-major (Eigen's storage) into *buf*."""
+    import numpy as np
+    m = np.asarray(matrix, dtype=np.float32)
+    if m.shape != (4, 4):
+        raise ValueError("expected a 4x4 matrix, got shape %s" % (m.shape,))
+    cdef int row, col
+    for col in range(4):
+        for row in range(4):
+            buf[col * 4 + row] = m[row, col]
+
+
+cdef class FrustumCulling:
+    """Keep the points inside a camera frustum (pcl::FrustumCulling).
+
+    The camera looks along its own +x axis with +z up, so the identity
+    pose watches the +x half-space from the origin. Set the field of view
+    (degrees), the near and far plane distances, and the camera pose as
+    a 4x4 matrix in the cloud's frame.
+    """
+
+    cdef cFrustumCulling[PointXYZ]* me
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cFrustumCulling[PointXYZ]()
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_CameraPose(self, matrix):
+        """4x4 camera-to-world transform (identity: at the origin,
+        looking along +x)."""
+        cdef float buf[16]
+        _matrix16(matrix, buf)
+        setFrustumCameraPose(deref(self.me), buf)
+
+    def set_HorizontalFOV(self, float fov, right=None):
+        """Horizontal field of view in degrees, either one symmetric
+        angle or (left, right) bounds."""
+        if right is None:
+            self.me.setHorizontalFOV(fov)
+        else:
+            self.me.setHorizontalFOV(fov, <float> right)
+
+    def set_VerticalFOV(self, float fov, upper=None):
+        """Vertical field of view in degrees, either one symmetric angle
+        or (lower, upper) bounds."""
+        if upper is None:
+            self.me.setVerticalFOV(fov)
+        else:
+            self.me.setVerticalFOV(fov, <float> upper)
+
+    def set_NearPlaneDistance(self, float distance):
+        self.me.setNearPlaneDistance(distance)
+
+    def get_NearPlaneDistance(self):
+        return self.me.getNearPlaneDistance()
+
+    def set_FarPlaneDistance(self, float distance):
+        self.me.setFarPlaneDistance(distance)
+
+    def get_FarPlaneDistance(self):
+        return self.me.getFarPlaneDistance()
+
+    def set_negative(self, bint negative):
+        self.me.setNegative(negative)
+
+    def filter(self):
+        cdef PointCloud pc = PointCloud()
+        cdef cPointCloud[PointXYZ]* out = pc.ptr()
+        with nogil:
+            self.me.filter(deref(out))
+        return pc
+
+
+cdef class MedianFilter:
+    """Median of each point's depth over its organized neighbourhood
+    (pcl::MedianFilter).
+
+    Only for ORGANIZED clouds (a sensor's width x height grid): the
+    window is taken over neighbouring pixels. `set_MaxAllowedMovement`
+    caps how far the median may move a point.
+    """
+
+    cdef cMedianFilter[PointXYZ]* me
+    cdef PointCloud _input
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cMedianFilter[PointXYZ]()
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+        self._input = pc
+
+    def set_WindowSize(self, int size):
+        if size < 1:
+            raise ValueError("window size must be positive, got %d" % size)
+        self.me.setWindowSize(size)
+
+    def get_WindowSize(self):
+        return self.me.getWindowSize()
+
+    def set_MaxAllowedMovement(self, float movement):
+        self.me.setMaxAllowedMovement(movement)
+
+    def get_MaxAllowedMovement(self):
+        return self.me.getMaxAllowedMovement()
+
+    def filter(self):
+        # PCL prints an error and returns the input untouched otherwise.
+        if self._input is None:
+            raise RuntimeError("no input cloud: call set_InputCloud() first")
+        if self._input.height <= 1:
+            raise ValueError(
+                "MedianFilter needs an organized cloud (height > 1); this "
+                "one is %d x %d" % (self._input.width, self._input.height))
+        cdef PointCloud pc = PointCloud()
+        cdef cPointCloud[PointXYZ]* out = pc.ptr()
+        with nogil:
+            self.me.filter(deref(out))
+        return pc
+
+
+cdef class BilateralFilter:
+    """Edge-preserving smoothing of intensity (pcl::BilateralFilter) on a
+    :class:`PointCloud_PointXYZI`.
+
+    Each intensity becomes a weighted mean of its neighbours' within
+    `set_HalfSize`, the weights falling off with both spatial distance
+    and intensity difference (`set_StdDev`), so edges survive. Positions
+    are left alone.
+    """
+
+    cdef cBilateralFilter[PointXYZI]* me
+
+    def __cinit__(self, PointCloud_PointXYZI pc=None):
+        self.me = new cBilateralFilter[PointXYZI]()
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud_PointXYZI pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_HalfSize(self, double sigma_s):
+        """Spatial extent of the smoothing (neighbours within twice it
+        are consulted)."""
+        self.me.setHalfSize(sigma_s)
+
+    def get_HalfSize(self):
+        return self.me.getHalfSize()
+
+    def set_StdDev(self, double sigma_r):
+        """Intensity difference at which a neighbour stops counting."""
+        self.me.setStdDev(sigma_r)
+
+    def get_StdDev(self):
+        return self.me.getStdDev()
+
+    def filter(self):
+        cdef PointCloud_PointXYZI pc = PointCloud_PointXYZI()
+        cdef cPointCloud[PointXYZI]* out = pc.ptr()
+        with nogil:
+            self.me.filter(deref(out))
+        return pc
+
+
+cdef class ModelOutlierRemoval:
+    """Keep the points that fit a known model (pcl::ModelOutlierRemoval).
+
+    Where `Segmentation` FINDS a model, this applies one you already
+    have: pass `pcl.SACMODEL_*` and its coefficients (the list
+    `Segmentation.segment()` returns), and points farther than
+    `set_Threshold` from it are dropped -- or kept, with
+    `set_negative(True)`. Normal-based models take `set_InputNormals`.
+    """
+
+    cdef cModelOutlierRemoval[PointXYZ]* me
+
+    def __cinit__(self, PointCloud pc=None):
+        self.me = new cModelOutlierRemoval[PointXYZ]()
+        if pc is not None:
+            self.set_InputCloud(pc)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+
+    def set_ModelType(self, int model):
+        """One of the `pcl.SACMODEL_*` constants."""
+        self.me.setModelType(<model_types.SacModel> model)
+
+    def get_ModelType(self):
+        return <int> self.me.getModelType()
+
+    def set_ModelCoefficients(self, values):
+        """The model's coefficients, e.g. ``[a, b, c, d]`` for a plane."""
+        cdef ModelCoefficients coefficients
+        for v in values:
+            coefficients.values.push_back(<float> v)
+        if coefficients.values.empty():
+            raise ValueError("model coefficients must not be empty")
+        self.me.setModelCoefficients(coefficients)
+
+    def set_Threshold(self, float threshold):
+        self.me.setThreshold(threshold)
+
+    def get_Threshold(self):
+        return self.me.getThreshold()
+
+    def set_InputNormals(self, PointCloud_Normal normals not None):
+        self.me.setInputNormals(normals.thisptr_shared)
+
+    def set_NormalDistanceWeight(self, double weight):
+        self.me.setNormalDistanceWeight(weight)
+
+    def get_NormalDistanceWeight(self):
+        return self.me.getNormalDistanceWeight()
+
+    def set_negative(self, bint negative):
+        self.me.setNegative(negative)
 
     def filter(self):
         cdef PointCloud pc = PointCloud()

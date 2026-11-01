@@ -76,16 +76,24 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libpcl-dev
+          # PCL 1.15's outofcore headers include cJSON's, which
+          # libpcl-dev does not depend on (see CMakeLists.txt)
+          sudo apt-get install -y libpcl-dev libcjson-dev
       - name: Install PCL — macOS
         if: runner.os == 'macOS'
         run: brew install pcl
       - name: Build package
         run: pip install -v .
+      # The whole runtime suite. The test files skip themselves when pcl
+      # does not import, and _vtk_mesh / _outofcore are optional (built
+      # only where PCL has VTK -- every runner's does), so import them all
+      # first: a module that failed to build or load fails the job
+      # instead of turning into skipped tests. -ra lists what was skipped.
       - name: Run runtime tests
         run: |
           pip install pytest
-          pytest tests/test_pointcloud.py -v
+          python -c "import pcl, pcl._vtk_mesh, pcl._outofcore"
+          pytest tests/ -v -ra --ignore=tests/test_pxd_pipeline.py
 
   # The Windows build is its own job rather than a matrix entry: PCL via
   # vcpkg takes hours of compile time on hosted runners, so it comes
@@ -122,8 +130,10 @@ jobs:
           "PCL_ROOT=$pclRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           $env:PCL_ROOT = $pclRoot
           pip install -v .
+      # See the build job's test step.
       - name: Run runtime tests
         shell: pwsh
         run: |
           pip install pytest
-          pytest tests/test_pointcloud.py -v
+          python -c "import pcl, pcl._vtk_mesh, pcl._outofcore"
+          pytest tests/ -v -ra --ignore=tests/test_pxd_pipeline.py

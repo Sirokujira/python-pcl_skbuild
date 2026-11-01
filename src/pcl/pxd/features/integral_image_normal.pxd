@@ -17,3 +17,4 @@ cdef extern from "pcl/features/integral_image_normal.h" namespace "pcl" nogil:
         void setDepthDependentSmoothing(bool use_depth_dependent_smoothing) except +
         void setRectSize(int width, int height) except +
         void setViewPoint(float vpx, float vpy, float vpz) except +
+        float* getDistanceMap() except +

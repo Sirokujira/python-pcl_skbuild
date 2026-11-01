@@ -37,3 +37,67 @@ extra_cimports = [
     "from pcl.pxd.point_cloud cimport PointCloud",
     "from pcl.pxd.vertices cimport Vertices",
 ]
+
+[[headers]]
+path = "headers/pcl/surface/poisson.h"
+extern_from = "pcl/surface/poisson.h"
+output = "../src/pcl/pxd/surface/poisson.pxd"
+namespaces = ["pcl"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.vertices cimport Vertices",
+]
+
+[[headers]]
+path = "headers/pcl/surface/marching_cubes_hoppe.h"
+extern_from = "pcl/surface/marching_cubes_hoppe.h"
+output = "../src/pcl/pxd/surface/marching_cubes_hoppe.pxd"
+namespaces = ["pcl"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.vertices cimport Vertices",
+]
+
+[[headers]]
+path = "headers/pcl/surface/marching_cubes_rbf.h"
+extern_from = "pcl/surface/marching_cubes_rbf.h"
+output = "../src/pcl/pxd/surface/marching_cubes_rbf.pxd"
+namespaces = ["pcl"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.vertices cimport Vertices",
+]
+
+[[headers]]
+path = "headers/pcl/surface/organized_fast_mesh.h"
+extern_from = "pcl/surface/organized_fast_mesh.h"
+output = "../src/pcl/pxd/surface/organized_fast_mesh.pxd"
+namespaces = ["pcl"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.vertices cimport Vertices",
+]
+
+[[headers]]
+path = "headers/pcl/surface/grid_projection.h"
+extern_from = "pcl/surface/grid_projection.h"
+output = "../src/pcl/pxd/surface/grid_projection.pxd"
+namespaces = ["pcl"]
+extra_cimports = [
+    "from pcl.pxd.point_cloud cimport PointCloud",
+    "from pcl.pxd.vertices cimport Vertices",
+]
+
+[[headers]]
+path = "headers/pcl/surface/bilateral_upsampling.h"
+extern_from = "pcl/surface/bilateral_upsampling.h"
+output = "../src/pcl/pxd/surface/bilateral_upsampling.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]
+
+[[headers]]
+path = "headers/pcl/surface/surfel_smoothing.h"
+extern_from = "pcl/surface/surfel_smoothing.h"
+output = "../src/pcl/pxd/surface/surfel_smoothing.pxd"
+namespaces = ["pcl"]
+extra_cimports = ["from pcl.pxd.point_cloud cimport PointCloud"]

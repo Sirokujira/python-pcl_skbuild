@@ -21,6 +21,7 @@ namespace pclcompat {
 const int MESH_FORMAT_PLY = 0;
 const int MESH_FORMAT_OBJ = 1;
 const int MESH_FORMAT_VTK = 2;
+const int MESH_FORMAT_IFS = 3;  // readable only: PCL writes IFS clouds, not meshes
 
 int saveMesh(const std::string& path,
              const pcl::PointCloud<pcl::PointXYZ>& cloud,

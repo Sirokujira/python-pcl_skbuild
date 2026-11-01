@@ -25,6 +25,7 @@
 
 #include <pcl/PolygonMesh.h>
 #include <pcl/conversions.h>
+#include <pcl/io/ifs_io.h>
 #include <pcl/io/obj_io.h>
 #include <pcl/io/ply_io.h>
 #include <pcl/io/vtk_io.h>
@@ -36,6 +37,7 @@ namespace pclcompat {
 const int MESH_FORMAT_PLY = 0;
 const int MESH_FORMAT_OBJ = 1;
 const int MESH_FORMAT_VTK = 2;
+const int MESH_FORMAT_IFS = 3;  // readable only: PCL writes IFS clouds, not meshes
 
 /// Build a PolygonMesh from a typed cloud and a flat polygon index list:
 /// `counts[i]` indices for polygon i, taken in order from `indices`.
@@ -88,9 +90,14 @@ inline int loadMesh(const std::string& path, int format,
                     std::vector<int>& out_indices,
                     std::vector<int>& out_counts) {
     pcl::PolygonMesh mesh;
-    const int error = format == MESH_FORMAT_OBJ
-                          ? pcl::io::loadOBJFile(path, mesh)
-                          : pcl::io::loadPLYFile(path, mesh);
+    int error;
+    if (format == MESH_FORMAT_OBJ) {
+        error = pcl::io::loadOBJFile(path, mesh);
+    } else if (format == MESH_FORMAT_IFS) {
+        error = pcl::io::loadIFSFile(path, mesh);
+    } else {
+        error = pcl::io::loadPLYFile(path, mesh);
+    }
     if (error != 0) {
         return error;
     }

@@ -32,8 +32,8 @@ int hough3DGrouping(const std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>& model
                     const std::vector<int>& model_indices,
                     const std::vector<int>& scene_indices,
                     const std::vector<float>& distances,
-                    float rf_radius, double bin_size, double threshold,
-                    std::vector<float>& out_transforms,
+                    float rf_radius, bool find_holes, double bin_size,
+                    double threshold, std::vector<float>& out_transforms,
                     std::vector<int>& out_corr_counts,
                     std::vector<int>& out_corr_pairs);
 

@@ -134,6 +134,9 @@ def test_model_type_is_readable(plane_with_outliers):
 
 def test_unwrapped_model_type_names_what_is_available(plane_with_outliers):
     with pytest.raises(ValueError, match="SACMODEL_PLANE"):
+        pcl.SampleConsensusModel(plane_with_outliers, 999)
+    # declared in PCL's enum, implemented nowhere
+    with pytest.raises(ValueError, match="no implementation"):
         pcl.SampleConsensusModel(plane_with_outliers, pcl.SACMODEL_TORUS)
 
 

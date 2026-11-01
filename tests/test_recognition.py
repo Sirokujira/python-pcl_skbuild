@@ -142,14 +142,38 @@ def test_hough_recovers_the_transform(model, scene, perfect_pairs):
     assert len(correspondences) >= 3
 
 
+def test_hough_is_repeatable(model, scene, perfect_pairs):
+    """With BOARD's hole detection on (PCL's tutorial setting) the
+    frames come from rand() and this pair found nothing about one run in
+    70; off, every run gives the same answer."""
+    first = _hough(model, scene).recognize(perfect_pairs)
+    assert len(first) == 1
+    for _ in range(20):
+        again = _hough(model, scene).recognize(perfect_pairs)
+        assert len(again) == 1
+        assert np.array_equal(again[0][0], first[0][0])
+        assert again[0][1] == first[0][1]
+
+
 def test_hough_settings_roundtrip():
     grouping = pcl.Hough3DGrouping()
+    assert grouping.get_FindHoles() is False
     grouping.set_RFRadius(0.05)
     grouping.set_HoughBinSize(0.02)
     grouping.set_HoughThreshold(9.0)
+    grouping.set_FindHoles(True)
     assert grouping.get_RFRadius() == pytest.approx(0.05)
     assert grouping.get_HoughBinSize() == pytest.approx(0.02)
     assert grouping.get_HoughThreshold() == pytest.approx(9.0)
+    assert grouping.get_FindHoles() is True
+
+
+def test_hough_with_hole_detection_still_runs(model, scene, perfect_pairs):
+    # random by design, so only the shape of the answer is fixed
+    grouping = _hough(model, scene)
+    grouping.set_FindHoles(True)
+    for transform, correspondences in grouping.recognize(perfect_pairs):
+        assert transform.shape == (4, 4) and len(correspondences) >= 5
 
 
 def test_hough_rejects_nonpositive_settings():

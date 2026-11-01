@@ -16,6 +16,8 @@
 #include <pcl/registration/icp.h>
 #include <pcl/registration/icp_nl.h>
 #include <pcl/registration/ndt.h>
+#include <pcl/registration/ia_fpcs.h>
+#include <pcl/registration/ia_kfpcs.h>
 
 namespace pclcompat {
 
@@ -30,6 +32,15 @@ void finalTransformation(
     float* out16);
 void finalTransformation(
     pcl::NormalDistributionsTransform<pcl::PointXYZ, pcl::PointXYZ>& reg,
+    float* out16);
+void finalTransformation(
+    pcl::IterativeClosestPointWithNormals<pcl::PointNormal, pcl::PointNormal>& reg,
+    float* out16);
+void finalTransformation(
+    pcl::registration::FPCSInitialAlignment<pcl::PointXYZ, pcl::PointXYZ>& reg,
+    float* out16);
+void finalTransformation(
+    pcl::registration::KFPCSInitialAlignment<pcl::PointXYZ, pcl::PointXYZ>& reg,
     float* out16);
 
 void massCenter(pcl::MomentOfInertiaEstimation<pcl::PointXYZ>& est,

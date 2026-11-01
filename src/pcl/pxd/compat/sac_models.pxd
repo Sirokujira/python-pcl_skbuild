@@ -7,19 +7,35 @@ from libcpp cimport bool
 from libcpp.memory cimport shared_ptr
 from libcpp.vector cimport vector
 from pcl.pxd.point_cloud cimport PointCloud
-from pcl.pxd.point_types cimport PointXYZ
-from pcl.pxd.sample_consensus.ransac cimport RandomSampleConsensus
+from pcl.pxd.point_types cimport PointXYZ, Normal
+from pcl.pxd.sample_consensus.sac cimport SampleConsensus
 from pcl.pxd.sample_consensus.sac_model cimport SampleConsensusModel
 
 cdef extern from "pcl/compat/sac_models.h" namespace "pclcompat" nogil:
+    const int SAC_MODEL_ELLIPSE3D
+
     shared_ptr[SampleConsensusModel[PointXYZ]] makeSacModel(int model_type, const shared_ptr[PointCloud[PointXYZ]]& cloud) except +
 
     bool sacModelIsNull(const shared_ptr[SampleConsensusModel[PointXYZ]]& model) except +
 
-    shared_ptr[RandomSampleConsensus[PointXYZ]] makeRansac(const shared_ptr[SampleConsensusModel[PointXYZ]]& model) except +
+    bool sacModelSetNormals(const shared_ptr[SampleConsensusModel[PointXYZ]]& model, const shared_ptr[PointCloud[Normal]]& normals, double distance_weight) except +
 
-    bool ransacComputeModel(RandomSampleConsensus[PointXYZ]& ransac) except +
+    bool sacModelSetAxis(const shared_ptr[SampleConsensusModel[PointXYZ]]& model, int model_type, float x, float y, float z) except +
 
-    void ransacInliers(RandomSampleConsensus[PointXYZ]& ransac, vector[int]& out) except +
+    bool sacModelSetEpsAngle(const shared_ptr[SampleConsensusModel[PointXYZ]]& model, int model_type, double eps_angle) except +
 
-    void ransacCoefficients(RandomSampleConsensus[PointXYZ]& ransac, vector[float]& out) except +
+    void sacModelSetRadiusLimits(const shared_ptr[SampleConsensusModel[PointXYZ]]& model, double min_radius, double max_radius) except +
+
+    bool sacModelSetConeOpeningAngle(const shared_ptr[SampleConsensusModel[PointXYZ]]& model, double min_angle, double max_angle) except +
+
+    bool sacModelSetTarget(const shared_ptr[SampleConsensusModel[PointXYZ]]& model, const shared_ptr[PointCloud[PointXYZ]]& target) except +
+
+    shared_ptr[SampleConsensus[PointXYZ]] makeSac(int method, const shared_ptr[SampleConsensusModel[PointXYZ]]& model) except +
+
+    bool sacIsNull(const shared_ptr[SampleConsensus[PointXYZ]]& sac) except +
+
+    bool sacComputeModel(SampleConsensus[PointXYZ]& sac) except +
+
+    void sacInliers(SampleConsensus[PointXYZ]& sac, vector[int]& out) except +
+
+    void sacCoefficients(SampleConsensus[PointXYZ]& sac, vector[float]& out) except +

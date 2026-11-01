@@ -46,9 +46,9 @@ def test_format_argument_overrides_the_extension(tmp_path, cloud, points):
 
 def test_unsupported_format_names_what_is_wrapped(tmp_path, cloud):
     with pytest.raises(ValueError, match="pcd, ply"):
-        pcl.save(cloud, str(tmp_path / "cloud.obj"))
+        pcl.save(cloud, str(tmp_path / "cloud.stl"))
     with pytest.raises(ValueError, match="pcd, ply"):
-        pcl.load(str(tmp_path / "cloud.obj"))
+        pcl.load(str(tmp_path / "cloud.stl"))
 
 
 def test_missing_file_raises(tmp_path):
@@ -89,7 +89,7 @@ def test_gzip_leaves_no_temporary_behind(tmp_path, cloud):
 
 def test_gzip_of_an_unsupported_format_still_reports_the_format(tmp_path):
     with pytest.raises(ValueError, match="pcd, ply"):
-        pcl.load(str(tmp_path / "cloud.obj.gz"))
+        pcl.load(str(tmp_path / "cloud.stl.gz"))
 
 
 @pytest.mark.parametrize("suffix", [".pcd", ".ply"])

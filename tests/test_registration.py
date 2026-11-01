@@ -124,3 +124,150 @@ def test_identical_clouds_give_an_identity_transform():
     _, transform, _, fitness = icp.icp(cloud, cloud, max_iter=50)
     assert np.asarray(transform) == pytest.approx(np.eye(4), abs=1e-4)
     assert fitness == pytest.approx(0.0, abs=1e-6)
+
+
+# --- global registration (no initial guess) ----------------------------
+
+def _l_shaped(n=400, seed=1):
+    """An asymmetric slab: a shape whose alignment onto a copy of itself
+    is unique, so a recovered pose can be checked against the truth."""
+    rng = np.random.RandomState(seed)
+    base = rng.rand(int(n * 0.67), 3).astype(np.float32) * [1.0, 0.6, 0.1]
+    arm = (rng.rand(n - int(n * 0.67), 3).astype(np.float32)
+           * [0.3, 0.6, 0.4] + [0.0, 0.0, 0.1])
+    return np.vstack([base, arm])
+
+
+def _far_apart():
+    """A pose far outside any basin ICP could be started in: 1.1 rad and
+    ~4 units away."""
+    points = _l_shaped()
+    angle = 1.1
+    rotation = np.array([
+        [np.cos(angle), -np.sin(angle), 0.0],
+        [np.sin(angle), np.cos(angle), 0.0],
+        [0.0, 0.0, 1.0],
+    ])
+    translation = np.array([3.0, -2.0, 1.5])
+    source = pcl.PointCloud(points)
+    target = pcl.PointCloud((points @ rotation.T + translation).astype(
+        np.float32))
+    return source, target, rotation, translation
+
+
+def _fpfh(cloud):
+    normals = cloud.make_NormalEstimation()
+    normals.set_KSearch(15)
+    estimator = cloud.make_FPFHEstimation()
+    estimator.set_InputNormals(normals.compute_cloud())
+    estimator.set_RadiusSearch(0.12)
+    return estimator.compute()
+
+
+def _aligner(cloud):
+    align = cloud.make_SampleConsensusPrerejective()
+    align.set_MaxCorrespondenceDistance(0.05)
+    align.set_InlierFraction(0.25)
+    return align
+
+
+def test_global_alignment_needs_no_initial_guess():
+    """The gap this fills: ICP, ICP-NL, GICP and NDT all refine a pose
+    that is already roughly right."""
+    source, target, rotation, translation = _far_apart()
+    converged, matrix, _, _ = _aligner(source).align(
+        source, _fpfh(source), target, _fpfh(target))
+
+    assert converged
+    assert matrix[:3, 3] == pytest.approx(translation, abs=0.05)
+    assert matrix[:3, :3] == pytest.approx(rotation, abs=0.05)
+
+
+def test_global_alignment_returns_icps_shape():
+    source, target, _, _ = _far_apart()
+    result = _aligner(source).align(
+        source, _fpfh(source), target, _fpfh(target))
+
+    assert len(result) == 4
+    converged, matrix, estimate, fitness = result
+    assert isinstance(converged, bool)
+    assert matrix.shape == (4, 4)
+    assert isinstance(estimate, pcl.PointCloud)
+    assert estimate.size == source.size
+    assert fitness >= 0.0
+
+
+def test_global_estimate_matches_applying_the_transform():
+    source, target, _, _ = _far_apart()
+    _, matrix, estimate, _ = _aligner(source).align(
+        source, _fpfh(source), target, _fpfh(target))
+    assert source.transform(matrix).to_array() == pytest.approx(
+        estimate.to_array(), abs=1e-4)
+
+
+def test_global_inliers_index_the_source():
+    source, target, _, _ = _far_apart()
+    align = _aligner(source)
+    assert align.get_Inliers() is None
+
+    align.align(source, _fpfh(source), target, _fpfh(target))
+    inliers = align.get_Inliers()
+    assert inliers
+    assert max(inliers) < source.size
+    assert min(inliers) >= 0
+
+
+def test_icp_refines_a_global_result_to_convergence():
+    """The documented next step: global gets ICP into its basin."""
+    source, target, _, _ = _far_apart()
+    _, matrix, _, _ = _aligner(source).align(
+        source, _fpfh(source), target, _fpfh(target))
+
+    icp = source.make_IterativeClosestPoint()
+    converged, _, _, fitness = icp.icp(source.transform(matrix), target)
+    assert converged
+    assert fitness < 1e-6
+
+
+def test_global_alignment_settings_roundtrip():
+    align = pcl.SampleConsensusPrerejective()
+    align.set_MaximumIterations(1234)
+    align.set_NumberOfSamples(4)
+    align.set_CorrespondenceRandomness(7)
+    align.set_SimilarityThreshold(0.8)
+    align.set_MaxCorrespondenceDistance(0.02)
+    align.set_InlierFraction(0.5)
+
+    assert align.get_MaximumIterations() == 1234
+    assert align.get_NumberOfSamples() == 4
+    assert align.get_CorrespondenceRandomness() == 7
+    assert align.get_SimilarityThreshold() == pytest.approx(0.8)
+    assert align.get_MaxCorrespondenceDistance() == pytest.approx(0.02)
+    assert align.get_InlierFraction() == pytest.approx(0.5)
+
+
+def test_global_alignment_rejects_nonsense_settings():
+    align = pcl.SampleConsensusPrerejective()
+    with pytest.raises(ValueError, match="6-DOF"):
+        align.set_NumberOfSamples(2)
+    with pytest.raises(ValueError, match="inlier_fraction"):
+        align.set_InlierFraction(0.0)
+    with pytest.raises(ValueError, match="similarity_threshold"):
+        align.set_SimilarityThreshold(1.0)
+    with pytest.raises(ValueError, match="max_correspondence_distance"):
+        align.set_MaxCorrespondenceDistance(0.0)
+    with pytest.raises(ValueError, match="max_iterations"):
+        align.set_MaximumIterations(0)
+
+
+def test_global_alignment_checks_the_descriptor_arrays():
+    source, target, _, _ = _far_apart()
+    source_desc, target_desc = _fpfh(source), _fpfh(target)
+    align = _aligner(source)
+
+    with pytest.raises(ValueError, match="one row per point"):
+        align.align(source, source_desc[:10], target, target_desc)
+    with pytest.raises(ValueError, match=r"\(n, 33\)"):
+        align.align(source,
+                    np.zeros((source.size, 20), dtype=np.float32),
+                    target, target_desc)

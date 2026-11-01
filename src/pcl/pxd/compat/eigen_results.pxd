@@ -6,9 +6,13 @@
 from libcpp.vector cimport vector
 from pcl.pxd.features.moment_of_inertia_estimation cimport MomentOfInertiaEstimation
 from pcl.pxd.octree.octree_search cimport OctreePointCloudSearch
+from pcl.pxd.point_types cimport PointNormal
 from pcl.pxd.point_types cimport PointXYZ
 from pcl.pxd.registration.gicp cimport GeneralizedIterativeClosestPoint
+from pcl.pxd.registration.ia_fpcs cimport FPCSInitialAlignment
+from pcl.pxd.registration.ia_kfpcs cimport KFPCSInitialAlignment
 from pcl.pxd.registration.icp cimport IterativeClosestPoint
+from pcl.pxd.registration.icp cimport IterativeClosestPointWithNormals
 from pcl.pxd.registration.icp_nl cimport IterativeClosestPointNonLinear
 from pcl.pxd.registration.ndt cimport NormalDistributionsTransform
 
@@ -20,6 +24,12 @@ cdef extern from "pcl/compat/eigen_results.h" namespace "pclcompat" nogil:
     void finalTransformation(GeneralizedIterativeClosestPoint[PointXYZ, PointXYZ]& reg, float* out16) except +
 
     void finalTransformation(NormalDistributionsTransform[PointXYZ, PointXYZ]& reg, float* out16) except +
+
+    void finalTransformation(IterativeClosestPointWithNormals[PointNormal, PointNormal]& reg, float* out16) except +
+
+    void finalTransformation(FPCSInitialAlignment[PointXYZ, PointXYZ]& reg, float* out16) except +
+
+    void finalTransformation(KFPCSInitialAlignment[PointXYZ, PointXYZ]& reg, float* out16) except +
 
     void massCenter(MomentOfInertiaEstimation[PointXYZ]& est, float* out3) except +
 

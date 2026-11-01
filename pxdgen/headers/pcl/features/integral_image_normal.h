@@ -31,6 +31,9 @@ public:
     void setDepthDependentSmoothing(bool use_depth_dependent_smoothing);
     void setRectSize(int width, int height);
     void setViewPoint(float vpx, float vpy, float vpz);
+    // Per pixel, the distance (in pixels) to the nearest depth change;
+    // filled by compute(), null before it.
+    float* getDistanceMap();
 };
 
 }  // namespace pcl

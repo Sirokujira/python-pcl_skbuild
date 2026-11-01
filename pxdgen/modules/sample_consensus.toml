@@ -25,3 +25,9 @@ path = "headers/pcl/sample_consensus/ransac.h"
 extern_from = "pcl/sample_consensus/ransac.h"
 output = "../src/pcl/pxd/sample_consensus/ransac.pxd"
 namespaces = ["pcl"]
+
+[[headers]]
+path = "headers/pcl/sample_consensus/sac.h"
+extern_from = "pcl/sample_consensus/sac.h"
+output = "../src/pcl/pxd/sample_consensus/sac.pxd"
+namespaces = ["pcl"]

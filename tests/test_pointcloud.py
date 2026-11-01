@@ -13,6 +13,19 @@ pcl = pytest.importorskip(
 )
 
 
+def _same_points(actual, expected):
+    """Lists of (x, y, z) tuples, equal up to float32 rounding.
+    pytest.approx does not take nested sequences (an error since 9.2)."""
+    return len(actual) == len(expected) and all(
+        a == pytest.approx(e) for a, e in zip(actual, expected))
+
+
+def test_pcl_version():
+    assert len(pcl.PCL_VERSION) == 3
+    assert all(isinstance(v, int) for v in pcl.PCL_VERSION)
+    assert pcl.PCL_VERSION >= (1, 11, 0)
+
+
 def test_construct_empty():
     cloud = pcl.PointCloud()
     assert cloud.size == 0
@@ -31,7 +44,7 @@ def test_construct_from_list():
     pts = [(0.0, 0.0, 0.0), (1.0, 1.0, 1.0), (2.0, 4.0, 8.0)]
     cloud = pcl.PointCloud(pts)
     assert cloud.size == 3
-    assert cloud.to_list() == pytest.approx(pts)
+    assert _same_points(cloud.to_list(), pts)
 
 
 def test_construct_copy():
@@ -72,7 +85,7 @@ def test_from_to_list_instance_methods():
     assert cloud.size == 3
     assert cloud.width == 3
     assert cloud.height == 1
-    assert cloud.to_list() == pytest.approx(pts)
+    assert _same_points(cloud.to_list(), pts)
 
 
 def test_index_error():
@@ -96,7 +109,7 @@ def test_repr():
 def test_pickle_roundtrip():
     cloud = pcl.PointCloud([(1.0, 2.0, 3.0), (4.0, 5.0, 6.0)])
     clone = pickle.loads(pickle.dumps(cloud))
-    assert clone.to_list() == pytest.approx(cloud.to_list())
+    assert _same_points(clone.to_list(), cloud.to_list())
 
 
 # --- numpy interop -----------------------------------------------------
@@ -149,7 +162,7 @@ def test_pcd_save_load_roundtrip(tmp_path):
     pcl.save(cloud, path)
     loaded = pcl.load(path)
     assert loaded.size == 3
-    assert loaded.to_list() == pytest.approx(pts)
+    assert _same_points(loaded.to_list(), pts)
 
 
 def test_pcd_binary_roundtrip(tmp_path):
@@ -159,7 +172,7 @@ def test_pcd_binary_roundtrip(tmp_path):
 
     pcl.save(cloud, path, binary=True)
     loaded = pcl.load(path)
-    assert loaded.to_list() == pytest.approx(pts)
+    assert _same_points(loaded.to_list(), pts)
 
 
 def test_load_missing_file_raises(tmp_path):
@@ -169,6 +182,6 @@ def test_load_missing_file_raises(tmp_path):
 
 def test_unsupported_format_raises(tmp_path):
     with pytest.raises(ValueError):
-        pcl.load(str(tmp_path / "cloud.xyz"))
+        pcl.load(str(tmp_path / "cloud.abc"))
     with pytest.raises(ValueError):
         pcl.save(pcl.PointCloud(1), str(tmp_path / "cloud.obj"))

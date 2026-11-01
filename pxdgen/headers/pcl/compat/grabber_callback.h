@@ -9,6 +9,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 
 #include <pcl/io/hdl_grabber.h>
 #include <pcl/io/pcd_grabber.h>
@@ -34,5 +35,11 @@ public:
     void disconnect();
     bool connected() const;
 };
+
+// A VLPGrabber replaying a .pcap, as its HDLGrabber base.
+pcl::HDLGrabber* newVLPGrabber(const std::string& pcap_file);
+
+// false where pcl_io was built without libpcap (see the shim).
+const bool PCAP_REPLAY = true;
 
 }  // namespace pclcompat

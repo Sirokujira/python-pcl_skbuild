@@ -39,4 +39,34 @@ public:
     bool getUseReciprocalCorrespondences() const;
 };
 
+// Point-to-plane ICP on oriented clouds (PCL declares it in this same
+// header). The Scalar template argument keeps its default.
+template <typename PointSource, typename PointTarget>
+class IterativeClosestPointWithNormals {
+public:
+    IterativeClosestPointWithNormals();
+
+    // Inherited entry points (Registration / IterativeClosestPoint).
+    void setInputSource(const std::shared_ptr<PointCloud<PointSource>>& cloud);
+    void setInputTarget(const std::shared_ptr<PointCloud<PointTarget>>& cloud);
+    void setMaximumIterations(int nr_iterations);
+    int getMaximumIterations();
+    void setMaxCorrespondenceDistance(double distance_threshold);
+    double getMaxCorrespondenceDistance();
+    void setTransformationEpsilon(double epsilon);
+    double getTransformationEpsilon();
+    void setEuclideanFitnessEpsilon(double epsilon);
+    double getEuclideanFitnessEpsilon();
+    void align(PointCloud<PointSource>& output);
+    bool hasConverged();
+    double getFitnessScore();
+    void setUseReciprocalCorrespondences(bool use_reciprocal_correspondence);
+    bool getUseReciprocalCorrespondences() const;
+
+    void setUseSymmetricObjective(bool use_symmetric_objective);
+    bool getUseSymmetricObjective() const;
+    void setEnforceSameDirectionNormals(bool enforce_same_direction_normals);
+    bool getEnforceSameDirectionNormals() const;
+};
+
 }  // namespace pcl
