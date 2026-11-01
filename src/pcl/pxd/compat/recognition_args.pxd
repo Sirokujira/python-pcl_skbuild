@@ -3,6 +3,7 @@
 
 # distutils: language = c++
 
+from libcpp cimport bool
 from libcpp.memory cimport shared_ptr
 from libcpp.vector cimport vector
 from pcl.pxd.point_cloud cimport PointCloud
@@ -11,4 +12,4 @@ from pcl.pxd.point_types cimport PointXYZ
 cdef extern from "pcl/compat/recognition_args.h" namespace "pclcompat" nogil:
     int geometricConsistencyGrouping(const shared_ptr[PointCloud[PointXYZ]]& model, const shared_ptr[PointCloud[PointXYZ]]& scene, const vector[int]& model_indices, const vector[int]& scene_indices, const vector[float]& distances, double gc_size, int gc_threshold, vector[float]& out_transforms, vector[int]& out_corr_counts, vector[int]& out_corr_pairs) except +
 
-    int hough3DGrouping(const shared_ptr[PointCloud[PointXYZ]]& model, const shared_ptr[PointCloud[PointXYZ]]& scene, const vector[int]& model_indices, const vector[int]& scene_indices, const vector[float]& distances, float rf_radius, double bin_size, double threshold, vector[float]& out_transforms, vector[int]& out_corr_counts, vector[int]& out_corr_pairs) except +
+    int hough3DGrouping(const shared_ptr[PointCloud[PointXYZ]]& model, const shared_ptr[PointCloud[PointXYZ]]& scene, const vector[int]& model_indices, const vector[int]& scene_indices, const vector[float]& distances, float rf_radius, bool find_holes, double bin_size, double threshold, vector[float]& out_transforms, vector[int]& out_corr_counts, vector[int]& out_corr_pairs) except +

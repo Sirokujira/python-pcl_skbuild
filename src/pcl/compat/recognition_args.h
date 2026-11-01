@@ -115,19 +115,25 @@ inline int geometricConsistencyGrouping(
 /// Local reference frames for `cloud`, which Hough3DGrouping votes in.
 /// BOARD is the estimator every PCL recognition tutorial uses; it needs
 /// normals, so the shim computes those too rather than making the caller
-/// carry a second cloud through an Eigen-typed API.
+/// carry a second cloud through an Eigen-typed API. `find_holes` is
+/// BOARD's hole detection, which the tutorial turns on: it bins each
+/// point's neighbours by angle from an axis drawn with std::rand(), so
+/// the frames near borders -- and with them the votes -- differ from run
+/// to run (plain C++, an 8 x 8 x 3 block against itself: Hough found
+/// nothing in 14 of 1000 runs with it, 0 of 1000 without, and only
+/// without were the frames the same twice).
 inline RefCloud::Ptr boardReferenceFrames(const std::shared_ptr<Cloud>& cloud,
-                                          float rf_radius);
+                                          float rf_radius, bool find_holes);
 
 /// Same contract as geometricConsistencyGrouping, voting in a Hough
 /// space of `bin_size` instead. `rf_radius` is the support radius of the
-/// local reference frames.
+/// local reference frames, `find_holes` BOARD's hole detection.
 inline int hough3DGrouping(const std::shared_ptr<Cloud>& model,
                            const std::shared_ptr<Cloud>& scene,
                            const std::vector<int>& model_indices,
                            const std::vector<int>& scene_indices,
                            const std::vector<float>& distances,
-                           float rf_radius, double bin_size,
+                           float rf_radius, bool find_holes, double bin_size,
                            double threshold,
                            std::vector<float>& out_transforms,
                            std::vector<int>& out_corr_counts,
@@ -139,9 +145,9 @@ inline int hough3DGrouping(const std::shared_ptr<Cloud>& model,
     hough.setUseInterpolation(true);
     hough.setUseDistanceWeight(false);
     hough.setInputCloud(model);
-    hough.setInputRf(boardReferenceFrames(model, rf_radius));
+    hough.setInputRf(boardReferenceFrames(model, rf_radius, find_holes));
     hough.setSceneCloud(scene);
-    hough.setSceneRf(boardReferenceFrames(scene, rf_radius));
+    hough.setSceneRf(boardReferenceFrames(scene, rf_radius, find_holes));
     hough.setModelSceneCorrespondences(
         makeCorrespondences(model_indices, scene_indices, distances));
 
@@ -163,7 +169,7 @@ inline int hough3DGrouping(const std::shared_ptr<Cloud>& model,
 namespace pclcompat {
 
 inline RefCloud::Ptr boardReferenceFrames(const std::shared_ptr<Cloud>& cloud,
-                                          float rf_radius) {
+                                          float rf_radius, bool find_holes) {
     pcl::PointCloud<pcl::Normal>::Ptr normals(
         new pcl::PointCloud<pcl::Normal>());
     pcl::NormalEstimation<Point, pcl::Normal> ne;
@@ -174,7 +180,7 @@ inline RefCloud::Ptr boardReferenceFrames(const std::shared_ptr<Cloud>& cloud,
     RefCloud::Ptr frames(new RefCloud());
     pcl::BOARDLocalReferenceFrameEstimation<Point, pcl::Normal,
                                             pcl::ReferenceFrame> rf;
-    rf.setFindHoles(true);
+    rf.setFindHoles(find_holes);
     rf.setRadiusSearch(rf_radius);
     rf.setInputCloud(cloud);
     rf.setInputNormals(normals);

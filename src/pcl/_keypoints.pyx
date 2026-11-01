@@ -35,7 +35,6 @@ from pcl._pointtypes cimport PointCloud_Normal, PointCloud_PointXYZRGB
 from libcpp.memory cimport shared_ptr
 from libc.stdint cimport uint8_t
 from pcl.pxd.point_types cimport BRISKSignature512, PointUV, PointXYZRGBA
-from pcl.pxd.keypoints.harris_2d cimport HarrisKeypoint2D as cHarrisKeypoint2D
 from pcl.pxd.keypoints.trajkovic_2d cimport (
     TrajkovicKeypoint2D as cTrajkovicKeypoint2D)
 from pcl.pxd.keypoints.trajkovic_3d cimport (
@@ -46,8 +45,8 @@ from pcl.pxd.keypoints.smoothed_surfaces_keypoint cimport (
     SmoothedSurfacesKeypoint as cSmoothedSurfacesKeypoint)
 from pcl.pxd.features.brisk_2d cimport BRISK2DEstimation as cBRISK2DEstimation
 from pcl.pxd.compat.keypoint_args cimport (
-    TRAJKOVIC_EIGHT_CORNERS, TRAJKOVIC_FOUR_CORNERS, addSmoothedCloud,
-    setHarris2DMethod, setTrajkovic2DMethod, setTrajkovic3DMethod)
+    TRAJKOVIC_EIGHT_CORNERS, TRAJKOVIC_FOUR_CORNERS, CorrectedHarris2D,
+    addSmoothedCloud, setTrajkovic2DMethod, setTrajkovic3DMethod)
 from pcl._pointtypes cimport PointCloud_PointXYZRGBA
 
 
@@ -382,13 +381,20 @@ cdef class HarrisKeypoint2D:
     `set_Method` takes ``pcl.HARRIS``, ``NOBLE``, ``LOWE`` or ``TOMASI``;
     windows and distances are in pixels. `compute()` returns ``(n, 4)``:
     x, y, z of the corner pixel, response.
+
+    PCL's detection step reads uninitialised memory along the image
+    border, keeps the first image's size in a static, and races its
+    non-maximum suppression across threads -- from one 80 x 60 image it
+    returned anything from 5 to 128 corners where there were 4. This
+    runs PCL's algorithm with those fixed (compat/keypoint_args.h), on
+    one thread.
     """
 
-    cdef cHarrisKeypoint2D[PointXYZRGBA, PointXYZI]* me
+    cdef CorrectedHarris2D* me
     cdef bint has_input
 
     def __cinit__(self, PointCloud_PointXYZRGBA pc=None):
-        self.me = new cHarrisKeypoint2D[PointXYZRGBA, PointXYZI]()
+        self.me = new CorrectedHarris2D()
         # It runs Keypoint::initCompute, which refuses to start without a
         # neighbour-search parameter the 2-D detector never uses.
         self.me.setKSearch(1)
@@ -409,7 +415,7 @@ cdef class HarrisKeypoint2D:
         if method not in (HARRIS, NOBLE, LOWE, TOMASI):
             raise ValueError("method must be pcl.HARRIS, NOBLE, LOWE or "
                              "TOMASI for the 2-D detector")
-        setHarris2DMethod(deref(self.me), method)
+        self.me.setMethodCode(method)
 
     def set_WindowWidth(self, int pixels):
         self.me.setWindowWidth(pixels)
@@ -431,9 +437,6 @@ cdef class HarrisKeypoint2D:
 
     def set_Refine(self, bint refine):
         self.me.setRefine(refine)
-
-    def set_NumberOfThreads(self, unsigned int threads):
-        self.me.setNumberOfThreads(threads)
 
     def compute(self):
         if not self.has_input:

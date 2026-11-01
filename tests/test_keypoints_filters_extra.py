@@ -49,11 +49,39 @@ def test_harris_2d_finds_the_square_corners():
     harris.set_Threshold(1e-6)
     out = harris.compute()
     assert out.shape[1] == 4
-    assert len(out) >= 4
-    # Back to pixels through the camera.
-    uv = np.column_stack([out[:, 0] * F / out[:, 2] + W / 2,
-                          out[:, 1] * F / out[:, 2] + H / 2])
-    assert _near_a_corner(uv).mean() > 0.5
+    # Back to pixels through the camera: the four corners and nothing
+    # else (PCL's own detection added border garbage, 5..128 corners)
+    assert len(out) == 4 and _near_a_corner(_pixels(out)).all()
+
+
+def _pixels(out):
+    return np.column_stack([out[:, 0] * F / out[:, 2] + W / 2,
+                            out[:, 1] * F / out[:, 2] + H / 2])
+
+
+def _harris(image):
+    harris = image.make_HarrisKeypoint2D()
+    harris.set_Method(pcl.HARRIS)
+    harris.set_NonMaxSupression(True)
+    harris.set_Threshold(1e-6)
+    return harris
+
+
+def test_harris_2d_is_repeatable_and_size_independent():
+    """PCL keeps the first image's size in a static and races its
+    suppression; neither may leak into the result."""
+    small = pcl.PointCloud_PointXYZRGBA()
+    rgba = np.full((30, 40, 4), 20, np.uint8)
+    rgba[..., 3] = 255
+    rgba[5:15, 10:20, :3] = 230
+    v, u = np.mgrid[0:30, 0:40].astype(np.float32)
+    small.from_organized_rgba_array(
+        np.dstack([u, v, np.full_like(u, 2.0)]).astype(np.float32), rgba)
+    assert len(_harris(small).compute()) == 4
+    first = _harris(_image()).compute()
+    assert len(first) == 4 and _near_a_corner(_pixels(first)).all()
+    for _ in range(20):
+        assert np.array_equal(_harris(_image()).compute(), first)
 
 
 def test_harris_2d_method_checks():

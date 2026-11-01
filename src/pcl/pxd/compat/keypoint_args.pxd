@@ -3,6 +3,7 @@
 
 # distutils: language = c++
 
+from libcpp cimport bool
 from libcpp.memory cimport shared_ptr
 from pcl.pxd.keypoints.agast_2d cimport AgastKeypoint2D
 from pcl.pxd.keypoints.harris_2d cimport HarrisKeypoint2D
@@ -26,7 +27,19 @@ cdef extern from "pcl/compat/keypoint_args.h" namespace "pclcompat" nogil:
 
     void setHarrisMethod(HarrisKeypoint3D[PointXYZ, PointXYZI]& detector, int method) except +
 
-    void setHarris2DMethod(HarrisKeypoint2D[PointXYZRGBA, PointXYZI]& detector, int method) except +
+    cdef cppclass CorrectedHarris2D:
+        CorrectedHarris2D() except +
+        void setInputCloud(const shared_ptr[PointCloud[PointXYZRGBA]]& cloud) except +
+        void setKSearch(int k) except +
+        void setMethodCode(int method) except +
+        void setWindowWidth(int pixels) except +
+        void setWindowHeight(int pixels) except +
+        void setSkippedPixels(int pixels) except +
+        void setMinimalDistance(int pixels) except +
+        void setThreshold(float threshold) except +
+        void setNonMaxSupression(bool suppress) except +
+        void setRefine(bool refine) except +
+        void compute(PointCloud[PointXYZI]& output) except +
 
     const int TRAJKOVIC_FOUR_CORNERS
 

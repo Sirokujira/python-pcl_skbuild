@@ -876,6 +876,9 @@ cdef class BOARDLocalReferenceFrameEstimation:
         return self.me.getTangentRadius()
 
     def set_FindHoles(self, bint find_holes):
+        """Hole detection for frames at the edge of a partial view. It
+        bins neighbours by angle from an axis drawn with C's rand(), so
+        with it on the frames near borders differ from run to run."""
         self.me.setFindHoles(find_holes)
 
     def get_FindHoles(self):

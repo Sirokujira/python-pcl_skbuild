@@ -2,6 +2,8 @@
 implicit shape model, LineRGBD and DOTMOD on synthetic scenes whose
 answer is known."""
 
+import time
+
 import numpy as np
 import pytest
 
@@ -149,6 +151,11 @@ def test_occlusion_filter_keeps_what_the_wall_does_not_hide():
 
 
 def test_obj_rec_ransac_finds_the_blob():
+    """ObjRecRANSAC is randomised: about one run in 40 returns only a
+    poorer hypothesis, 1-5 cm off (1000 seeds). PCL seeds it with the
+    current second (time(nullptr)), so a second call within the same
+    second repeats the first exactly; each retry waits for a new one.
+    Three tries in different seconds all missing is ~2e-5."""
     pts, nrm = _blob(80)
     rot = _rotation((0.3, 1.0, 0.2), 0.8)
     where = np.array([0.2, -0.1, 1.0])
@@ -157,18 +164,23 @@ def test_obj_rec_ransac_finds_the_blob():
     floor = np.stack([gx.ravel(), np.full(gx.size, 0.15), gz.ravel()], 1)
     scene = np.vstack([seen, floor]).astype(np.float32)
     scene_n = np.vstack([seen_n, np.tile([0, -1, 0], (len(floor), 1))])
-    rec = pcl.ObjRecRANSAC(pair_width=0.1, voxel_size=0.015)
-    rec.add_Model(pcl.PointCloud(pts), _normals(nrm), "blob")
-    found = rec.recognize(pcl.PointCloud(scene), _normals(scene_n))
-    assert found, "nothing recognised"
-    name, pose, confidence = max(found, key=lambda f: f[2])
-    assert name == "blob" and confidence > 0.3
-    assert np.allclose(pose[:3, 3], where, atol=0.01)
-    # the blob is symmetric under a half turn about its x axis, so compare
-    # where the model lands rather than the rotation
-    placed = pts @ pose[:3, :3].T + pose[:3, 3]
     target = pts @ rot.T + where
-    assert np.abs(np.sort(placed, 0) - np.sort(target, 0)).mean() < 0.005
+    for attempt in range(3):
+        if attempt:
+            time.sleep(1.05 - time.time() % 1.0)
+        rec = pcl.ObjRecRANSAC(pair_width=0.1, voxel_size=0.015)
+        rec.add_Model(pcl.PointCloud(pts), _normals(nrm), "blob")
+        found = rec.recognize(pcl.PointCloud(scene), _normals(scene_n))
+        assert found, "nothing recognised"
+        name, pose, confidence = max(found, key=lambda f: f[2])
+        assert name == "blob" and confidence > 0.3
+        # the blob is symmetric under a half turn about its x axis, so
+        # compare where the model lands rather than the rotation
+        placed = pts @ pose[:3, :3].T + pose[:3, 3]
+        if (np.allclose(pose[:3, 3], where, atol=0.01) and
+                np.abs(np.sort(placed, 0) - np.sort(target, 0)).mean() < 0.005):
+            return
+    pytest.fail("pose off in three different seconds: %s" % pose[:3, 3])
 
 
 def test_obj_rec_ransac_arguments():

@@ -25,9 +25,23 @@ void setHarrisMethod(
     pcl::HarrisKeypoint3D<pcl::PointXYZ, pcl::PointXYZI>& detector,
     int method);
 
-void setHarris2DMethod(
-    pcl::HarrisKeypoint2D<pcl::PointXYZRGBA, pcl::PointXYZI>& detector,
-    int method);
+// pcl::HarrisKeypoint2D<PointXYZRGBA, PointXYZI> with its keypoint
+// detection corrected (see the shim). Inherited setters flattened.
+class CorrectedHarris2D {
+public:
+    CorrectedHarris2D();
+    void setInputCloud(const std::shared_ptr<pcl::PointCloud<pcl::PointXYZRGBA>>& cloud);
+    void setKSearch(int k);
+    void setMethodCode(int method);
+    void setWindowWidth(int pixels);
+    void setWindowHeight(int pixels);
+    void setSkippedPixels(int pixels);
+    void setMinimalDistance(int pixels);
+    void setThreshold(float threshold);
+    void setNonMaxSupression(bool suppress);
+    void setRefine(bool refine);
+    void compute(pcl::PointCloud<pcl::PointXYZI>& output);
+};
 
 // TrajkovicKeypoint2D / 3D ComputationMethod.
 const int TRAJKOVIC_FOUR_CORNERS = 0;

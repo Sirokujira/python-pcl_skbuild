@@ -422,6 +422,30 @@ directory instead. And `PosesFromMatches` documents `max_no_of_results
 triple ones stop once `added >= max_results`, so -1 returned the first
 hypothesis alone -- `common_args.h` passes INT_MAX.
 
+Three flaky tests turned out to be three upstream causes, each found
+by repeating the call in plain C++ until it varied. `HarrisKeypoint2D`
+(1.11 through master): its derivative images are `Eigen::MatrixXf`s
+`resize`d and never cleared, with the left / right columns of one and
+the top / bottom rows of the other never written, so the border reads
+heap garbage -- a NaN response sorts first and makes the suppression
+threshold NaN, rejecting nothing (one thread, one 80 x 60 image: 8 to
+121 corners depending on the process, 4 right); `computeSecondMomentMatrix`
+keeps the image size in function-level `static`s; and the greedy
+suppression runs as an OpenMP loop over a shared `std::vector<bool>`
+(all cores: 2,866 different results in 3,000 runs). `CorrectedHarris2D`
+in `keypoint_args.h` overrides `detectKeypoints` with those fixed, on
+one thread (Trajkovic 2-D shares the suppression loop but measured
+stable). BOARD's hole detection, which `recognition_args.h` had turned
+on for Hough grouping as PCL's tutorial does, bins neighbours by angle
+from an axis drawn with `std::rand()`, so its frames differ every run
+(Hough found nothing in 14 of 1000 runs; 0 of 1000 without it); it is
+now `Hough3DGrouping.set_FindHoles`, off by default as in PCL. And
+`ObjRecRANSAC` seeds its sampler with `time(nullptr)`: calls in one
+second repeat exactly, and about one in 40 returns only a poorer
+hypothesis -- the algorithm, not a bug -- so its test retries in a new
+second and the docstring says both. To sweep a time-seeded PCL class,
+`LD_PRELOAD` a `time()` that returns the next second on every call.
+
 Not every quirk is worth absorbing, though. PCL's octree treats the FIRST
 point of a cloud specially: `voxelSearch` can miss it, and
 `getPointIndicesFromNewVoxels` reports index 0 as new even for an

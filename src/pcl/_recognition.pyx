@@ -200,14 +200,24 @@ cdef class Hough3DGrouping(_CorrespondenceGrouping):
     space; peaks become instances. Votes are cast in local reference
     frames, which the shim estimates with BOARD — so unlike geometric
     consistency this one needs a support radius.
+
+    `set_FindHoles(True)` turns on BOARD's hole detection, as PCL's
+    correspondence-grouping tutorial does, for frames that hold up at
+    the edge of a partial view. It draws a random axis per point with
+    C's rand(), so the frames near borders, and the votes, change from
+    run to run: on a small block matched against itself, 14 runs in
+    1000 found nothing with it and none without. Off by default (PCL's
+    own default), which makes `recognize()` repeatable.
     """
 
     cdef float rf_radius
+    cdef bint find_holes
     cdef double bin_size
     cdef double threshold
 
     def __cinit__(self, PointCloud model=None, PointCloud scene=None):
         self.rf_radius = 0.015
+        self.find_holes = False
         self.bin_size = 0.01
         self.threshold = 5.0
         if model is not None:
@@ -223,6 +233,14 @@ cdef class Hough3DGrouping(_CorrespondenceGrouping):
 
     def get_RFRadius(self):
         return self.rf_radius
+
+    def set_FindHoles(self, bint find_holes):
+        """BOARD's hole detection for the reference frames (random; see
+        the class docstring)."""
+        self.find_holes = find_holes
+
+    def get_FindHoles(self):
+        return self.find_holes
 
     def set_HoughBinSize(self, double bin_size):
         if bin_size <= 0:
@@ -252,13 +270,15 @@ cdef class Hough3DGrouping(_CorrespondenceGrouping):
         cdef vector[int] counts
         cdef vector[int] pairs
         cdef float rf_radius = self.rf_radius
+        cdef bint find_holes = self.find_holes
         cdef double bin_size = self.bin_size
         cdef double threshold = self.threshold
         with nogil:
             hough3DGrouping(
                 self.model.thisptr_shared, self.scene.thisptr_shared,
                 model_indices, scene_indices, distances,
-                rf_radius, bin_size, threshold, transforms, counts, pairs)
+                rf_radius, find_holes, bin_size, threshold, transforms,
+                counts, pairs)
         return _instances(transforms, counts, pairs)
 
 

@@ -231,8 +231,13 @@ cdef class ObjRecRANSAC:
     the point spacing. Scenes are single views seen along +z: hypotheses
     are tested against the scene projected onto the xy-plane.
 
-    Recognition is randomised; PCL's build prints progress to stdout on
-    every call (OBJ_REC_RANSAC_VERBOSE is defined in its header).
+    Recognition is randomised, and PCL seeds it with the current time in
+    whole seconds: calls within the same second give the same result,
+    calls in different seconds independent ones. A returned pose is a
+    hypothesis, about a voxel accurate; on a test scene about one call in
+    40 returned only a poorer one, 1-5 cm off, so refine with ICP or
+    call again. PCL's build prints progress to stdout on every call
+    (OBJ_REC_RANSAC_VERBOSE is defined in its header).
     """
 
     cdef ObjectRecognizer* me
