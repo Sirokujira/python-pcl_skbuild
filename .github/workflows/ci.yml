@@ -97,6 +97,13 @@ jobs:
         run: |
           python -c "import pcl._vtk_mesh"
           pytest tests/test_vtk_mesh.py -v
+      # Correspondence grouping, ObjRecRANSAC, ISM, LineRGBD, DOTMOD... The
+      # tests skip themselves when pcl does not import, so import the two
+      # modules directly first, as for the VTK step.
+      - name: Run recognition tests
+        run: |
+          python -c "import pcl._recognition, pcl._recognition_extra"
+          pytest tests/test_recognition.py tests/test_recognition_extra.py -v
 
   # The Windows build is its own job rather than a matrix entry: PCL via
   # vcpkg takes hours of compile time on hosted runners, so it comes
@@ -145,3 +152,8 @@ jobs:
         run: |
           python -c "import pcl._vtk_mesh"
           pytest tests/test_vtk_mesh.py -v
+      - name: Run recognition tests
+        shell: pwsh
+        run: |
+          python -c "import pcl._recognition, pcl._recognition_extra"
+          pytest tests/test_recognition.py tests/test_recognition_extra.py -v
