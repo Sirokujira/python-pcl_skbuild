@@ -243,9 +243,14 @@ def test_ism_model_round_trip(ism_scene, tmp_path):
                                              number_of_clusters=7)
     other.load_Model(path)
     assert other.number_of_classes == 2
-    # the file stores text, so the weights come back rounded
-    assert np.allclose(other.find_Objects(scene, normals, 1)[0],
-                       ism.find_Objects(scene, normals, 1)[0], atol=1e-5)
+    # The file stores text, so the weights come back rounded, and mean
+    # shift -- which stops once a step is under sigma / 100 -- can stop a
+    # few such steps away: 2.9 at most in 300 comparisons, and once that
+    # was 0.6 mm where a 1e-5 tolerance expected none.
+    loaded = other.find_Objects(scene, normals, 1)[0]
+    trained = ism.find_Objects(scene, normals, 1)[0]
+    assert np.abs(loaded[:3] - trained[:3]).max() < 10 * ism.sigmas[1] / 100
+    assert loaded[3] == pytest.approx(trained[3], rel=1e-3)
     with pytest.raises(IOError):
         other.load_Model(tmp_path / "missing.txt")
 
