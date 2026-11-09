@@ -335,11 +335,6 @@ def test_intensity_estimators_need_their_inputs(sphere):
 # --- normals ---------------------------------------------------------------------
 
 
-def test_normal_based_signature_is_not_exposed():
-    """Left out on purpose: PCL's returns only NaN (README)."""
-    assert not hasattr(pcl, "NormalBasedSignatureEstimation")
-
-
 def _organized_wave(h=30, w=40, f=40.0):
     v, u = np.mgrid[0:h, 0:w].astype(np.float32)
     z = 2.0 + 0.1 * np.sin(u / 6.0)
@@ -528,3 +523,105 @@ def test_compute_pair_features():
         pcl.compute_pair_features((0, 0, 0), (0, 0, 1), (0, 0, 0), (0, 0, 1))
     with pytest.raises(ValueError):
         pcl.compute_pair_features((0, 0), (0, 0, 1), (1, 0, 0), (0, 0, 1))
+
+
+# --- normal-based signature --------------------------------------------------
+
+
+def _saddle(rotation=0.0):
+    """z = 0.4 x^2 - 0.2 y^2 + 0.3 x y on a 121 x 121 grid, rotated about
+    z (the normal at the origin, point 7320) with exact normals."""
+    i, j = np.meshgrid(np.arange(-60, 61), np.arange(-60, 61), indexing="ij")
+    x, y = (i * 0.005).ravel(), (j * 0.005).ravel()
+    z = 0.4 * x * x - 0.2 * y * y + 0.3 * x * y
+    n = np.column_stack([-(0.8 * x + 0.3 * y), -(-0.4 * y + 0.3 * x),
+                         np.ones_like(x)])
+    n /= np.linalg.norm(n, axis=1, keepdims=True)
+    c, s = np.cos(rotation), np.sin(rotation)
+    rot = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
+    pts = np.column_stack([x, y, z]) @ rot.T
+    return (pcl.PointCloud(pts.astype(np.float32)),
+            _with_curvature(n @ rot.T))
+
+
+def _with_curvature(n):
+    n = np.asarray(n, dtype=np.float32)
+    return pcl.PointCloud_Normal(
+        np.column_stack([n, np.zeros(len(n), np.float32)]))
+
+
+def _signature(cloud, normals, indices=(7320,)):
+    nbs = pcl.NormalBasedSignatureEstimation(cloud, normals)
+    nbs.set_Scale(0.1)
+    nbs.set_RadiusSearch(0.02)
+    return nbs.compute(list(indices))
+
+
+def test_normal_signature_is_finite_and_ignores_rotation_about_the_normal():
+    """PCL's own computation returns only NaN here (plain C++, 1.14)."""
+    reference = _signature(*_saddle())
+    assert reference.shape == (1, 12)
+    assert np.all(np.isfinite(reference)) and reference.max() > 1
+    # a quadratic surface varies as cos 2 theta around the normal: only
+    # the 0th and 2nd angular harmonics (rows 0 and 2) are non-zero
+    rows = reference.reshape(4, 3)
+    assert np.allclose(rows[[1, 3]], 0, atol=1e-3)
+    step = 2 * np.pi / 36
+    # exact for a whole number of the 36 sample steps; between them the
+    # circle samples the surface elsewhere, which moves the smallest
+    # coefficients by ~0.002 of a signature reaching 10
+    for angle, tol in ((3 * step, 1e-4), (7 * step, 1e-4), (0.3, 5e-3)):
+        turned = _signature(*_saddle(angle))
+        assert turned == pytest.approx(reference, rel=1e-3, abs=tol)
+
+
+def test_normal_signature_of_a_plane_is_zero():
+    flat_points, flat_normals = _saddle()
+    pts = flat_points.to_array()
+    pts[:, 2] = 0
+    up = np.tile([0, 0, 1], (len(pts), 1))
+    flat = _signature(pcl.PointCloud(pts), _with_curvature(up))
+    assert np.allclose(flat, 0, atol=1e-4)
+
+
+def test_normal_signature_every_point_and_nan_normals():
+    cloud, normals = _saddle()
+    n = normals.to_array()
+    n[7320, :3] = np.nan
+    nbs = pcl.NormalBasedSignatureEstimation(cloud, pcl.PointCloud_Normal(n))
+    nbs.set_Scale(0.1)
+    nbs.set_RadiusSearch(0.02)
+    nbs.set_Samples(12, 4)
+    assert nbs.get_Samples() == (12, 4)
+    out = nbs.compute([7320, 7321])
+    assert np.all(np.isnan(out[0])) and np.all(np.isfinite(out[1]))
+    small = pcl.PointCloud(cloud.to_array()[:50])
+    nbs = pcl.NormalBasedSignatureEstimation(
+        small, pcl.PointCloud_Normal(normals.to_array()[:50]))
+    nbs.set_Scale(0.01)
+    nbs.set_RadiusSearch(0.01)
+    assert nbs.compute().shape == (50, 12)
+
+
+def test_normal_signature_checks_its_settings():
+    cloud, normals = _saddle()
+    nbs = pcl.NormalBasedSignatureEstimation(cloud)
+    with pytest.raises(ValueError):
+        nbs.set_Scale(0)
+    with pytest.raises(ValueError):
+        nbs.set_Samples(3, 8)
+    with pytest.raises(ValueError):
+        nbs.set_RadiusSearch(-1)
+    with pytest.raises(ValueError):
+        nbs.set_InputNormals(pcl.PointCloud_Normal(
+            normals.to_array()[:10]))
+    with pytest.raises(RuntimeError, match="set_InputNormals"):
+        nbs.compute([0])
+    nbs.set_InputNormals(normals)
+    nbs.set_RadiusSearch(0.02)
+    with pytest.raises(RuntimeError, match="set_Scale"):
+        nbs.compute([0])
+    nbs.set_Scale(0.1)
+    assert nbs.get_Scale() == pytest.approx(0.1)
+    with pytest.raises(IndexError):
+        nbs.compute([len(cloud.to_array())])

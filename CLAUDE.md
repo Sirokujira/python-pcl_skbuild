@@ -75,7 +75,8 @@ segment-and-refine), `SupervoxelClustering` (+ LCCP, CPC),
 `BoundaryEstimation`, `PFHEstimation`, `PrincipalCurvaturesEstimation`,
 `RSDEstimation`, `GRSDEstimation`, `SpinImageEstimation`, `GASDEstimation`
 (+ Color), `OURCVFHEstimation`, `CRHEstimation`,
-`MomentInvariantsEstimation`, `NormalEstimationOMP`, the OMP / colour /
+`MomentInvariantsEstimation`, `NormalEstimationOMP`,
+`NormalBasedSignatureEstimation`, the OMP / colour /
 shape-context / point-pair / reference-frame / intensity / organized-edge /
 RoPS / GFPFH / multiscale estimators in `_features_extra`, `ISSKeypoint3D`,
 `SIFTKeypoint`, `SUSANKeypoint`, the 2-D image detectors (Harris2D,
@@ -102,6 +103,7 @@ functions (`pcl.estimate_correspondences*`, `reject_*`,
 `Segmentation` (SAC), `EuclideanClusterExtraction`,
 `GeometricConsistencyGrouping`, `Hough3DGrouping`, `GreedyVerification`,
 `PapazovHV`, `CRHAlignment`, `TrimmedICP`, `pcl.occlusion_filter`,
+`ZBuffering`,
 `ObjRecRANSAC`, `ImplicitShapeModelEstimation`, `LineRGBD`, `DOTMOD` (in
 `_recognition_extra`), `BlockBasedStereoMatching`,
 `AdaptiveCostSOStereoMatching`, `pcl.disparity_to_cloud`,

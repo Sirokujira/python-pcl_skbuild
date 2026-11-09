@@ -237,8 +237,14 @@ wrappers take the bins only as a pair whose product fits; `ROPSEstimation`
 fixes its rotations at 3 for the same reason. `SHOTColorEstimation`
 packs whichever halves are enabled at the front of its 1344 values, so
 the wrapper returns exactly that width. `NormalBasedSignatureEstimation`
-is not wrapped at all: it divides by zero in its DFT and returns only
-NaN (0 of 18,000 values finite in plain C++; same on master). And the
+returns only NaN (0 of 18,000 values finite in plain C++; same on
+master): its DFT evaluates `cos(2 pi / (N k n))`, dividing by zero for
+every n = 0 term, its DCT indexes the cosine by the row instead of the
+coefficient, and the sample angles use integer division.
+`compat/normal_signature.h` overrides `computeFeature` -- PCL's sampling,
+a real DCT-II and DFT magnitude -- and the result is exactly invariant
+to a rotation about the normal by whole sample steps (saddle surface,
+plain C++ and the tests). And the
 `PPFRGBEstimation` impl calls a function its header never includes,
 which `compat/ppfrgb.h` supplies.
 
@@ -368,6 +374,13 @@ mean-shift kd-tree), it uses NaN normals as given, and `calculateSigmas`
 takes the largest dot product of two points as the object's size;
 `recognition_extra.h` fixes the estimator (FPFH into all 153 bins),
 cleans and tilts the normals, and passes diameter / 10.
+`occlusion_reasoning::ZBuffering` initialises a quarter of its depth
+buffer, writes with row length w but reads with h, and its smoothing
+overruns the buffer for a non-square image (plain C++, 64 x 48 wall:
+12 of 96 visible points kept, then an ASan heap overflow; same on
+master); `recognition_extra.h`'s `DepthBuffer` is the same projection
+and test on one consistent buffer, with z <= 0 skipped and the
+smoothing window clipped at the border rather than blanking it.
 `implicit_shape_model.h` also includes an Eigen-internal header before
 `<Eigen/Core>`. `LineRGBD::createAndAddTemplate` takes its 3-D box from
 whatever cloud it is handed, so the shim hands it the masked points.

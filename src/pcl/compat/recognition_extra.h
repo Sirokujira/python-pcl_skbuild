@@ -58,6 +58,7 @@
 #include <limits>
 #include <list>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -176,6 +177,132 @@ inline void occlusionFilter(const std::shared_ptr<RecCloud>& scene,
                        organized, points, f, threshold, check_invalid_depth);
     out = *result;
 }
+
+// --- ZBuffering ------------------------------------------------------------------
+
+/// pcl::occlusion_reasoning::ZBuffering, corrected: a depth image of an
+/// unorganized scene, and the points of a model it does not hide. PCL's
+/// (1.11 through master) fills (w/2 - 0.5) * (h/2 - 0.5) of its w * h
+/// buffer with NaN and leaves the rest uninitialised, compares against
+/// depth_[u * h + v] but writes depth_[u * w + v] (and smooths with the
+/// latter), so a non-square image loses or misplaces depths -- 21 of 96
+/// visible points kept in plain C++ -- and it leaks the buffer on a
+/// second computeDepthMap. Here the buffer is one layout throughout,
+/// fully initialised and owned, points at or behind the camera (z <= 0)
+/// are ignored rather than projected through it, and smoothing clips its
+/// window at the border instead of blanking the border pixels.
+/// Projection, focal estimate and the visibility test are PCL's.
+class DepthBuffer {
+public:
+    DepthBuffer(int width, int height, float focal)
+        : w_(width), h_(height), f_(focal) {}
+
+    void computeDepthMap(const RecCloud& scene, bool compute_focal,
+                         bool smooth, int wsize) {
+        if (compute_focal) {
+            float max_c = 0.0f;
+            for (const auto& p : scene) {
+                if (std::isfinite(p.z) && p.z > 0 && std::isfinite(p.x) &&
+                    std::isfinite(p.y)) {
+                    max_c = std::max({max_c, std::abs(p.x / p.z),
+                                      std::abs(p.y / p.z)});
+                }
+            }
+            if (!(max_c > 0)) {
+                throw std::invalid_argument(
+                    "no scene point off the optical axis to fit a focal "
+                    "length to");
+            }
+            f_ = (static_cast<float>(w_) / 2.0f - 0.5f) / max_c;
+        }
+        depth_.assign(static_cast<std::size_t>(w_) * h_,
+                      std::numeric_limits<float>::quiet_NaN());
+        for (const auto& p : scene) {
+            int u, v;
+            if (!project(p, u, v)) {
+                continue;
+            }
+            float& d = depth_[static_cast<std::size_t>(u) * h_ + v];
+            if (!std::isfinite(d) || p.z < d) {
+                d = p.z;
+            }
+        }
+        if (smooth) {
+            const int half = wsize / 2;
+            std::vector<float> out(depth_.size(),
+                                   std::numeric_limits<float>::quiet_NaN());
+            for (int u = 0; u < w_; ++u) {
+                for (int v = 0; v < h_; ++v) {
+                    float best = std::numeric_limits<float>::infinity();
+                    for (int a = std::max(0, u - half);
+                         a <= std::min(w_ - 1, u + half); ++a) {
+                        for (int b = std::max(0, v - half);
+                             b <= std::min(h_ - 1, v + half); ++b) {
+                            const float d =
+                                depth_[static_cast<std::size_t>(a) * h_ + b];
+                            if (std::isfinite(d) && d < best) {
+                                best = d;
+                            }
+                        }
+                    }
+                    if (std::isfinite(best)) {
+                        out[static_cast<std::size_t>(u) * h_ + v] = best;
+                    }
+                }
+            }
+            depth_.swap(out);
+        }
+    }
+
+    /// Indices of the model points within `threshold` of the depth at
+    /// their pixel or in front of it; a point outside the image or over a
+    /// pixel with no depth is dropped, as PCL does.
+    void filter(const RecCloud& model, float threshold,
+                std::vector<int>& kept) const {
+        if (depth_.empty()) {
+            throw std::logic_error("computeDepthMap first");
+        }
+        kept.clear();
+        for (std::size_t i = 0; i < model.size(); ++i) {
+            int u, v;
+            if (!project(model[i], u, v)) {
+                continue;
+            }
+            const float d = depth_[static_cast<std::size_t>(u) * h_ + v];
+            if (std::isfinite(d) && model[i].z - threshold <= d) {
+                kept.push_back(static_cast<int>(i));
+            }
+        }
+    }
+
+    float getFocal() const { return f_; }
+
+    /// The depth image, row-major (height x width); NaN where empty.
+    void getDepthMap(std::vector<float>& out) const {
+        out.assign(static_cast<std::size_t>(w_) * h_,
+                   std::numeric_limits<float>::quiet_NaN());
+        for (int u = 0; u < w_ && !depth_.empty(); ++u) {
+            for (int v = 0; v < h_; ++v) {
+                out[static_cast<std::size_t>(v) * w_ + u] =
+                    depth_[static_cast<std::size_t>(u) * h_ + v];
+            }
+        }
+    }
+
+private:
+    bool project(const pcl::PointXYZ& p, int& u, int& v) const {
+        if (!std::isfinite(p.x) || !std::isfinite(p.y) || !(p.z > 0)) {
+            return false;
+        }
+        u = static_cast<int>(f_ * p.x / p.z + static_cast<float>(w_) / 2.0f - 0.5f);
+        v = static_cast<int>(f_ * p.y / p.z + static_cast<float>(h_) / 2.0f - 0.5f);
+        return u >= 0 && v >= 0 && u < w_ && v < h_;
+    }
+
+    int w_, h_;
+    float f_;
+    std::vector<float> depth_;  // depth_[u * h + v], as PCL reads it
+};
 
 // --- ObjRecRANSAC ----------------------------------------------------------------
 

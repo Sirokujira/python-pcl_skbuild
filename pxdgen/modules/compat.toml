@@ -381,3 +381,13 @@ path = "headers/pcl/compat/version_args.h"
 extern_from = "pcl/compat/version_args.h"
 output = "../src/pcl/pxd/compat/version_args.pxd"
 namespaces = ["pclcompat"]
+
+[[headers]]
+path = "headers/pcl/compat/normal_signature.h"
+extern_from = "pcl/compat/normal_signature.h"
+output = "../src/pcl/pxd/compat/normal_signature.pxd"
+namespaces = ["pclcompat"]
+extra_cimports = [
+    "from pcl.pxd.point_types cimport PointXYZ, Normal",
+    "from pcl.pxd.point_cloud cimport PointCloud",
+]
