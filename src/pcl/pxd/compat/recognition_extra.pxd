@@ -17,6 +17,13 @@ cdef extern from "pcl/compat/recognition_extra.h" namespace "pclcompat" nogil:
 
     void occlusionFilter(const shared_ptr[PointCloud[PointXYZ]]& scene, const shared_ptr[PointCloud[PointXYZ]]& cloud, float f, float threshold, bool check_invalid_depth, bool occluded, PointCloud[PointXYZ]& out) except +
 
+    cdef cppclass DepthBuffer:
+        DepthBuffer(int width, int height, float focal) except +
+        void computeDepthMap(const PointCloud[PointXYZ]& scene, bool compute_focal, bool smooth, int wsize) except +
+        void filter(const PointCloud[PointXYZ]& model, float threshold, vector[int]& kept) except +
+        float getFocal() except +
+        void getDepthMap(vector[float]& out) except +
+
     cdef cppclass ObjectRecognizer:
         ObjectRecognizer(float pair_width, float voxel_size) except +
         bool addModel(const PointCloud[PointXYZ]& points, const PointCloud[Normal]& normals, const string& name) except +

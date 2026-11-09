@@ -31,6 +31,17 @@ void occlusionFilter(const std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>& scen
                      float f, float threshold, bool check_invalid_depth,
                      bool occluded, pcl::PointCloud<pcl::PointXYZ>& out);
 
+class DepthBuffer {
+public:
+    DepthBuffer(int width, int height, float focal);
+    void computeDepthMap(const pcl::PointCloud<pcl::PointXYZ>& scene,
+                         bool compute_focal, bool smooth, int wsize);
+    void filter(const pcl::PointCloud<pcl::PointXYZ>& model, float threshold,
+                std::vector<int>& kept) const;
+    float getFocal() const;
+    void getDepthMap(std::vector<float>& out) const;
+};
+
 class ObjectRecognizer {
 public:
     ObjectRecognizer(float pair_width, float voxel_size);

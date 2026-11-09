@@ -375,3 +375,68 @@ def test_dotmod_finds_the_patch():
         dot.add_Template(frame, W - 40, 0)
     with pytest.raises(ValueError):
         pcl.DOTMOD(4, 40, bin_size=8)
+
+
+# --- ZBuffering --------------------------------------------------------------
+
+
+def _wall_and_model(w=64, h=48, f=40.0):
+    """A wall at z = 2 filling a w x h image, and 96 model points over it:
+    the same pixels at z = 1 (in front) and z = 3 (behind)."""
+    v, u = np.mgrid[0:h, 0:w]
+    wall = np.column_stack([((u - w / 2 + 0.5) * 2 / f).ravel(),
+                            ((v - h / 2 + 0.5) * 2 / f).ravel(),
+                            np.full(w * h, 2.0)])
+    k = np.arange(96)
+    pu, pv = 4 + (k * 7) % (w - 8), 4 + (k * 5) % (h - 8)
+    model = np.vstack([np.column_stack([(pu - w / 2 + 0.5) * z / f,
+                                        (pv - h / 2 + 0.5) * z / f,
+                                        np.full(96, z)]) for z in (1.0, 3.0)])
+    return (pcl.PointCloud(wall.astype(np.float32)),
+            pcl.PointCloud(model.astype(np.float32)))
+
+
+@pytest.mark.parametrize("smooth", [False, True])
+def test_zbuffering_keeps_what_is_in_front_of_a_wall(smooth):
+    """PCL's own keeps 12 of the 96 front points here, and overruns its
+    buffer when smoothing (plain C++, ASan)."""
+    wall, model = _wall_and_model()
+    zb = pcl.ZBuffering(64, 48, focal_length=40.0)
+    zb.compute_depth_map(wall, smooth=smooth)
+    kept = zb.filter(model, threshold=0.01)
+    assert kept.tolist() == list(range(96))
+    depth = zb.get_depth_map()
+    assert depth.shape == (48, 64)
+    assert np.allclose(depth, 2.0)
+
+
+def test_zbuffering_fits_the_focal_length_and_leaves_empty_pixels_nan():
+    wall, model = _wall_and_model()
+    pts = wall.to_array()
+    half = pcl.PointCloud(pts[pts[:, 0] < 0])      # the left half only
+    zb = pcl.ZBuffering(64, 48)
+    with pytest.raises(ValueError, match="focal_length"):
+        zb.compute_depth_map(half)
+    with pytest.raises(RuntimeError):
+        zb.filter(model)
+    zb.compute_depth_map(wall, compute_focal=True)
+    # the widest point lands on the image edge: f = (w/2 - 0.5) / max|x/z|
+    assert zb.focal_length == pytest.approx(31.5 / (31.5 / 40.0), rel=1e-5)
+    zb = pcl.ZBuffering(64, 48, focal_length=40.0)
+    zb.compute_depth_map(half)
+    depth = zb.get_depth_map()
+    assert np.all(np.isfinite(depth[:, :32])) and np.all(np.isnan(depth[:, 32:]))
+    kept = zb.filter(model)
+    front = model.to_array()[kept]
+    assert np.all(front[:, 2] == 1.0) and np.all(front[:, 0] < 0)
+
+
+def test_zbuffering_ignores_points_behind_the_camera():
+    wall, model = _wall_and_model()
+    behind = pcl.PointCloud(-wall.to_array())       # z = -2
+    zb = pcl.ZBuffering(64, 48, focal_length=40.0)
+    zb.compute_depth_map(behind)
+    assert np.all(np.isnan(zb.get_depth_map()))
+    assert len(zb.filter(model)) == 0
+    with pytest.raises(ValueError):
+        pcl.ZBuffering(0, 48)

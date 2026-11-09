@@ -45,7 +45,7 @@ from pcl.pxd.compat.recognition_args cimport (
 from pcl.pxd.compat.matching_args cimport (
     matchFpfhDescriptors, matchShotDescriptors)
 from pcl.pxd.compat.hypotheses_args cimport (
-    greedyVerification, papazovVerification)
+    globalVerification, greedyVerification, papazovVerification)
 from libcpp.memory cimport shared_ptr
 from pcl.pxd.point_types cimport PointXYZ
 from pcl.pxd.point_cloud cimport PointCloud as cPointCloud
@@ -515,3 +515,95 @@ cdef class PapazovHV(_HypothesisVerification):
                 scene, models, self.resolution, self.inlier_threshold,
                 self.occlusion_threshold, self.conflict_threshold,
                 self.support_threshold, self.penalty_threshold, mask)
+
+
+cdef class GlobalHypothesesVerification(_HypothesisVerification):
+    """Aldoma et al.'s global verification
+    (pcl::GlobalHypothesesVerification, ECCV 2012): chooses the subset of
+    hypotheses that together explain the most scene points, with a cost
+    for model points the scene does not support (`regularizer`), for
+    scene points explained twice, and for clutter around a hypothesis
+    left unexplained (`clutter_regularizer` within `radius_clutter`),
+    by simulated annealing (`max_iterations`, `initial_temperature`).
+
+    PCL's own keeps or drops every hypothesis whatever the scene: its
+    `addModel` throws away the model points whose normals ARE finite
+    (the test inverted, 1.11 through master), so a well-sampled model is
+    left with nothing. Measured in plain C++ against 1.14, two boxes on a
+    table plus two misplaced copies: PCL kept none, the corrected one
+    the two real ones. The wrapper runs PCL's class copied with that test
+    inverted (and its stderr timers silenced), nothing else changed.
+    """
+
+    cdef float regularizer
+    cdef float radius_clutter
+    cdef float clutter_regularizer
+    cdef float radius_normals
+    cdef bint detect_clutter
+    cdef int max_iterations
+    cdef float initial_temperature
+    cdef float occupancy_grid_resolution
+
+    def __cinit__(self):
+        # PCL's own defaults (hv_go.h).
+        self.regularizer = 1.0
+        self.radius_clutter = 0.03
+        self.clutter_regularizer = 5.0
+        self.radius_normals = 0.01
+        self.detect_clutter = True
+        self.max_iterations = 5000
+        self.initial_temperature = 1000.0
+        self.occupancy_grid_resolution = 0.01
+
+    def set_Regularizer(self, float weight):
+        """Cost of a model point the scene does not explain."""
+        if weight < 0:
+            raise ValueError("regularizer must be non-negative")
+        self.regularizer = weight
+
+    def set_RadiusClutter(self, float radius):
+        if radius <= 0:
+            raise ValueError("clutter radius must be positive")
+        self.radius_clutter = radius
+
+    def set_ClutterRegularizer(self, float weight):
+        if weight < 0:
+            raise ValueError("clutter regularizer must be non-negative")
+        self.clutter_regularizer = weight
+
+    def set_RadiusNormals(self, float radius):
+        """Neighbourhood for the model and scene normals (PCL estimates
+        both)."""
+        if radius <= 0:
+            raise ValueError("normal radius must be positive")
+        self.radius_normals = radius
+
+    def set_DetectClutter(self, bint on):
+        self.detect_clutter = on
+
+    def set_MaxIterations(self, int iterations):
+        if iterations < 1:
+            raise ValueError("max_iterations must be positive")
+        self.max_iterations = iterations
+
+    def set_InitialTemp(self, float temperature):
+        if temperature <= 0:
+            raise ValueError("initial temperature must be positive")
+        self.initial_temperature = temperature
+
+    def set_ResolutionOccupancyGrid(self, float resolution):
+        if resolution <= 0:
+            raise ValueError("occupancy grid resolution must be positive")
+        self.occupancy_grid_resolution = resolution
+
+    cdef void _run(self, shared_ptr[cPointCloud[PointXYZ]] scene,
+                   vector[shared_ptr[cPointCloud[PointXYZ]]]& models,
+                   vector[int]& mask) except *:
+        with nogil:
+            globalVerification(
+                scene, models, self.resolution, self.inlier_threshold,
+                self.occlusion_threshold, self.regularizer,
+                self.radius_clutter, self.clutter_regularizer,
+                self.radius_normals, self.detect_clutter,
+                self.max_iterations, self.initial_temperature,
+                self.occupancy_grid_resolution, mask)

@@ -205,11 +205,18 @@ Hypothesis verification has a quieter version of the same trap:
 when occlusion reasoning is on, so called the obvious way it returns an
 EMPTY mask (measured in plain C++ against 1.14; GreedyVerification reads
 the visible models and is fine). `hypotheses_args.h` always passes the
-models as both. `GlobalHypothesesVerification` is past absorbing: its
-`addModel` keeps only the points whose normals are NOT finite (an
-inverted check, still on master), so it keeps every hypothesis — proven
-by patching that one line in a local copy, which makes it reject the
-wrong one. It is listed under "Not wrapped" in the README.
+models as both. `GlobalHypothesesVerification`'s `addModel` keeps only
+the points whose normals are NOT finite (an inverted check, 1.11
+through master), so a hypothesis is kept or dropped whatever the scene:
+all kept on a noisy scene, none on exact normals (plain C++, two boxes
+on a table plus two misplaced copies, 10 runs each: PCL kept none, the
+corrected copy the two real boxes and neither copy). `addModel` is private and non-virtual in a class pcl_recognition
+instantiates, so no subclass can reach it: `compat/hv_go_fixed.h` is
+1.14's header and impl copied into `pcl::pclcompat_hv` (licence kept)
+with that test inverted, its OpenMP pragma dropped (`default(none)`
+again) and its three `pcl::ScopeTime`s -- which write "took n ms" to
+`std::cerr` on every `verify()` -- silenced. Copying a whole class is
+the last resort; say in its header exactly what differs from PCL's.
 
 `EarClipping` mis-triangulates most concave polygons (L, U and C shapes,
 both windings, jittered or not) while getting every convex one right.
@@ -237,8 +244,14 @@ wrappers take the bins only as a pair whose product fits; `ROPSEstimation`
 fixes its rotations at 3 for the same reason. `SHOTColorEstimation`
 packs whichever halves are enabled at the front of its 1344 values, so
 the wrapper returns exactly that width. `NormalBasedSignatureEstimation`
-is not wrapped at all: it divides by zero in its DFT and returns only
-NaN (0 of 18,000 values finite in plain C++; same on master). And the
+returns only NaN (0 of 18,000 values finite in plain C++; same on
+master): its DFT evaluates `cos(2 pi / (N k n))`, dividing by zero for
+every n = 0 term, its DCT indexes the cosine by the row instead of the
+coefficient, and the sample angles use integer division.
+`compat/normal_signature.h` overrides `computeFeature` -- PCL's sampling,
+a real DCT-II and DFT magnitude -- and the result is exactly invariant
+to a rotation about the normal by whole sample steps (saddle surface,
+plain C++ and the tests). And the
 `PPFRGBEstimation` impl calls a function its header never includes,
 which `compat/ppfrgb.h` supplies.
 
@@ -368,6 +381,13 @@ mean-shift kd-tree), it uses NaN normals as given, and `calculateSigmas`
 takes the largest dot product of two points as the object's size;
 `recognition_extra.h` fixes the estimator (FPFH into all 153 bins),
 cleans and tilts the normals, and passes diameter / 10.
+`occlusion_reasoning::ZBuffering` initialises a quarter of its depth
+buffer, writes with row length w but reads with h, and its smoothing
+overruns the buffer for a non-square image (plain C++, 64 x 48 wall:
+12 of 96 visible points kept, then an ASan heap overflow; same on
+master); `recognition_extra.h`'s `DepthBuffer` is the same projection
+and test on one consistent buffer, with z <= 0 skipped and the
+smoothing window clipped at the border rather than blanking it.
 `implicit_shape_model.h` also includes an Eigen-internal header before
 `<Eigen/Core>`. `LineRGBD::createAndAddTemplate` takes its 3-D box from
 whatever cloud it is handed, so the shim hands it the masked points.

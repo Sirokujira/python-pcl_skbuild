@@ -27,4 +27,13 @@ void papazovVerification(
     float conflict_threshold, float support_threshold,
     float penalty_threshold, std::vector<int>& out_mask);
 
+void globalVerification(
+    const std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>& scene,
+    const std::vector<std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>>& models,
+    float resolution, float inlier_threshold, float occlusion_threshold,
+    float regularizer, float radius_clutter, float clutter_regularizer,
+    float radius_normals, bool detect_clutter, int max_iterations,
+    float initial_temperature, float occupancy_grid_resolution,
+    std::vector<int>& out_mask);
+
 }  // namespace pclcompat

@@ -3,6 +3,7 @@
 
 # distutils: language = c++
 
+from libcpp cimport bool
 from libcpp.memory cimport shared_ptr
 from libcpp.vector cimport vector
 from pcl.pxd.point_cloud cimport PointCloud
@@ -12,3 +13,5 @@ cdef extern from "pcl/compat/hypotheses_args.h" namespace "pclcompat" nogil:
     void greedyVerification(const shared_ptr[PointCloud[PointXYZ]]& scene, const vector[shared_ptr[PointCloud[PointXYZ]]]& models, float resolution, float inlier_threshold, float occlusion_threshold, float lambda_, vector[int]& out_mask) except +
 
     void papazovVerification(const shared_ptr[PointCloud[PointXYZ]]& scene, const vector[shared_ptr[PointCloud[PointXYZ]]]& models, float resolution, float inlier_threshold, float occlusion_threshold, float conflict_threshold, float support_threshold, float penalty_threshold, vector[int]& out_mask) except +
+
+    void globalVerification(const shared_ptr[PointCloud[PointXYZ]]& scene, const vector[shared_ptr[PointCloud[PointXYZ]]]& models, float resolution, float inlier_threshold, float occlusion_threshold, float regularizer, float radius_clutter, float clutter_regularizer, float radius_normals, bool detect_clutter, int max_iterations, float initial_temperature, float occupancy_grid_resolution, vector[int]& out_mask) except +

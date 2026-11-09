@@ -20,8 +20,8 @@ from libcpp.string cimport string
 from libcpp.vector cimport vector
 
 from pcl.pxd.compat.recognition_extra cimport (
-    DotMatcher, ObjectRecognizer, ShapeModel, TemplateMatcher, crhAlign,
-    occlusionFilter, trimmedICP)
+    DepthBuffer, DotMatcher, ObjectRecognizer, ShapeModel, TemplateMatcher,
+    crhAlign, occlusionFilter, trimmedICP)
 from pcl.pxd.point_cloud cimport PointCloud as cPointCloud
 from pcl.pxd.point_types cimport Normal, PointXYZ
 
@@ -199,8 +199,7 @@ def occlusion_filter(PointCloud scene not None, PointCloud cloud not None,
     and kept when it is no more than `threshold` behind the scene's depth
     at that pixel. Points outside the image are dropped, as are points
     over a scene pixel with no depth unless `check_invalid_depth` is
-    False. PCL's ZBuffering, which builds the depth image from an
-    unorganized scene, is not wrapped (see the README)."""
+    False. :class:`ZBuffering` does the same for an unorganized scene."""
     return _occlusion(scene, cloud, focal_length, threshold,
                       check_invalid_depth, False)
 
@@ -214,6 +213,86 @@ def get_occluded_cloud(PointCloud scene not None, PointCloud cloud not None,
     inside the image."""
     return _occlusion(scene, cloud, focal_length, threshold,
                       check_invalid_depth, True)
+
+
+cdef class ZBuffering:
+    """Which points of a model an unorganized scene does not hide
+    (pcl::occlusion_reasoning::ZBuffering): the scene is projected into a
+    `width` x `height` depth image about its centre, and a model point is
+    kept when it lies over a pixel with depth and no more than
+    `threshold` behind it. Points outside the image or over an empty
+    pixel are dropped, as in PCL; so are points at or behind the camera.
+
+        zb = pcl.ZBuffering(640, 480, focal_length=525.0)
+        zb.compute_depth_map(scene)
+        visible = zb.filter(model, threshold=0.01)   # indices into model
+
+    PCL's own class keeps the wrong points: it initialises a quarter of
+    its buffer, writes depths with a different row length than it reads
+    them, and overruns the buffer when smoothing a non-square image (a
+    64 x 48 wall in plain C++: 12 of 96 visible points kept, then a heap
+    overflow). The wrapper runs the same projection and test on one
+    consistent buffer.
+    """
+
+    cdef DepthBuffer* me
+    cdef readonly int width, height
+    cdef bint has_map
+
+    def __cinit__(self, int width, int height, float focal_length=0.0):
+        if width < 1 or height < 1:
+            raise ValueError("width and height must be positive")
+        self.me = new DepthBuffer(width, height, focal_length)
+        self.width, self.height = width, height
+        self.has_map = False
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def compute_depth_map(self, PointCloud scene not None,
+                          bint compute_focal=False, bint smooth=False,
+                          int window=3):
+        """Project `scene` into the depth image, keeping the nearest depth
+        per pixel. `compute_focal` fits the focal length so the widest
+        scene point lands on the image edge (as PCL does); otherwise the
+        constructor's is used and must be positive. `smooth` replaces
+        each pixel by the nearest depth in a `window` x `window`
+        neighbourhood, which closes gaps in a sparse scene."""
+        if not compute_focal and not self.me.getFocal() > 0:
+            raise ValueError("focal_length must be positive unless "
+                             "compute_focal=True")
+        if window < 1:
+            raise ValueError("window must be positive")
+        cdef cPointCloud[PointXYZ]* p = scene.ptr()
+        with nogil:
+            self.me.computeDepthMap(deref(p), compute_focal, smooth, window)
+        self.has_map = True
+
+    @property
+    def focal_length(self):
+        return self.me.getFocal()
+
+    def get_depth_map(self):
+        """The depth image, ``(height, width)`` float32, NaN where empty."""
+        import numpy as np
+        if not self.has_map:
+            raise RuntimeError("compute_depth_map(...) is required first")
+        cdef vector[float] out
+        self.me.getDepthMap(out)
+        return np.asarray(out, dtype=np.float32).reshape(
+            self.height, self.width)
+
+    def filter(self, PointCloud model not None, float threshold=0.01):
+        """Indices of the points of `model` the scene does not hide."""
+        import numpy as np
+        if not self.has_map:
+            raise RuntimeError("compute_depth_map(...) is required first")
+        cdef vector[int] kept
+        cdef cPointCloud[PointXYZ]* p = model.ptr()
+        with nogil:
+            self.me.filter(deref(p), threshold, kept)
+        return np.asarray(kept, dtype=np.int64)
 
 
 # --- ObjRecRANSAC -------------------------------------------------------------------

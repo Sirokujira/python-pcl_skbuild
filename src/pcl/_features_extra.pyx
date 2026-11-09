@@ -66,6 +66,7 @@ from pcl.pxd.features.organized_edge_detection cimport (
     OrganizedEdgeFromRGBNormals as cOrganizedEdgeFromRGBNormals)
 from pcl.pxd.features.gfpfh cimport GFPFHEstimation as cGFPFHEstimation
 from pcl.pxd.features.rops_estimation cimport ROPSEstimation as cROPSEstimation
+from pcl.pxd.compat.normal_signature cimport NormalSignature
 from pcl.pxd.compat.feature_types cimport (
     Histogram135, Histogram20, Histogram32, approximateNormals,
     multiscaleInterestRegions, pairFeatures, persistentFPFH)
@@ -1767,6 +1768,117 @@ cdef class ROPSEstimation:
 
 
 # --- multiscale ----------------------------------------------------------------
+
+cdef class NormalBasedSignatureEstimation:
+    """Li & Guskov's normal-based signature
+    (pcl::NormalBasedSignatureEstimation): per point, ``(n, 12)``. Around
+    each point, normals are sampled on N circles of M points in its
+    tangent plane (radii up to twice the scale); the projections go
+    through a DCT along each radius and the DFT magnitude around the
+    circles, keeping 4 x 3 low-order coefficients, row-major. The DFT
+    magnitude makes it independent of where the tangent frame starts,
+    i.e. of a rotation about the normal.
+
+    PCL's own computation returns only NaN (inverted DFT arguments that
+    divide by zero, a DCT indexed by the wrong variable, integer division
+    in the sample angles; 1.11 through master), so the sampling is PCL's
+    and the transforms are the wrapper's. A point whose normal is not
+    finite gets a NaN row.
+
+        nbs = pcl.NormalBasedSignatureEstimation(cloud, normals)
+        nbs.set_Scale(0.05)
+        nbs.set_RadiusSearch(0.01)
+        signatures = nbs.compute(keypoint_indices)
+    """
+
+    cdef NormalSignature* me
+    cdef Py_ssize_t n_input
+    cdef Py_ssize_t n_normals
+    cdef bint has_normals
+    cdef bint has_radius
+    cdef bint has_scale
+
+    def __cinit__(self, PointCloud pc=None, PointCloud_Normal normals=None):
+        self.me = new NormalSignature()
+        self.n_input = -1
+        self.has_normals = False
+        self.has_radius = False
+        self.has_scale = False
+        if pc is not None:
+            self.set_InputCloud(pc)
+        if normals is not None:
+            self.set_InputNormals(normals)
+
+    def __dealloc__(self):
+        del self.me
+        self.me = NULL
+
+    def set_InputCloud(self, PointCloud pc not None):
+        self.me.setInputCloud(pc.thisptr_shared)
+        self.n_input = pc.size
+
+    def set_InputNormals(self, PointCloud_Normal normals not None):
+        if self.n_input >= 0:
+            _check_normals(self.n_input, normals)
+        self.me.setInputNormals(normals.thisptr_shared)
+        self.has_normals = True
+        self.n_normals = normals.size
+
+    def set_RadiusSearch(self, double radius):
+        """Neighbourhood whose normals are averaged at each sample."""
+        if radius <= 0:
+            raise ValueError("radius must be positive")
+        self.me.setRadiusSearch(radius)
+        self.has_radius = True
+
+    def set_Scale(self, float scale):
+        """h: the outermost circle has radius 2 h. No default: PCL's 0
+        samples every circle at the point itself."""
+        if not scale > 0:
+            raise ValueError("scale must be positive")
+        self.me.setScale(scale)
+        self.has_scale = True
+
+    def get_Scale(self):
+        return self.me.getScale()
+
+    def set_Samples(self, int n_angles, int n_radii):
+        """N circle positions (at least 4) by M radii (at least 3); PCL's
+        default is 36 x 8."""
+        if n_angles < 4 or n_radii < 3:
+            raise ValueError(
+                "need at least 4 angles and 3 radii (the signature keeps "
+                "4 x 3 coefficients), got %d x %d" % (n_angles, n_radii))
+        self.me.setN(n_angles)
+        self.me.setM(n_radii)
+
+    def get_Samples(self):
+        return int(self.me.getN()), int(self.me.getM())
+
+    def compute(self, indices=None):
+        """Signatures at `indices` (every point when omitted), an
+        ``(len(indices), 12)`` float32 array."""
+        import numpy as np
+        _need(self.n_input >= 0, "set_InputCloud(...) is required first")
+        _need(self.has_normals, "set_InputNormals(...) is required first")
+        _need(self.has_radius, "set_RadiusSearch(...) is required first")
+        _need(self.has_scale, "set_Scale(...) is required first")
+        if self.n_normals != self.n_input:
+            raise ValueError(
+                "normals must match the cloud: %d points, %d normals"
+                % (self.n_input, self.n_normals))
+        if indices is None:
+            idx = np.arange(self.n_input)
+        else:
+            idx = np.asarray(indices).ravel()
+            if idx.size and (idx.min() < 0 or idx.max() >= self.n_input):
+                raise IndexError("indices must lie in [0, %d)" % self.n_input)
+        cdef vector[int] c_idx = idx.astype(np.int64).tolist()
+        cdef vector[float] out
+        with nogil:
+            self.me.computeAt(c_idx, out)
+        return np.asarray(out, dtype=np.float32).reshape(-1, 12)
+
 
 cdef class StatisticalMultiscaleInterestRegionExtraction:
     """Interest regions that stand out across scales
