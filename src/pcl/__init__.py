@@ -242,6 +242,7 @@ from ._people import hog, hog_descriptor_size
 from ._recognition import (
     GreedyVerification,
     PapazovHV,
+    GlobalHypothesesVerification,
     GeometricConsistencyGrouping,
     Hough3DGrouping,
     match_descriptors,
@@ -638,7 +639,7 @@ __all__ = [
     "BORDER_TRAIT__OBSTACLE_BORDER_LEFT", "BORDER_TRAIT__VEIL_POINT_TOP",
     "BORDER_TRAIT__VEIL_POINT_RIGHT", "BORDER_TRAIT__VEIL_POINT_BOTTOM",
     "BORDER_TRAIT__VEIL_POINT_LEFT",
-    "GreedyVerification", "PapazovHV",
+    "GreedyVerification", "PapazovHV", "GlobalHypothesesVerification",
     "CRHAlignment", "DOTMOD", "ImplicitShapeModelEstimation", "LineRGBD",
     "ObjRecRANSAC", "TrimmedICP", "ZBuffering", "get_occluded_cloud",
     "occlusion_filter",

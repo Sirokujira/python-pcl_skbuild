@@ -1,5 +1,6 @@
-"""Runtime tests for hypothesis verification: GreedyVerification and
-PapazovHV (GlobalHypothesesVerification is not wrapped; see README).
+"""Runtime tests for hypothesis verification: GreedyVerification,
+PapazovHV and GlobalHypothesesVerification (PCL's copied with its
+inverted normal test fixed).
 
 Each verifier gets the same job: a scene with one object in it, and two
 candidate placements of that object — the right one and one in empty
@@ -99,6 +100,46 @@ def test_settings_round_trip():
         2.0)
 
 
-def test_global_hypotheses_verification_is_not_exposed():
-    """Left out on purpose: PCL's keeps every hypothesis (README)."""
-    assert not hasattr(pcl, "GlobalHypothesesVerification")
+def test_global_verification_keeps_the_right_hypothesis(
+        scene_and_hypotheses):
+    """PCL's own keeps both here: its addModel drops the model points
+    whose normals are finite (measured in plain C++, 1.14)."""
+    scene, models = scene_and_hypotheses
+    hv = pcl.GlobalHypothesesVerification()
+    assert _verify(hv, scene, models) == [True, False]
+
+
+def test_global_verification_picks_the_objects_that_are_there():
+    """Two boxes on a table, and two copies of the box where there is
+    nothing: one on the empty table, one in the air."""
+    rng = np.random.RandomState(1)
+    obj = _box_surface(1500, rng)
+    floor = rng.rand(6000, 3) * [0.8, 0.8, 0.0] + [-0.4, -0.4, 0.0]
+    at = [np.array(p) for p in ([0.0, 0.0, 0.0], [-0.25, 0.05, 0.0],
+                                [0.1, -0.3, 0.0], [0.5, 0.5, 0.5])]
+    scene = pcl.PointCloud(
+        np.vstack([floor, obj + at[0], obj + at[1]]).astype(np.float32))
+    models = [pcl.PointCloud((obj + a).astype(np.float32)) for a in at]
+    hv = pcl.GlobalHypothesesVerification()
+    assert _verify(hv, scene, models) == [True, True, False, False]
+
+
+def test_global_verification_settings(scene_and_hypotheses):
+    scene, models = scene_and_hypotheses
+    hv = pcl.GlobalHypothesesVerification()
+    hv.set_Regularizer(3.0)
+    hv.set_RadiusClutter(0.03)
+    hv.set_ClutterRegularizer(5.0)
+    hv.set_RadiusNormals(0.02)
+    hv.set_DetectClutter(False)
+    hv.set_MaxIterations(2000)
+    hv.set_InitialTemp(500.0)
+    hv.set_ResolutionOccupancyGrid(0.01)
+    assert _verify(hv, scene, models) == [True, False]
+    for setter, bad in ((hv.set_Regularizer, -1), (hv.set_RadiusClutter, 0),
+                        (hv.set_ClutterRegularizer, -1),
+                        (hv.set_RadiusNormals, 0), (hv.set_MaxIterations, 0),
+                        (hv.set_InitialTemp, 0),
+                        (hv.set_ResolutionOccupancyGrid, 0)):
+        with pytest.raises(ValueError):
+            setter(bad)

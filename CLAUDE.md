@@ -102,7 +102,7 @@ functions (`pcl.estimate_correspondences*`, `reject_*`,
 `MetaRegistration`, `LUM`, `ELCH`, `pcl.compare_pyramid_feature_histograms`,
 `Segmentation` (SAC), `EuclideanClusterExtraction`,
 `GeometricConsistencyGrouping`, `Hough3DGrouping`, `GreedyVerification`,
-`PapazovHV`, `CRHAlignment`, `TrimmedICP`, `pcl.occlusion_filter`,
+`PapazovHV`, `GlobalHypothesesVerification`, `CRHAlignment`, `TrimmedICP`, `pcl.occlusion_filter`,
 `ZBuffering`,
 `ObjRecRANSAC`, `ImplicitShapeModelEstimation`, `LineRGBD`, `DOTMOD` (in
 `_recognition_extra`), `BlockBasedStereoMatching`,

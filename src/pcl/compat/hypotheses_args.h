@@ -30,6 +30,8 @@
 #include <pcl/recognition/hv/greedy_verification.h>
 #include <pcl/recognition/hv/hv_papazov.h>
 
+#include "pcl/compat/hv_go_fixed.h"
+
 namespace pclcompat {
 
 using HVPoint = pcl::PointXYZ;
@@ -79,6 +81,31 @@ inline void papazovVerification(const HVCloudPtr& scene,
     hv.setConflictThreshold(conflict_threshold);
     hv.setSupportThreshold(support_threshold);
     hv.setPenaltyThreshold(penalty_threshold);
+    runVerifier(hv, scene, models, resolution, inlier_threshold,
+                occlusion_threshold, out_mask);
+}
+
+/// GlobalHypothesesVerification, from the corrected copy in
+/// hv_go_fixed.h (PCL's keeps only the model points whose normals are NOT
+/// finite).
+inline void globalVerification(const HVCloudPtr& scene,
+                               const std::vector<HVCloudPtr>& models,
+                               float resolution, float inlier_threshold,
+                               float occlusion_threshold, float regularizer,
+                               float radius_clutter, float clutter_regularizer,
+                               float radius_normals, bool detect_clutter,
+                               int max_iterations, float initial_temperature,
+                               float occupancy_grid_resolution,
+                               std::vector<int>& out_mask) {
+    pcl::pclcompat_hv::GlobalHypothesesVerification<HVPoint, HVPoint> hv;
+    hv.setRegularizer(regularizer);
+    hv.setRadiusClutter(radius_clutter);
+    hv.setClutterRegularizer(clutter_regularizer);
+    hv.setRadiusNormals(radius_normals);
+    hv.setDetectClutter(detect_clutter);
+    hv.setMaxIterations(max_iterations);
+    hv.setInitialTemp(initial_temperature);
+    hv.setResolutionOccupancyGrid(occupancy_grid_resolution);
     runVerifier(hv, scene, models, resolution, inlier_threshold,
                 occlusion_threshold, out_mask);
 }

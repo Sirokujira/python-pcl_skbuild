@@ -205,11 +205,18 @@ Hypothesis verification has a quieter version of the same trap:
 when occlusion reasoning is on, so called the obvious way it returns an
 EMPTY mask (measured in plain C++ against 1.14; GreedyVerification reads
 the visible models and is fine). `hypotheses_args.h` always passes the
-models as both. `GlobalHypothesesVerification` is past absorbing: its
-`addModel` keeps only the points whose normals are NOT finite (an
-inverted check, still on master), so it keeps every hypothesis — proven
-by patching that one line in a local copy, which makes it reject the
-wrong one. It is listed under "Not wrapped" in the README.
+models as both. `GlobalHypothesesVerification`'s `addModel` keeps only
+the points whose normals are NOT finite (an inverted check, 1.11
+through master), so a hypothesis is kept or dropped whatever the scene:
+all kept on a noisy scene, none on exact normals (plain C++, two boxes
+on a table plus two misplaced copies, 10 runs each: PCL kept none, the
+corrected copy the two real boxes and neither copy). `addModel` is private and non-virtual in a class pcl_recognition
+instantiates, so no subclass can reach it: `compat/hv_go_fixed.h` is
+1.14's header and impl copied into `pcl::pclcompat_hv` (licence kept)
+with that test inverted, its OpenMP pragma dropped (`default(none)`
+again) and its three `pcl::ScopeTime`s -- which write "took n ms" to
+`std::cerr` on every `verify()` -- silenced. Copying a whole class is
+the last resort; say in its header exactly what differs from PCL's.
 
 `EarClipping` mis-triangulates most concave polygons (L, U and C shapes,
 both windings, jittered or not) while getting every convex one right.
